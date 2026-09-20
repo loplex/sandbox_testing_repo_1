@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-20
+
 ### Fixed
 
 - Something that landed while the draft was waiting
