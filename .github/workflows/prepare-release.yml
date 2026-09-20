@@ -1,0 +1,75 @@
+name: Prepare release
+
+# What Prepare does in a plugin, without the parts that need a build: no Gradle, no signing, no Plugin
+# Verifier. The point here is the shape - a release commit on a branch of its own and a draft whose tag does
+# not exist until someone publishes it - because that is what the workflow under test reacts to.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+
+      - name: Check the release rules
+        run: |
+          python3 -m unittest discover -s .github/scripts
+          .github/scripts/check-release.py changelog
+          .github/scripts/check-release.py ancestry
+
+      - name: Cut the release commit onto its own branch
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(.github/scripts/check-release.py version)"
+          prefix="$(.github/scripts/check-release.py prefix)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${prefix}${version}" >> "$GITHUB_OUTPUT"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "release/${version}"
+          .github/scripts/check-release.py set-version "${version}"
+
+          # What patchChangelog does in a plugin: the Unreleased entries become the section for this version.
+          python3 - "${version}" <<'PY'
+          import datetime, pathlib, sys
+
+          version = sys.argv[1]
+          path = pathlib.Path("CHANGELOG.md")
+          text = path.read_text(encoding="utf-8")
+          head, _, rest = text.partition("## [Unreleased]\n")
+          entries = rest.strip("\n")
+          today = datetime.date.today().isoformat()
+          path.write_text(f"{head}## [Unreleased]\n\n## [{version}] - {today}\n\n{entries}\n", encoding="utf-8")
+          PY
+
+          git commit -am "chore(release): ${version}"
+          git push --force origin "release/${version}"
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if [ "$(gh release view "${TAG}" --json isDraft --jq .isDraft 2>/dev/null)" = true ]; then
+            gh release delete "${TAG}" --yes
+          fi
+          echo "an archive would be attached here" > archive.txt
+          gh release create "${TAG}" \
+            --draft \
+            --target "$(git rev-parse HEAD)" \
+            --title "${TAG}" \
+            --notes "A sandbox release." \
+            archive.txt

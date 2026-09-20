@@ -1,0 +1,26 @@
+name: Build
+
+# The release rules alone, which is all this sandbox has: there is nothing here to compile. Named `Build`
+# because the release workflow asks for a workflow of that name by hand after it has pushed.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Check the release rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+
+      - run: python3 -m unittest discover -s .github/scripts
+      - run: .github/scripts/check-release.py changelog
+      - run: .github/scripts/check-release.py ancestry
