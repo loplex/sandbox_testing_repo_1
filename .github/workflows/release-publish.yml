@@ -84,6 +84,11 @@ jobs:
                  "carries the conflict"
           fi
 
+      # SANDBOX ONLY, not in the plugin's copy: a window wide enough to move the default branch by hand
+      # while this runs, so that the fast-forward below is refused on purpose.
+      - name: Hold still so the race can be staged
+        run: sleep 60
+
       # Pushed rather than offered, because the tag is the point. It names the commit the archive was built and
       # signed from, and every way GitHub's own buttons land a branch - squash, rebase, and the merge commit
       # too, which never fast-forwards - either replaces that commit or buries it under one more. A push moves
