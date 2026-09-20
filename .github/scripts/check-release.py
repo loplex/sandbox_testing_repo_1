@@ -167,23 +167,36 @@ def sections(changelog: str) -> dict[str, str]:
     return found
 
 
-def check_changelog(head: str, released: dict[str, str]) -> list[str]:
+def check_changelog(head: str, released: dict[str, str], off_history: set[str] | None = None) -> list[str]:
     """Whether every section already released still reads the way the tag that released it says it does.
 
     `released` maps a version to CHANGELOG.md as it stood at that version's tag. A released section is a text
     that has been published - it is the release notes on GitHub and the change notes on the Marketplace both -
     so changing it afterwards makes the repository disagree with what readers were handed.
+
+    `off_history` holds the versions whose tag this history does not reach, which `ancestry` is the check for.
+    A section that is missing is read against it: between a release being published and its branch reaching the
+    default branch, the section exists only where the tag does, and saying it is gone accuses somebody of
+    deleting what nobody has written down here yet. Failing either way is right - the two are the same mess
+    from two sides - but only one of them is a section somebody removed.
     """
 
     problems = []
     current = sections(head)
+    off_history = off_history or set()
 
     for version, changelog in sorted(released.items(), key=lambda item: precedence(item[0])):
         was = sections(changelog).get(version)
         if was is None:
             continue  # Tagged before the section existed; there is nothing to have changed.
         if version not in current:
-            problems.append(f"[{version}] is released but its section is gone")
+            if version in off_history:
+                problems.append(
+                    f"[{version}] is released but its section is not on this history: {version} is not on it "
+                    f"either, so the release has yet to reach here"
+                )
+            else:
+                problems.append(f"[{version}] is released but its section is gone")
         elif current[version] != was:
             problems.append(f"[{version}] is released but its section no longer reads as the tag has it")
 
@@ -227,6 +240,11 @@ def check_ancestry(reachable: dict[str, bool], prefix: str, held_by: dict[str, s
     the same way - but it is a different thing to have happened and a different thing to do about it, so it is
     said differently. Blaming a rewrite for a merge that is merely outstanding sends the reader looking for
     damage that is not there.
+
+    A branch holding the tag does not settle which of the two it was: a squash or a rebase merge replays the
+    release commit and leaves the branch it came from standing, holding the original. Both readings are
+    therefore named, because both are things the reader may be looking at and both are answered by looking at
+    that one branch. Only a tag no branch holds at all is laid at a rewrite's door outright.
     """
     problems = []
     held_by = held_by or {}
@@ -236,8 +254,9 @@ def check_ancestry(reachable: dict[str, bool], prefix: str, held_by: dict[str, s
         branch = held_by.get(version)
         if branch:
             problems.append(
-                f"{prefix}{version} is released but is not on this history yet: {branch} still holds it and "
-                f"has not been carried back"
+                f"{prefix}{version} is released but is not on this history: {branch} still holds it. Either "
+                f"that branch has not been carried back yet, or it was landed with a squash or a rebase, "
+                f"which replays the release commit and leaves the tag on the copy that was replaced"
             )
         else:
             problems.append(
@@ -326,7 +345,7 @@ def changelog_command(arguments) -> list[str]:
         except subprocess.CalledProcessError:
             continue  # Tagged before the file existed.
 
-    problems = check_changelog(head, released)
+    problems = check_changelog(head, released, off_history=unreachable(prefix, released))
     if not problems:
         skipped = unprotected(released)
         print(f"Compared {len(released) - len(skipped)} released section(s) against the tag that released them.")
@@ -372,6 +391,20 @@ def prefix_command(arguments) -> list[str]:
     return []
 
 
+def unreachable(prefix: str, versions) -> set[str]:
+    """The released versions whose tag this history does not reach. Asked of Git in one place and handed to
+    whichever check needs it, so that two checks looking at one repository cannot come to disagree about which
+    releases are on it."""
+    return {
+        version
+        for version in versions
+        if subprocess.run(
+            ["git", "merge-base", "--is-ancestor", f"{prefix}{version}", "HEAD"], cwd=REPO, capture_output=True
+        ).returncode
+        != 0
+    }
+
+
 def holder(tag: str, version: str) -> str:
     """A branch that still holds `tag`, or the empty string if none does.
 
@@ -389,14 +422,9 @@ def holder(tag: str, version: str) -> str:
 
 def ancestry_command(arguments) -> list[str]:
     prefix = tag_prefix()
-    reachable = {}
-    for version in tags():
-        found = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", f"{prefix}{version}", "HEAD"],
-            cwd=REPO,
-            capture_output=True,
-        )
-        reachable[version] = found.returncode == 0
+    released = tags()
+    off_history = unreachable(prefix, released)
+    reachable = {version: version not in off_history for version in released}
 
     held_by = {
         version: holder(f"{prefix}{version}", version) for version, found in reachable.items() if not found
