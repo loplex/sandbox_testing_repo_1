@@ -20,6 +20,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # Asking for a Build run by hand is a write to Actions, not to the contents: without this the dispatch
+      # below is answered 403 and the release lands with nothing having checked it. Measured, not deduced -
+      # the first run of this job in a sandbox repository failed exactly that way.
+      actions: write
     env:
       VERSION: ${{ github.event.release.tag_name }}
       # Asked of the repository rather than written down here, so that this file says the same thing in a
