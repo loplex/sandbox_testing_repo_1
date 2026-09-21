@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The release pipeline asks release-ci for its rules and steps rather than keeping a copy of them
+
 ## [0.1.4] - 2026-09-20
 
 ## [0.1.3] - 2026-09-20

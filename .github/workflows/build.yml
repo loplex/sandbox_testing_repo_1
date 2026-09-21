@@ -1,7 +1,7 @@
 name: Build
 
 # The release rules alone, which is all this sandbox has: there is nothing here to compile. Named `Build`
-# because the release workflow asks for a workflow of that name by hand after it has pushed.
+# because the release workflow asks for build.yml by hand after it has pushed.
 on:
   push:
     branches: [ master ]
@@ -21,6 +21,8 @@ jobs:
         with:
           python-version-file: .python-version
 
-      - run: python3 -m unittest discover -s .github/scripts
-      - run: .github/scripts/check-release.py changelog
-      - run: .github/scripts/check-release.py ancestry
+      # Asked of release-ci rather than of a copy kept here. Pinned to the branch the rules are being worked on,
+      # which is what this sandbox is for: trying them before a plugin depends on them.
+      - uses: loplex/release-ci/check-release@wip/check-release
+        with:
+          source: gradle.properties
