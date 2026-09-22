@@ -1,0 +1,27 @@
+name: Probe PR by GITHUB_TOKEN
+
+# Temporary: does a pull request opened with GITHUB_TOKEN start the pull_request workflows (build.yml)?
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          branch="probe/pr-by-token-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          echo "$GITHUB_RUN_ID" > probe-pr.txt
+          git add probe-pr.txt
+          git commit -m "test: probe a pull request opened by GITHUB_TOKEN"
+          git push origin "$branch"
+          gh pr create --base master --head "$branch" --title "probe: PR by GITHUB_TOKEN" --body "Temporary probe."
