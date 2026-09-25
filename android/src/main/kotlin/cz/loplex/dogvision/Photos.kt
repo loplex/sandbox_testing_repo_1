@@ -12,7 +12,10 @@ import cz.loplex.dogvision.render.Frame
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** The longest side a photo or a video is shown at, which keeps the controls quick; saving a photo keeps its size. */
+/**
+ * The longest side a photo or a video is shown at, which keeps the controls quick;
+ * saving keeps a photo's size, and a video's unless its encoder cannot take it.
+ */
 const val PREVIEW_LONGEST_SIDE = 1280
 
 /** The rotation clockwise and the mirroring after it that an EXIF orientation asks for. */
