@@ -1,0 +1,46 @@
+# Experiment: does a pull request opened by the Actions bot count as merged when its head commits are pushed
+# onto master with GITHUB_TOKEN and the branch is deleted right after? A control deletes a branch without
+# landing it, which has to read CLOSED, so that the check is seen to tell the two apart.
+name: indirect-merge-experiment
+on: workflow_dispatch
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  try:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Land by push, delete at once; and a control
+        run: |
+          set -u
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          open_pr() {
+            git switch -q -C "$1" origin/master
+            mkdir -p exp && echo "$1" > "exp/${1##*/}.txt" && git add exp
+            git commit -qm "test: branch side of ${1##*/}"
+            git push -q origin "$1"
+            gh pr create --base master --head "$1" --title "test: ${1##*/}" --body "Experiment from Actions."
+          }
+          state_of() { sleep 30; gh pr view "$1" --json state,mergedAt,closedAt,author -q '{state,mergedAt,closedAt,author:.author.login}'; }
+
+          id="gha-$(date +%H%M%S)"
+          pr=$(open_pr "exp/indirect-${id}")
+          git switch -q -C side origin/master && mkdir -p exp && echo "$id" > "exp/${id}-master.txt" && git add exp
+          git commit -qm "test: master side of ${id}" && git push -q origin HEAD:master
+          git switch -q "exp/indirect-${id}" && git fetch -q origin && git merge -q --no-edit origin/master
+          git push origin HEAD:master
+          git push -q origin --delete "exp/indirect-${id}"
+          landed=$(state_of "$pr"); echo "landed: $pr $landed"
+
+          ctl=$(open_pr "exp/indirect-${id}-ctl")
+          git push -q origin --delete "exp/indirect-${id}-ctl"
+          control=$(state_of "$ctl"); echo "control: $ctl $control"
+
+          case "$landed" in *'"state":"MERGED"'*) ;; *) echo "::error::landed PR is not MERGED"; exit 1;; esac
+          case "$control" in *'"state":"CLOSED"'*) ;; *) echo "::error::control PR is not CLOSED"; exit 1;; esac
