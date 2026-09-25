@@ -93,6 +93,7 @@
     <!-- The source -->
     <string name="open_media">Open a photo or a video</string>
     <string name="show_camera">Camera</string>
+    <string name="switch_camera">Switch between the back and the front camera</string>
     <string name="media_failed">Cannot open %1$s as a photo or a video</string>
     <string name="video_failed">Cannot play %1$s: %2$s</string>
 
