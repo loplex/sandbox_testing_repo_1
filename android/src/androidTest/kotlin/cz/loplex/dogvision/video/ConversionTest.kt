@@ -61,11 +61,14 @@ class ConversionTest {
         return formats.map { it.getString(MediaFormat.KEY_MIME)!! } to size
     }
 
-    private fun check(view: View) {
+    /** Converts quadrants.mp4 as [view] shows it, and returns how it was written. */
+    private fun check(view: View, textureLimit: Int = Int.MAX_VALUE): Written {
         val input = asset("quadrants.mp4")
         val output = File(context.cacheDir, "converted.mp4").apply { delete() }
         var progressed = 0.0
-        val written = runBlocking { convertVideo(context, Uri.fromFile(input), view, output) { progressed = it } }
+        val written = runBlocking {
+            convertVideo(context, Uri.fromFile(input), view, output, textureLimit) { progressed = it }
+        }
         assertTrue("progress $progressed", progressed in 0.0..1.0)
         assertTrue("sound", written.sound)
         val source = firstFrame(input)
@@ -93,14 +96,30 @@ class ConversionTest {
                 )
             }
         }
+        return written
     }
 
     @Test
-    fun theOriginalBesideTheSimulation() = check(View(Params(Species.DOG)))
+    fun theOriginalBesideTheSimulation() {
+        check(View(Params(Species.DOG)))
+    }
 
     @Test
-    fun anotherSpeciesAndTheMapOfDifferences() =
+    fun anotherSpeciesAndTheMapOfDifferences() {
         check(View(Params(Species.DOG), compare = Species.HUMAN, difference = true, arrangement = Arrangement.ROW))
+    }
+
+    @Test
+    fun aViewLargerThanTheGpusTexturesIsScaledDownToFit() {
+        // Two images of 256 x 144 side by side, 512 wide, where a texture may be 480 at most. The view scaled down,
+        // 480 x 134, is one that encoders take as it is, so that it is the effect that scales it: Qualcomm's HEVC
+        // encoder takes no side under 128, and Android's software one, as the emulator has, none over 512. A view
+        // taller than wide would be encoded on its side.
+        val (width, height) = checkNotNull(check(View(Params(Species.DOG)), textureLimit = 480).scaledTo) {
+            "not scaled"
+        }
+        assertTrue("$width x $height", width <= 480 && height <= 480)
+    }
 
     private companion object {
         /** What two rounds of 8-bit 4:2:0 YUV cost a flat colour. */

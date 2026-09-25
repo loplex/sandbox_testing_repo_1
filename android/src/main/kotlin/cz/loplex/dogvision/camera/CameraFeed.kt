@@ -16,8 +16,9 @@ import java.util.concurrent.Executors
 /**
  * The camera's frames, as RGBA, handed to [frames] while [owner] is started.
  *
- * 1280 x 720 is asked for: enough to show acuity blur for most species, and small enough that three
- * images side by side fit the texture size every GPU of OpenGL ES 3.0 is likely to have.
+ * 1280 x 720 is asked for: enough to show acuity blur for most species. A camera without it gives
+ * the size closest to it, but none longer than 2048, the texture size every GPU of OpenGL ES 3.0 has:
+ * the renderer keeps the frame, and each image rendered from it, in a texture of that size.
  */
 class CameraFeed(
     private val context: Context,
@@ -48,6 +49,9 @@ class CameraFeed(
                                     ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
                                 ),
                             )
+                            .setResolutionFilter { sizes, _ ->
+                                sizes.filter { maxOf(it.width, it.height) <= ES3_TEXTURE_SIZE }
+                            }
                             .build(),
                     )
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -97,3 +101,6 @@ class CameraFeed(
         }
     }
 }
+
+/** The longest side of a texture that OpenGL ES 3.0 lets no GPU refuse. */
+private const val ES3_TEXTURE_SIZE = 2048

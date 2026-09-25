@@ -81,8 +81,8 @@ Images go to *Pictures/Dog vision* and videos to *Movies/Dog vision*, where the 
 - **A photo is converted on the CPU.**
 - **A video is converted by Media3's Transformer on the GPU**, with the original's sound:
   - it is encoded as H.265 where the phone has an encoder for it, and as H.264 where not;
-  - it is scaled down, keeping its shape, where the encoder cannot take the view's size, and the
-    message says so;
+  - it is scaled down, keeping its shape, where the encoder or the GPU cannot take the view's size,
+    and the message says so;
   - an HDR video is tone-mapped to SDR first, since the model works on SDR;
   - it stops if Android ends the app in the background.
 
