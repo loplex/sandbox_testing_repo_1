@@ -91,9 +91,10 @@
     <string name="camera_failed">Cannot open the camera: %1$s</string>
 
     <!-- The source -->
-    <string name="open_photo">Open a photo</string>
+    <string name="open_media">Open a photo or a video</string>
     <string name="show_camera">Camera</string>
-    <string name="photo_failed">Cannot open %1$s as a photo</string>
+    <string name="media_failed">Cannot open %1$s as a photo or a video</string>
+    <string name="video_failed">Cannot play %1$s: %2$s</string>
 
     <!-- Saving -->
     <string name="save_snapshot">Save snapshot</string>
