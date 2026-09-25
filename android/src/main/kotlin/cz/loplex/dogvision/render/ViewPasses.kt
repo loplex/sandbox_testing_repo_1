@@ -1,26 +1,41 @@
 package cz.loplex.dogvision.render
 
+import android.opengl.GLES30.GL_ALREADY_SIGNALED
 import android.opengl.GLES30.GL_BLEND
+import android.opengl.GLES30.GL_CONDITION_SATISFIED
 import android.opengl.GLES30.GL_DEPTH_TEST
 import android.opengl.GLES30.GL_FLOAT
 import android.opengl.GLES30.GL_FRAMEBUFFER
+import android.opengl.GLES30.GL_MAP_READ_BIT
+import android.opengl.GLES30.GL_PIXEL_PACK_BUFFER
 import android.opengl.GLES30.GL_R32F
 import android.opengl.GLES30.GL_R8
 import android.opengl.GLES30.GL_RED
 import android.opengl.GLES30.GL_RGBA
 import android.opengl.GLES30.GL_SCISSOR_TEST
+import android.opengl.GLES30.GL_STREAM_READ
+import android.opengl.GLES30.GL_SYNC_GPU_COMMANDS_COMPLETE
 import android.opengl.GLES30.GL_TEXTURE_2D
 import android.opengl.GLES30.GL_TRIANGLES
 import android.opengl.GLES30.GL_TRIANGLE_STRIP
 import android.opengl.GLES30.GL_UNPACK_ALIGNMENT
 import android.opengl.GLES30.GL_UNSIGNED_BYTE
+import android.opengl.GLES30.glBindBuffer
 import android.opengl.GLES30.glBindFramebuffer
 import android.opengl.GLES30.glBindVertexArray
+import android.opengl.GLES30.glBufferData
+import android.opengl.GLES30.glClientWaitSync
+import android.opengl.GLES30.glDeleteBuffers
+import android.opengl.GLES30.glDeleteSync
 import android.opengl.GLES30.glDeleteTextures
 import android.opengl.GLES30.glDeleteVertexArrays
 import android.opengl.GLES30.glDisable
 import android.opengl.GLES30.glDrawArrays
+import android.opengl.GLES30.glFenceSync
+import android.opengl.GLES30.glFlush
+import android.opengl.GLES30.glGenBuffers
 import android.opengl.GLES30.glGenVertexArrays
+import android.opengl.GLES30.glMapBufferRange
 import android.opengl.GLES30.glPixelStorei
 import android.opengl.GLES30.glReadPixels
 import android.opengl.GLES30.glTexImage2D
@@ -29,6 +44,7 @@ import android.opengl.GLES30.glUniform1i
 import android.opengl.GLES30.glUniform2i
 import android.opengl.GLES30.glUniform4f
 import android.opengl.GLES30.glUniformMatrix3fv
+import android.opengl.GLES30.glUnmapBuffer
 import android.opengl.GLES30.glViewport
 import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.Image
@@ -69,6 +85,17 @@ internal class ViewPasses {
     private var encodeTable = 0
     private var vertexArray = 0
 
+    /**
+     * The count of the map's noticeable pixels under way: the buffer the GPU reads it back into, the
+     * fence it signals when it has, and how many blocks and pixels the map had. [countWanted] asks
+     * for a count of the map composed last, started once none is under way.
+     */
+    private var countBuffer = 0
+    private var countFence = 0L
+    private var countedBlocks = 0
+    private var countedPixels = 0L
+    private var countWanted = false
+
     /** The frame, upright. */
     val frame = Target()
     private val across = Target()
@@ -101,12 +128,18 @@ internal class ViewPasses {
         val id = IntArray(1)
         glGenVertexArrays(1, id, 0)
         vertexArray = id[0]
+        glGenBuffers(1, id, 0)
+        countBuffer = id[0]
     }
 
     private val targets: List<Target> get() = listOf(frame, across, counts, samples) + images
 
     /** Forgets the GL objects without deleting them, as when their context is gone. */
-    fun lose() = targets.forEach(Target::lose)
+    fun lose() {
+        targets.forEach(Target::lose)
+        countFence = 0L
+        countWanted = false
+    }
 
     /** Deletes the GL objects, in the context they were made in. */
     fun release() {
@@ -115,6 +148,9 @@ internal class ViewPasses {
             .forEach(Program::release)
         glDeleteTextures(2, intArrayOf(decodeTable, encodeTable), 0)
         glDeleteVertexArrays(1, intArrayOf(vertexArray), 0)
+        glDeleteBuffers(1, intArrayOf(countBuffer), 0)
+        if (countFence != 0L) glDeleteSync(countFence)
+        countFence = 0L
     }
 
     /**
@@ -133,15 +169,15 @@ internal class ViewPasses {
         glDrawArrays(GL_TRIANGLES, 0, 3)
     }
 
-    /** Renders every image of [view] of the upright frame; returns the share of pixels that differ, if mapped. */
-    fun compose(view: View): Double? = drawing {
+    /** Renders every image of [view] of the upright frame; [countDifferences] counts what its map marks. */
+    fun compose(view: View) = drawing {
         val width = frame.width
         val height = frame.height
         val mean by lazy(::meanLinearRgb)
         val right = images[if (view.sideBySide) 1 else 0]
         val (rightMatrix, rightBlur) = simulationOf(width, view.params) { mean }
         simulate(rightMatrix, rightBlur, right)
-        if (!view.sideBySide) return@drawing null
+        if (!view.sideBySide) return@drawing
         val left = images[0]
         val compare = view.compare
         if (compare == null) {
@@ -155,7 +191,7 @@ internal class ViewPasses {
             val (leftMatrix, leftBlur) = simulationOf(width, view.params.copy(species = compare)) { mean }
             simulate(leftMatrix, leftBlur, left)
         }
-        if (!view.difference) return@drawing null
+        if (!view.difference) return@drawing
         val map = images[2]
         map.ensure(width, height)
         into(map)
@@ -164,7 +200,6 @@ internal class ViewPasses {
         difference.sampler("uLeftImage", 2, left.texture)
         difference.sampler("uRightImage", 3, right.texture)
         glDrawArrays(GL_TRIANGLES, 0, 3)
-        countDifferences(map)
     }
 
     /**
@@ -272,8 +307,45 @@ internal class ViewPasses {
         return DoubleArray(3) { sum[it] / (across * down) }
     }
 
-    /** How many pixels of [map] differ noticeably, as a share of all its pixels. */
-    private fun countDifferences(map: Target): Double {
+    /**
+     * Asks for the share of pixels that the map of differences composed last marks, which
+     * [takeDifferenceShare] hands over once the GPU has counted it. The map must have been composed.
+     */
+    fun countDifferences() {
+        countWanted = true
+    }
+
+    /** Whether a count asked for has not been handed over yet. */
+    val counting: Boolean get() = countWanted || countFence != 0L
+
+    /**
+     * The share of pixels that differ noticeably, once the GPU has counted it, and null until then; it
+     * never waits for the GPU. Call it once a frame while [counting]: it starts the count asked for
+     * when none is under way, and a count asked for meanwhile follows it.
+     */
+    fun takeDifferenceShare(): Double? {
+        var share: Double? = null
+        if (countFence != 0L) {
+            val status = glClientWaitSync(countFence, 0, 0)
+            if (status != GL_ALREADY_SIGNALED && status != GL_CONDITION_SATISFIED) return null
+            glDeleteSync(countFence)
+            countFence = 0L
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, countBuffer)
+            val pixels = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, countedBlocks * 4, GL_MAP_READ_BIT) as ByteBuffer
+            var noticeable = 0L
+            for (i in 0 until countedBlocks) noticeable += pixels.get(i * 4).toInt() and 0xFF
+            glUnmapBuffer(GL_PIXEL_PACK_BUFFER)
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0)
+            share = noticeable.toDouble() / countedPixels
+        }
+        if (countWanted) startCount()
+        return share
+    }
+
+    /** Counts the map's noticeable pixels in blocks of 8 x 8 and reads the counts back into [countBuffer]. */
+    private fun startCount() = drawing {
+        countWanted = false
+        val map = images[2]
         val across = (map.width + 7) / 8
         val down = (map.height + 7) / 8
         counts.ensure(across, down)
@@ -282,10 +354,14 @@ internal class ViewPasses {
         common(count)
         count.sampler("uSource", 2, map.texture)
         glDrawArrays(GL_TRIANGLES, 0, 3)
-        val pixels = read(counts)
-        var noticeable = 0L
-        for (i in 0 until across * down) noticeable += pixels.get(i * 4).toInt() and 0xFF
-        return noticeable.toDouble() / (map.width.toLong() * map.height)
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, countBuffer)
+        glBufferData(GL_PIXEL_PACK_BUFFER, across * down * 4, null, GL_STREAM_READ)
+        glReadPixels(0, 0, across, down, GL_RGBA, GL_UNSIGNED_BYTE, 0)
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0)
+        countFence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+        glFlush() // so that the fence reaches the GPU, and is signalled, without a buffer swap
+        countedBlocks = across * down
+        countedPixels = map.width.toLong() * map.height
     }
 
     /** The pixels of [target], which must be the framebuffer bound. */
