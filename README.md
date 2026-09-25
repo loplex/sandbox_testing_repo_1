@@ -52,8 +52,10 @@ or closes it.
 | *Reset*                       | every control back to where it started                   |
 | *Language*                    | the app's language; *As the system* follows the phone    |
 
-The controls, and which camera is shown, stay as they were when Android ends the app in the
-background to free memory; a photo or a video does not, and the app comes back on the camera.
+The controls, which camera is shown, and the photo or video shown instead (a video from its start)
+stay as they were when Android ends the app in the background to free memory. A photo or a video
+that cannot be read by then, as when it was deleted meanwhile, gives way to the camera, and a
+message says so.
 
 ### A photo or a video instead of the camera
 
@@ -207,8 +209,10 @@ for IntelliJ IDEA's Android plugin.
     video into the renderer's frames;
   - [`ConversionTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/ConversionTest.kt)
     converts a video and holds it to `core`'s CPU pipeline;
-  - [`SavedViewTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/SavedViewTest.kt) brings the
-    controls back through a Parcel, as when Android ends the app in the background.
+  - [`SavedViewTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/SavedViewTest.kt) and
+    [`SavedSourceTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/SavedSourceTest.kt) bring the
+    controls and the source shown back through a Parcel, as when Android ends the app in the
+    background.
 - `./gradlew :android:lintDebug` runs Android Lint.
 - **The Kotlin style is [ktlint](https://pinterest.github.io/ktlint/)'s, as IntelliJ IDEA formats
   Kotlin**, set in [`.editorconfig`](.editorconfig):
