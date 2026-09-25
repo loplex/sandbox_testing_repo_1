@@ -96,6 +96,15 @@ class VideoFeedTest {
         assertColours(listOf(RED, GREEN, BLUE, GREY), shown.colours)
     }
 
+    @Test
+    fun aVideoTheFirstDecoderRefusesIsPlayedByTheNext() {
+        // Qualcomm's hardware decoder refuses 96 x 64, and a phone with it plays the video through another. The
+        // colours are not checked: Android's software decoder, which takes over, hands frames over that come out
+        // as BT.601 decodes them, as the emulator's decoder does; the other tests hold the colours.
+        val shown = firstFrame("quadrants-small.mp4", longestSide = 1280)
+        assertEquals(96 to 64, shown.width to shown.height)
+    }
+
     private companion object {
         val RED = rgb(200, 40, 40)
         val GREEN = rgb(40, 200, 40)
