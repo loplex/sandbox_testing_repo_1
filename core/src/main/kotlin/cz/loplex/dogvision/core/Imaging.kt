@@ -1,4 +1,4 @@
-/**
+/*
  * The model applied to 8-bit sRGB images: sRGB decoding, the acuity blur, the map of differences and
  * the composed view.
  *
@@ -32,7 +32,8 @@ fun interface PixelSink {
 
 /** An image held in memory, row by row. */
 class Image(override val width: Int, override val height: Int, val pixels: IntArray = IntArray(width * height)) :
-    PixelSource, PixelSink {
+    PixelSource,
+    PixelSink {
     init {
         require(pixels.size == width * height) { "$width x $height needs ${width * height} pixels" }
     }
@@ -226,12 +227,14 @@ fun differenceRow(left: IntArray, right: IntArray, out: IntArray): Int {
 fun meanLinearRgb(width: Int, height: Int, pixelAt: (x: Int, y: Int) -> Int): DoubleArray {
     val sum = DoubleArray(3)
     var count = 0
-    for (y in 0 until height step 8) for (x in 0 until width step 8) {
-        val pixel = pixelAt(x, y)
-        sum[0] += Srgb.decode[red(pixel)]
-        sum[1] += Srgb.decode[green(pixel)]
-        sum[2] += Srgb.decode[blue(pixel)]
-        count++
+    for (y in 0 until height step 8) {
+        for (x in 0 until width step 8) {
+            val pixel = pixelAt(x, y)
+            sum[0] += Srgb.decode[red(pixel)]
+            sum[1] += Srgb.decode[green(pixel)]
+            sum[2] += Srgb.decode[blue(pixel)]
+            count++
+        }
     }
     return DoubleArray(3) { sum[it] / count }
 }
@@ -258,7 +261,11 @@ data class View(
     val arrangement: Arrangement = Arrangement.ROW,
 ) {
     /** How many images the view shows. */
-    val images: Int get() = if (!sideBySide) 1 else if (difference) 3 else 2
+    val images: Int get() = when {
+        !sideBySide -> 1
+        difference -> 3
+        else -> 2
+    }
 }
 
 /** The size of the composed view of an image of [width] x [height]. */
@@ -286,6 +293,7 @@ fun compose(
         view.compare == null -> null
         else -> simulationOf(width, view.params.copy(species = view.compare)) { mean }
     }
+
     // Where image i of the view goes: its column and the row its first row lands on.
     fun place(image: Int): Pair<Int, Int> =
         if (view.arrangement == Arrangement.ROW) width * image to 0 else 0 to height * image
