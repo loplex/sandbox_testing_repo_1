@@ -5,7 +5,7 @@
     <string name="species_label">%1$s (%2$s)</string>
     <string name="difference_caption">červeně: znatelně odlišné (%1$s pixelů)</string>
     <string name="percent">%1$s %%</string>
-    <string name="side_panel">Boční panel</string>
+    <string name="toggle_controls">Zobrazit nebo skrýt nastavení</string>
     <string name="species">Druh</string>
     <string name="simulation">Simulace</string>
     <string name="adaptation">Adaptace na scénu [%]</string>
