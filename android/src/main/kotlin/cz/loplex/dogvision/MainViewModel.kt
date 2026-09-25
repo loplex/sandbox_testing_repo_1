@@ -51,8 +51,9 @@ sealed interface Source {
 }
 
 /**
- * What the screen shows, kept while the activity is recreated. The controls and the choice of camera
- * are kept in [state] too, so that they come back when Android has ended the app in the background.
+ * What the screen shows, kept while the activity is recreated. The controls, the choice of camera and
+ * the source are kept in [state] too, so that they come back when Android has ended the app in the
+ * background; a photo or a video that cannot be read by then gives way to the camera.
  */
 class MainViewModel(application: Application, state: SavedStateHandle) : AndroidViewModel(application) {
     /** The frames of the source shown. */
@@ -77,6 +78,16 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
 
     /** What the last action did, or why it failed, for the user to read. */
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    // The picker's grant to read the file belongs to the activity, which outlives the process Android ends.
+    init {
+        when (val kept = state.get<Bundle>(SOURCE_STATE)?.toSource()) {
+            is Source.Photo -> viewModelScope.launch { openPhoto(kept.uri, kept.name) }
+            is Source.Video -> _source.value = kept
+            Source.Camera, null -> Unit
+        }
+        state.setSavedStateProvider(SOURCE_STATE) { _source.value.toBundle() }
+    }
 
     /** Changes the view; while recording, it keeps how many images it has, as a video cannot change its size. */
     fun update(change: (View) -> View) = _view.update { change(it).keepingSizeOf(it) }
@@ -375,4 +386,5 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
 }
 
 private const val VIEW_STATE = "view"
+private const val SOURCE_STATE = "source"
 private const val FRONT_CAMERA_STATE = "frontCamera"
