@@ -28,14 +28,13 @@ class CameraFeed(
     private val executor = Executors.newSingleThreadExecutor()
     private var provider: ProcessCameraProvider? = null
     private var analysis: ImageAnalysis? = null
-    private var front = false
-    @Volatile
-    private var generation = 0
 
-    /** Starts the back or the front camera, stopping the other. */
+    /**
+     * Starts the back or the front camera, stopping the other. The frames of the one stopped that
+     * come in meanwhile belong to a generation before, and are dropped.
+     */
     fun start(front: Boolean, rotation: Int) {
-        this.front = front
-        generation = frames.open()
+        val generation = frames.open()
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             try {
@@ -55,7 +54,7 @@ class CameraFeed(
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .setTargetRotation(rotation)
                     .build()
-                analysis.setAnalyzer(executor, ::deliver)
+                analysis.setAnalyzer(executor) { deliver(it, front, generation) }
                 val selector = if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
                 provider.unbindAll()
                 provider.bindToLifecycle(owner, selector, analysis)
@@ -81,7 +80,7 @@ class CameraFeed(
         executor.shutdown()
     }
 
-    private fun deliver(image: ImageProxy) {
+    private fun deliver(image: ImageProxy, front: Boolean, generation: Int) {
         image.use {
             val plane = image.planes[0]
             val frame = frames.obtain(image.width, image.height) ?: return
