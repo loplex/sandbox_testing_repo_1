@@ -31,6 +31,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    androidResources {
+        // The languages the app speaks, from its values-* folders, for the system's per-app language setting.
+        generateLocaleConfig = true
+    }
 }
 
 dependencies {

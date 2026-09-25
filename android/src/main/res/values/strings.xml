@@ -25,6 +25,8 @@
     <string name="compare_with">Compared with</string>
     <string name="difference">Map of differences</string>
     <string name="reset">Reset</string>
+    <string name="language">Language</string>
+    <string name="system_language">As the system</string>
 
     <!-- The facts about the selected species -->
     <string name="selected_species">Selected species</string>
