@@ -88,7 +88,8 @@ Images go to *Pictures/Dog vision* and videos to *Movies/Dog vision*, where the 
   - it is encoded as H.265 where the phone has an encoder for it, and as H.264 where not;
   - it is scaled down, keeping its shape, where the encoder or the GPU cannot take the view's size,
     and the message says so;
-  - an HDR video is tone-mapped to SDR first, since the model works on SDR;
+  - an HDR video is tone-mapped to SDR first, since the model works on SDR; a GPU without
+    `GL_EXT_YUV_target`, as the emulator's, cannot, and the conversion then fails;
   - it stops if Android ends the app in the background.
 
 Before Android 10, saving asks for the storage permission.
