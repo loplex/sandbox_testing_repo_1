@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "dog-vision"
 
-include(":core")
+include(":android", ":core")
