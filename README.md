@@ -65,6 +65,9 @@ message says so.
   quick, and turned as its EXIF orientation says.
 - **A video plays at its own rate, over and over, without its sound**, scaled down as a photo is and
   turned as its rotation says.
+- **An HDR video is tone-mapped to SDR** as its conversion is, so that it looks as it will once
+  saved, where the GPU can do it (with `GL_EXT_YUV_target`); where not, as on the emulator, it looks
+  flat, its HDR frames taken as SDR.
 - **The camera button goes back to the camera.**
 - **A photo or a video can be opened without allowing the camera**, which the app asks for only to
   show it.
