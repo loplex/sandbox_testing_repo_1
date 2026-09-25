@@ -51,6 +51,7 @@ fun ViewSurface(
             preserveEGLContextOnPause = true
             setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+            renderer.requestRender = ::requestRender
         }
     }
     // A surface made anew takes the frames over before the one it replaces is released, which then leaves them alone.

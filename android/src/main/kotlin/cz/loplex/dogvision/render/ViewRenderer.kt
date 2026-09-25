@@ -51,6 +51,10 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     @Volatile
     var gap = 0
 
+    /** Asks for another frame, as GLSurfaceView.requestRender() does; set before the first frame. */
+    @Volatile
+    var requestRender: () -> Unit = {}
+
     /** The recording to draw each frame into as well, set from any thread; null while there is none. */
     @Volatile
     var recorder: Recorder? = null
@@ -62,7 +66,10 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     private var screenHeight = 0
     private var shown: Frame? = null
 
-    /** The view the images were composed for last, and the share of their pixels that differs. */
+    /**
+     * The view the images were composed for last, and the share of their pixels that differs, counted
+     * a frame or two after they were composed: the share of the map counted last.
+     */
     private var composed: View? = null
     private var share: Double? = null
     private var lastDrawn: Drawn? = null
@@ -111,8 +118,16 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
         val layout = layOut(screenWidth, screenHeight, upright.width, upright.height, view.images, captionHeight, gap)
         // A still photo is drawn again for every change of layout and every frame recorded; it is composed once.
         if (newest != null || view != composed) {
-            share = passes.compose(view)
+            passes.compose(view)
             composed = view
+            if (view.sideBySide && view.difference) passes.countDifferences()
+        }
+        if (!view.sideBySide || !view.difference) {
+            share = null
+        } else if (passes.counting) {
+            passes.takeDifferenceShare()?.let { share = it }
+            // Drawn again until the count is handed over, which a still photo would not otherwise be.
+            if (passes.counting) requestRender()
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         passes.draw(layout.images, screenWidth, screenHeight)
