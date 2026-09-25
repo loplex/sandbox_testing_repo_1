@@ -1,0 +1,8 @@
+# Probe, temporary: which copy of the workflow file a dispatch runs.
+name: probe-dispatch-file
+on: workflow_dispatch
+jobs:
+  x:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "FILE FROM MASTER"
