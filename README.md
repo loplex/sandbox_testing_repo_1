@@ -207,12 +207,14 @@ as 186 there, and `VideoFeedTest` and `ConversionTest` fail their colour checks.
   its own `c2.goldfish.h264.decoder`, and on a Redmi Note 13 Pro 5G, Android's software decoder
   `c2.android.avc.decoder` gives the same colours on the phone's Adreno 710.
 - **Qualcomm's hardware decoder gives the colours as tagged**, and the tests pass on that phone.
+- **The one test that plays a video through the software decoder there checks its size only**: it
+  plays a video of 96 x 64, which the hardware decoder refuses.
 
 ### The test videos come from a script
 
 [`tools/make_test_videos.sh`](tools/make_test_videos.sh) writes the videos in
 [`android/src/androidTest/assets`](android/src/androidTest/assets) with ffmpeg: four flat quadrants, one of
-them turned as a phone held upright records.
+them turned as a phone held upright records, and one too small for Qualcomm's hardware decoder.
 With the same ffmpeg, it writes the same bytes each time it runs.
 
 ### The reference values come from dog-vision-python
