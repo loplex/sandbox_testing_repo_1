@@ -48,13 +48,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.loplex.dogvision.MainViewModel
+import cz.loplex.dogvision.PREVIEW_LONGEST_SIDE
 import cz.loplex.dogvision.R
 import cz.loplex.dogvision.Source
 import cz.loplex.dogvision.savingNeedsPermission
 import cz.loplex.dogvision.camera.CameraFeed
+import cz.loplex.dogvision.video.VideoFeed
 
 private val CAPTION_HEIGHT = 40.dp
 private val GAP = 6.dp
@@ -70,18 +73,18 @@ fun MainScreen(model: MainViewModel) {
     val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         cameraAllowed = it
     }
-    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let(model::openPhoto)
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(model::openMedia)
     }
     val save = rememberSaving(model)
     Box(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
         WithControls(
             model,
             buttons = {
-                ImageButton(R.drawable.ic_photo, R.string.open_photo) {
-                    pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                ImageButton(R.drawable.ic_photo, R.string.open_media) {
+                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                 }
-                if (source is Source.Photo) ImageButton(R.drawable.ic_camera, R.string.show_camera, model::openCamera)
+                if (source != Source.Camera) ImageButton(R.drawable.ic_camera, R.string.show_camera, model::openCamera)
                 ImageButton(R.drawable.ic_save, R.string.save_snapshot) { save(model::saveSnapshot) }
                 if (source is Source.Photo) {
                     ImageButton(R.drawable.ic_full_size, R.string.save_full_size) { save(model::convertPhoto) }
@@ -89,8 +92,14 @@ fun MainScreen(model: MainViewModel) {
             },
         ) {
             Images(model)
-            if (source == Source.Camera) {
-                if (cameraAllowed) Camera(model) else AskForCamera { askForCamera.launch(Manifest.permission.CAMERA) }
+            when (val shown = source) {
+                Source.Camera -> if (cameraAllowed) {
+                    Camera(model)
+                } else {
+                    AskForCamera { askForCamera.launch(Manifest.permission.CAMERA) }
+                }
+                is Source.Video -> Video(model, shown)
+                is Source.Photo -> Unit
             }
         }
         val message by model.message.collectAsStateWithLifecycle()
@@ -219,6 +228,23 @@ private fun Camera(model: MainViewModel) {
     DisposableEffect(configuration.orientation) {
         feed.setRotation(display.rotation)
         onDispose { }
+    }
+}
+
+/** The video, feeding the model's frames while the screen is started, and paused while it is stopped. */
+@Composable
+private fun Video(model: MainViewModel, video: Source.Video) {
+    val context = LocalContext.current.applicationContext
+    val feed = remember(video) {
+        VideoFeed(context, video.uri, model.frames, PREVIEW_LONGEST_SIDE, model::onVideoError)
+    }
+    // Declared first, so disposed of last: the feed is paused before it is released.
+    DisposableEffect(feed) {
+        onDispose(feed::release)
+    }
+    LifecycleStartEffect(feed) {
+        feed.play()
+        onStopOrDispose { feed.pause() }
     }
 }
 

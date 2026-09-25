@@ -80,9 +80,10 @@
     <string name="camera_needed">Kamera ukazuje scénu tak, jak ji vidí vybraný živočich. Povolte aplikaci kameru, aby se zobrazil živý obraz.</string>
     <string name="allow_camera">Povolit kameru</string>
     <string name="camera_failed">Kameru nejde otevřít: %1$s</string>
-    <string name="open_photo">Otevřít fotku</string>
+    <string name="open_media">Otevřít fotku nebo video</string>
     <string name="show_camera">Kamera</string>
-    <string name="photo_failed">%1$s nejde otevřít jako fotka</string>
+    <string name="media_failed">%1$s nejde otevřít jako fotka ani jako video</string>
+    <string name="video_failed">%1$s nejde přehrát: %2$s</string>
     <string name="save_snapshot">Uložit snímek</string>
     <string name="save_full_size">Uložit fotku v plném rozlišení</string>
     <string name="saved">Uloženo %1$s do složky Pictures/%2$s</string>
