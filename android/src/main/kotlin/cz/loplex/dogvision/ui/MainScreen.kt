@@ -25,11 +25,17 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -195,10 +201,19 @@ private fun AskForCamera(onAsk: () -> Unit) {
     }
 }
 
+/** An icon that does what [description] says, which a long press shows under it. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ImageButton(icon: Int, description: Int, tint: Color = Color.White, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(painterResource(icon), contentDescription = stringResource(description), tint = tint)
+    val text = stringResource(description)
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = { PlainTooltip { Text(text) } },
+        state = rememberTooltipState(),
+    ) {
+        IconButton(onClick = onClick) {
+            Icon(painterResource(icon), contentDescription = text, tint = tint)
+        }
     }
 }
 
