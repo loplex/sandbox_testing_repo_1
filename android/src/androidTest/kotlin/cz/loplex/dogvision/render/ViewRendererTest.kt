@@ -6,6 +6,7 @@ import android.opengl.EGLContext
 import android.opengl.EGLDisplay
 import android.opengl.EGLExt
 import android.opengl.EGLSurface
+import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.ChromaScale
@@ -41,7 +42,23 @@ class ViewRendererTest {
     private lateinit var surface: EGLSurface
     private val frames = FrameExchange()
     private var drawn: Drawn? = null
-    private val renderer = ViewRenderer(frames) { drawn = it }
+    private var renderRequested = false
+    private val renderer = ViewRenderer(frames) { drawn = it }.apply { requestRender = { renderRequested = true } }
+
+    /**
+     * Draws a frame, and then as many more as the renderer asks for, as GLSurfaceView does, for up to ten seconds:
+     * the emulator's SwiftShader takes more than one to hand its asynchronous counts over, a phone's GPU less.
+     */
+    private fun drawFrames() {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        renderRequested = false
+        renderer.onDrawFrame(null)
+        while (renderRequested) {
+            assertTrue("still asking for frames after ten seconds", SystemClock.uptimeMillis() < deadline)
+            renderRequested = false
+            renderer.onDrawFrame(null)
+        }
+    }
 
     @Before
     fun makeContext() {
@@ -132,7 +149,7 @@ class ViewRendererTest {
     private fun check(view: View, image: Image = pattern(96, 64)) {
         publish(image)
         renderer.view = view
-        renderer.onDrawFrame(null)
+        drawFrames()
         val (expected, share) = expected(image, view)
         val actual = renderer.readImages()
         assertEquals(expected.size, actual.size)
