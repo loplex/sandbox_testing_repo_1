@@ -43,12 +43,19 @@ class Frame(val width: Int, val height: Int, val pixels: ByteBuffer) {
  * buffers so that a camera running at 30 frames a second does not allocate one per frame.
  *
  * A frame that has not been drawn when a newer one comes is dropped: the view shows the newest.
+ * Each source that opens gets a generation of its own, and a frame from an earlier one, such as the
+ * camera's last frame arriving after a photo was opened, is dropped too.
  */
 class FrameExchange {
     private val free = ArrayDeque<Frame>()
     private var latest: Frame? = null
     private var shown: Frame? = null
     private var allocated = 0
+    private var generation = 0
+
+    /** Starts a new source; frames published with an earlier generation are dropped from now on. */
+    @Synchronized
+    fun open(): Int = ++generation
 
     /** A frame of the given size to fill, or null if all of them are in use. */
     @Synchronized
@@ -66,9 +73,16 @@ class FrameExchange {
     @Volatile
     var onPublish: (() -> Unit)? = null
 
-    /** Makes a filled frame the newest; the one it replaces, if not drawn yet, is dropped. */
-    fun publish(frame: Frame) {
+    /**
+     * Makes a filled frame of the source of [generation] the newest; the one it replaces, if not
+     * drawn yet, is dropped, and so is the frame itself if another source has opened since.
+     */
+    fun publish(frame: Frame, generation: Int) {
         synchronized(this) {
+            if (generation != this.generation) {
+                free.addLast(frame)
+                return
+            }
             latest?.let(free::addLast)
             latest = frame
         }
