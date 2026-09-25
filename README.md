@@ -44,6 +44,9 @@ The controls are grouped in sections, and a tap on a section's title opens or cl
 | *Reset*                       | every control back to where it started                   |
 | *Language*                    | the app's language; *As the system* follows the phone    |
 
+The controls, and which camera is shown, stay as they were when Android ends the app in the background to free memory;
+a photo or a video does not, and the app comes back on the camera.
+
 ### A photo or a video instead of the camera
 
 - **The picture button opens a photo or a video** through the system's photo picker, which needs no storage permission.
@@ -156,7 +159,8 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   - [`ViewRendererTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/ViewRendererTest.kt) holds the GPU renderer to `core`'s CPU pipeline;
   - [`RecordingTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/RecordingTest.kt) records the view and checks the video's size, frame times and colours;
   - [`VideoFeedTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/VideoFeedTest.kt) plays a video into the renderer's frames;
-  - [`ConversionTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/ConversionTest.kt) converts a video and holds it to `core`'s CPU pipeline.
+  - [`ConversionTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/ConversionTest.kt) converts a video and holds it to `core`'s CPU pipeline;
+  - [`SavedViewTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/SavedViewTest.kt) brings the controls back through a Parcel, as when Android ends the app in the background.
 - `./gradlew :android:lintDebug` runs Android Lint.
 - **The Kotlin style is [ktlint](https://pinterest.github.io/ktlint/)'s, as IntelliJ IDEA formats Kotlin**, set in [`.editorconfig`](.editorconfig):
   - `./gradlew ktlintCheck` checks it, and `./gradlew ktlintFormat` fixes what it can;
