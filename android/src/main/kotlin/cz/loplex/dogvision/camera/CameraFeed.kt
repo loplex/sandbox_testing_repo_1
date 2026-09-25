@@ -29,10 +29,13 @@ class CameraFeed(
     private var provider: ProcessCameraProvider? = null
     private var analysis: ImageAnalysis? = null
     private var front = false
+    @Volatile
+    private var generation = 0
 
     /** Starts the back or the front camera, stopping the other. */
     fun start(front: Boolean, rotation: Int) {
         this.front = front
+        generation = frames.open()
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             try {
@@ -91,7 +94,7 @@ class CameraFeed(
             }
             frame.rotation = image.imageInfo.rotationDegrees
             frame.mirrored = front
-            frames.publish(frame)
+            frames.publish(frame, generation)
         }
     }
 }

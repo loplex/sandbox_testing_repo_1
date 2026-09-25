@@ -86,7 +86,7 @@ class ViewRendererTest {
         }
         frame.rotation = rotation
         frame.mirrored = mirrored
-        frames.publish(frame)
+        frames.publish(frame, frames.open())
         return frame
     }
 

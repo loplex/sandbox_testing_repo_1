@@ -3,35 +3,36 @@ package cz.loplex.dogvision.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +52,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.loplex.dogvision.MainViewModel
 import cz.loplex.dogvision.R
+import cz.loplex.dogvision.Source
 import cz.loplex.dogvision.camera.CameraFeed
 
 private val CAPTION_HEIGHT = 40.dp
@@ -58,6 +61,7 @@ private val GAP = 6.dp
 @Composable
 fun MainScreen(model: MainViewModel) {
     val context = LocalContext.current
+    val source by model.source.collectAsStateWithLifecycle()
     var cameraAllowed by remember {
         val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         mutableStateOf(permission == PackageManager.PERMISSION_GRANTED)
@@ -65,53 +69,85 @@ fun MainScreen(model: MainViewModel) {
     val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         cameraAllowed = it
     }
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(model::openPhoto)
+    }
     Box(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
-        if (cameraAllowed) {
-            Camera(model)
-            WithControls(model) { Images(model) }
-        } else {
-            Column(
-                Modifier.align(Alignment.Center).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
-                Button(onClick = { askForCamera.launch(Manifest.permission.CAMERA) }) {
-                    Text(stringResource(R.string.allow_camera))
+        WithControls(
+            model,
+            buttons = {
+                ImageButton(R.drawable.ic_photo, R.string.open_photo) {
+                    pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
+                if (source is Source.Photo) ImageButton(R.drawable.ic_camera, R.string.show_camera, model::openCamera)
+            },
+        ) {
+            Images(model)
+            if (source == Source.Camera) {
+                if (cameraAllowed) Camera(model) else AskForCamera { askForCamera.launch(Manifest.permission.CAMERA) }
             }
         }
-        val error by model.cameraError.collectAsStateWithLifecycle()
-        error?.let {
-            Text(
-                stringResource(R.string.camera_failed, it),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-            )
+        val message by model.message.collectAsStateWithLifecycle()
+        message?.let {
+            Surface(
+                color = MaterialTheme.colorScheme.inverseSurface,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+                    .clickable(onClick = model::dismissMessage),
+            ) {
+                Text(it, modifier = Modifier.padding(12.dp))
+            }
         }
+    }
+}
+
+/** Why the camera is needed, and a button that asks for it. */
+@Composable
+private fun AskForCamera(onAsk: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        Column(
+            Modifier.align(Alignment.Center).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
+            Button(onClick = onAsk) { Text(stringResource(R.string.allow_camera)) }
+        }
+    }
+}
+
+@Composable
+private fun ImageButton(icon: Int, description: Int, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(painterResource(icon), contentDescription = stringResource(description), tint = Color.White)
     }
 }
 
 /**
  * [images] with the controls beside them on a wide screen and under them on a tall one, where they
- * take at most [CONTROLS_SHARE] of the height; a button over the images hides or shows the controls.
+ * take at most [CONTROLS_SHARE] of the height. [buttons] go over the images' top right corner,
+ * followed by one that hides or shows the controls.
  */
 @Composable
-private fun WithControls(model: MainViewModel, images: @Composable () -> Unit) {
+private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, images: @Composable () -> Unit) {
     val view by model.view.collectAsStateWithLifecycle()
     var shown by rememberSaveable { mutableStateOf(true) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth > maxHeight
         val controlsHeight = maxHeight * CONTROLS_SHARE
-        val imagesWithButton = @Composable { boxModifier: Modifier ->
+        val imagesWithButtons = @Composable { boxModifier: Modifier ->
             Box(boxModifier) {
                 images()
-                IconButton(onClick = { shown = !shown }, modifier = Modifier.align(Alignment.TopEnd)) {
-                    Icon(
-                        painterResource(R.drawable.ic_tune),
-                        contentDescription = stringResource(R.string.side_panel),
-                        tint = Color.White,
-                    )
+                Row(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), MaterialTheme.shapes.large),
+                ) {
+                    buttons()
+                    ImageButton(R.drawable.ic_tune, R.string.side_panel) { shown = !shown }
                 }
             }
         }
@@ -122,12 +158,12 @@ private fun WithControls(model: MainViewModel, images: @Composable () -> Unit) {
         }
         if (wide) {
             Row(Modifier.fillMaxSize()) {
-                imagesWithButton(Modifier.weight(1f).fillMaxHeight())
+                imagesWithButtons(Modifier.weight(1f).fillMaxHeight())
                 if (shown) controls(Modifier.width(CONTROLS_WIDTH).fillMaxHeight())
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                imagesWithButton(Modifier.weight(1f).fillMaxWidth())
+                imagesWithButtons(Modifier.weight(1f).fillMaxWidth())
                 if (shown) controls(Modifier.fillMaxWidth().heightIn(max = controlsHeight))
             }
         }
