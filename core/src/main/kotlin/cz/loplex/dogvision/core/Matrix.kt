@@ -23,10 +23,12 @@ class Matrix(val rows: Int, val cols: Int, private val values: DoubleArray = Dou
     operator fun times(other: Matrix): Matrix {
         require(cols == other.rows) { "Cannot multiply $rows x $cols by ${other.rows} x ${other.cols}" }
         val product = Matrix(rows, other.cols)
-        for (i in 0 until rows) for (j in 0 until other.cols) {
-            var sum = 0.0
-            for (k in 0 until cols) sum += this[i, k] * other[k, j]
-            product[i, j] = sum
+        for (i in 0 until rows) {
+            for (j in 0 until other.cols) {
+                var sum = 0.0
+                for (k in 0 until cols) sum += this[i, k] * other[k, j]
+                product[i, j] = sum
+            }
         }
         return product
     }
@@ -116,29 +118,31 @@ class Matrix(val rows: Int, val cols: Int, private val values: DoubleArray = Dou
             if (offDiagonal <= 1e-30 * (0 until n).sumOf { a[it][it] * a[it][it] }.coerceAtLeast(1e-300)) {
                 return DoubleArray(n) { a[it][it] } to build(n, n) { i, j -> v[i][j] }
             }
-            for (p in 0 until n) for (q in p + 1 until n) {
-                if (a[p][q] == 0.0) continue
-                val theta = (a[q][q] - a[p][p]) / (2 * a[p][q])
-                val t = (if (theta >= 0) 1.0 else -1.0) / (abs(theta) + sqrt(theta * theta + 1))
-                val c = 1 / sqrt(t * t + 1)
-                val s = t * c
-                for (k in 0 until n) {
-                    val akp = a[k][p]
-                    val akq = a[k][q]
-                    a[k][p] = c * akp - s * akq
-                    a[k][q] = s * akp + c * akq
-                }
-                for (k in 0 until n) {
-                    val apk = a[p][k]
-                    val aqk = a[q][k]
-                    a[p][k] = c * apk - s * aqk
-                    a[q][k] = s * apk + c * aqk
-                }
-                for (k in 0 until n) {
-                    val vkp = v[k][p]
-                    val vkq = v[k][q]
-                    v[k][p] = c * vkp - s * vkq
-                    v[k][q] = s * vkp + c * vkq
+            for (p in 0 until n) {
+                for (q in p + 1 until n) {
+                    if (a[p][q] == 0.0) continue
+                    val theta = (a[q][q] - a[p][p]) / (2 * a[p][q])
+                    val t = (if (theta >= 0) 1.0 else -1.0) / (abs(theta) + sqrt(theta * theta + 1))
+                    val c = 1 / sqrt(t * t + 1)
+                    val s = t * c
+                    for (k in 0 until n) {
+                        val akp = a[k][p]
+                        val akq = a[k][q]
+                        a[k][p] = c * akp - s * akq
+                        a[k][q] = s * akp + c * akq
+                    }
+                    for (k in 0 until n) {
+                        val apk = a[p][k]
+                        val aqk = a[q][k]
+                        a[p][k] = c * apk - s * aqk
+                        a[q][k] = s * apk + c * aqk
+                    }
+                    for (k in 0 until n) {
+                        val vkp = v[k][p]
+                        val vkq = v[k][q]
+                        v[k][p] = c * vkp - s * vkq
+                        v[k][q] = s * vkp + c * vkq
+                    }
                 }
             }
         }

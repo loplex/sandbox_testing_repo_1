@@ -20,13 +20,13 @@ import cz.loplex.dogvision.core.composedSize
 import cz.loplex.dogvision.core.green
 import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.red
-import java.io.File
-import kotlin.math.abs
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import kotlin.math.abs
 
 /**
  * A converted video is the view of every frame, as core renders it, with the original's sound. The

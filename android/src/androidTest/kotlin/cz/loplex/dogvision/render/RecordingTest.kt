@@ -16,10 +16,6 @@ import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.video.RECORDING_FPS
 import cz.loplex.dogvision.video.Recorder
 import cz.loplex.dogvision.video.Written
-import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import kotlin.math.abs
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,6 +23,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /**
  * The renderer records the images it draws, at the recording's rate, into an .mp4 of the view's
@@ -61,11 +61,15 @@ class RecordingTest {
     fun releaseContext() = gl.release()
 
     private fun publishQuadrants() {
-        val image = Image(WIDTH, HEIGHT, IntArray(WIDTH * HEIGHT) {
-            val right = it % WIDTH >= WIDTH / 2
-            val bottom = it / WIDTH >= HEIGHT / 2
-            QUADRANTS[(if (bottom) 2 else 0) + if (right) 1 else 0]
-        })
+        val image = Image(
+            WIDTH,
+            HEIGHT,
+            IntArray(WIDTH * HEIGHT) {
+                val right = it % WIDTH >= WIDTH / 2
+                val bottom = it / WIDTH >= HEIGHT / 2
+                QUADRANTS[(if (bottom) 2 else 0) + if (right) 1 else 0]
+            },
+        )
         val frame = Frame.allocate(WIDTH, HEIGHT)
         for (pixel in image.pixels) {
             frame.pixels.put(red(pixel).toByte()).put(green(pixel).toByte()).put(blue(pixel).toByte()).put(-1)

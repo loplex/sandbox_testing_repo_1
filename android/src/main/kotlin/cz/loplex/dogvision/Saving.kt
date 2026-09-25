@@ -27,7 +27,8 @@ const val APP_FOLDER = "Dog vision"
 /** Where the gallery keeps what the app saves: snapshots and photos in Pictures, videos in Movies. */
 enum class Gallery(val mimeType: String, val directory: String, val collection: Uri) {
     IMAGES("image/png", Environment.DIRECTORY_PICTURES, MediaStore.Images.Media.EXTERNAL_CONTENT_URI),
-    VIDEOS("video/mp4", Environment.DIRECTORY_MOVIES, MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
+    VIDEOS("video/mp4", Environment.DIRECTORY_MOVIES, MediaStore.Video.Media.EXTERNAL_CONTENT_URI),
+    ;
 
     /** The folder as the user finds it, such as Pictures/Dog vision. */
     val folder: String get() = "$directory/$APP_FOLDER"

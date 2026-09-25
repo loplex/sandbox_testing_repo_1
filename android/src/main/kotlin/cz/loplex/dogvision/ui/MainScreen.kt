@@ -57,8 +57,8 @@ import cz.loplex.dogvision.MainViewModel
 import cz.loplex.dogvision.PREVIEW_LONGEST_SIDE
 import cz.loplex.dogvision.R
 import cz.loplex.dogvision.Source
-import cz.loplex.dogvision.savingNeedsPermission
 import cz.loplex.dogvision.camera.CameraFeed
+import cz.loplex.dogvision.savingNeedsPermission
 import cz.loplex.dogvision.video.VideoFeed
 
 private val CAPTION_HEIGHT = 40.dp
@@ -113,9 +113,11 @@ fun MainScreen(model: MainViewModel) {
                     converting -> {
                         ImageButton(R.drawable.ic_cancel, R.string.cancel_conversion, onClick = model::cancelConversion)
                     }
+
                     source is Source.Photo -> ImageButton(R.drawable.ic_full_size, R.string.save_full_size) {
                         save(model::convertPhoto)
                     }
+
                     source is Source.Video -> ImageButton(R.drawable.ic_full_size, R.string.save_video_full_size) {
                         save(model::convertVideo)
                     }
@@ -129,7 +131,9 @@ fun MainScreen(model: MainViewModel) {
                 } else {
                     AskForCamera { askForCamera.launch(Manifest.permission.CAMERA) }
                 }
+
                 is Source.Video -> Video(model, shown)
+
                 is Source.Photo -> Unit
             }
         }

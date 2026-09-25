@@ -30,12 +30,16 @@ class ReferenceTest {
         DynamicTest.dynamicTest("${reference.kind} ${species.id} ${reference.scale ?: ""}") {
             val actual = when (reference.kind) {
                 "simulation" -> simulationMatrix(Params(species, chromaScale = reference.scale!!)).flatten()
+
                 "adapted" -> simulationMatrix(
                     Params(species, chromaScale = reference.scale!!, adaptation = 0.5, strength = 0.75),
                     sceneMean,
                 ).flatten()
+
                 "rnl-gains" -> rnlGains(species)
+
                 "neutral-point" -> doubleArrayOf(neutralPoint(species))
+
                 else -> error("Unknown kind ${reference.kind}")
             }
             assertAllClose(reference.values, actual, rtol = 1e-9, atol = 1e-12, what = reference.kind)

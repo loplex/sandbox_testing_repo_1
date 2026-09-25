@@ -19,10 +19,10 @@ import cz.loplex.dogvision.render.FrameExchange
 import cz.loplex.dogvision.render.ViewRenderer
 import cz.loplex.dogvision.video.RECORDING_FPS
 import cz.loplex.dogvision.video.Recorder
+import kotlinx.coroutines.delay
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLDisplay
-import kotlinx.coroutines.delay
 
 /**
  * The images of [view], drawn by the GPU from the newest of [frames], with room for a caption

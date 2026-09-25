@@ -73,11 +73,15 @@ class ViewRendererTest {
     }
 
     /** Neighbouring pixels differ in every channel, as in core's reference pattern. */
-    private fun pattern(width: Int, height: Int) = Image(width, height, IntArray(width * height) {
-        val x = it % width
-        val y = it / width
-        rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
-    })
+    private fun pattern(width: Int, height: Int) = Image(
+        width,
+        height,
+        IntArray(width * height) {
+            val x = it % width
+            val y = it / width
+            rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
+        },
+    )
 
     private fun publish(image: Image, rotation: Int = 0, mirrored: Boolean = false): Frame {
         val frame = Frame.allocate(image.width, image.height)
@@ -97,9 +101,13 @@ class ViewRendererTest {
         val composed = Image(width, height)
         val share = compose(image, row, composed, { meanLinearRgb(image) })
         val images = List(view.images) { i ->
-            Image(image.width, image.height, IntArray(image.width * image.height) {
-                composed[i * image.width + it % image.width, it / image.width]
-            })
+            Image(
+                image.width,
+                image.height,
+                IntArray(image.width * image.height) {
+                    composed[i * image.width + it % image.width, it / image.width]
+                },
+            )
         }
         return images to share
     }
@@ -193,9 +201,13 @@ class ViewRendererTest {
                 renderer.onDrawFrame(null)
                 val width = frame.uprightWidth
                 val height = frame.uprightHeight
-                val upright = Image(width, height, IntArray(width * height) {
-                    frame.uprightPixel(it % width, it / width)
-                })
+                val upright = Image(
+                    width,
+                    height,
+                    IntArray(width * height) {
+                        frame.uprightPixel(it % width, it / width)
+                    },
+                )
                 assertClose(upright, renderer.readImages().single(), "rotation $rotation, mirrored $mirrored")
             }
         }
