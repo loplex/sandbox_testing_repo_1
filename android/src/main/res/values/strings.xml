@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dog vision</string>
+
+    <!-- Captions under the images -->
+    <string name="original">original</string>
+    <string name="species_label">%1$s (%2$s)</string>
+    <string name="difference_caption">red: noticeably different (%1$s of pixels)</string>
+    <string name="percent">%1$s%%</string>
+
+    <!-- The camera -->
+    <string name="camera_needed">The camera shows the scene as the chosen animal sees it. Allow the app to use it to see the live view.</string>
+    <string name="allow_camera">Allow the camera</string>
+    <string name="camera_failed">Cannot open the camera: %1$s</string>
+
+    <!-- Kinds of colour vision -->
+    <string name="monochromat">monochromat</string>
+    <string name="dichromat">dichromat</string>
+    <string name="trichromat">trichromat</string>
+
+    <!-- Species -->
+    <string name="species_dog">dog</string>
+    <string name="species_cat">cat</string>
+    <string name="species_horse">horse</string>
+    <string name="species_cow">cow</string>
+    <string name="species_sheep">sheep</string>
+    <string name="species_goat">goat</string>
+    <string name="species_pig">pig</string>
+    <string name="species_fallow_deer">fallow deer</string>
+    <string name="species_white_tailed_deer">white-tailed deer</string>
+    <string name="species_guinea_pig">guinea pig</string>
+    <string name="species_tree_squirrel">tree squirrel</string>
+    <string name="species_ground_squirrel">California ground squirrel</string>
+    <string name="species_ferret">ferret</string>
+    <string name="species_protanope">protanope</string>
+    <string name="species_deuteranope">deuteranope</string>
+    <string name="species_human">human</string>
+    <string name="species_protanomalous">protanomalous</string>
+    <string name="species_deuteranomalous">deuteranomalous</string>
+    <string name="species_macaque">macaque</string>
+    <string name="species_howler_monkey">howler monkey</string>
+    <string name="species_marmoset_female">marmoset, female</string>
+    <string name="species_harbour_seal">harbour seal</string>
+    <string name="species_bottlenose_dolphin">bottlenose dolphin</string>
+</resources>

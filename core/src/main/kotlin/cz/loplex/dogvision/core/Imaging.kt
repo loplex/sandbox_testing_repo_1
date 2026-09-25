@@ -236,9 +236,9 @@ fun meanLinearRgb(width: Int, height: Int, pixelAt: (x: Int, y: Int) -> Int): Do
 
 fun meanLinearRgb(image: Image): DoubleArray = meanLinearRgb(image.width, image.height) { x, y -> image[x, y] }
 
-/** The simulation's matrix and blur for an image, adapting to its mean if the params ask for it. */
-fun simulationOf(source: PixelSource, params: Params, meanRgb: () -> DoubleArray): Pair<Matrix, Pair<Double, Double>?> =
-    simulationMatrix(params, if (params.adaptation > 0) meanRgb() else null) to acuityBlur(params, source.width)
+/** The simulation's matrix and blur for an image [width] wide, adapting to its mean if the params ask for it. */
+fun simulationOf(width: Int, params: Params, meanRgb: () -> DoubleArray): Pair<Matrix, Pair<Double, Double>?> =
+    simulationMatrix(params, if (params.adaptation > 0) meanRgb() else null) to acuityBlur(params, width)
 
 /** How the images of a view are put together: side by side, or one above another. */
 enum class Arrangement { ROW, COLUMN }
@@ -278,11 +278,11 @@ fun compose(
     val width = source.width
     val height = source.height
     val mean by lazy(meanRgb)
-    val right = simulationOf(source, view.params) { mean }
+    val right = simulationOf(width, view.params) { mean }
     val left = when {
         !view.sideBySide -> null
         view.compare == null -> null
-        else -> simulationOf(source, view.params.copy(species = view.compare)) { mean }
+        else -> simulationOf(width, view.params.copy(species = view.compare)) { mean }
     }
     // Where image i of the view goes: its column and the row its first row lands on.
     fun place(image: Int): Pair<Int, Int> =
