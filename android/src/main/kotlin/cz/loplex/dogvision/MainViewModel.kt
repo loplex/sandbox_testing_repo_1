@@ -27,11 +27,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** What is shown: the camera, or a photo. */
+/** What is shown: the camera, a photo, or a video. */
 sealed interface Source {
     data object Camera : Source
 
     data class Photo(val uri: Uri, val name: String) : Source
+
+    /** A video, which the screen plays through a VideoFeed of its own while it is shown. */
+    data class Video(val uri: Uri, val name: String) : Source
 }
 
 /** What the screen shows, kept while the activity is recreated. */
@@ -80,23 +83,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _message.value = null
     }
 
-    /** Shows the photo at [uri] instead of the camera, scaled down to [PREVIEW_LONGEST_SIDE]. */
-    fun openPhoto(uri: Uri) {
+    /** Shows the photo or the video at [uri] instead of the camera, as its type says it is. */
+    fun openMedia(uri: Uri) {
         val context = getApplication<Application>()
         viewModelScope.launch {
-            val (name, frame) = withContext(Dispatchers.IO) {
-                val name = displayName(context, uri)
-                val decoded = runCatching { decodePhoto(context, uri, PREVIEW_LONGEST_SIDE) }.getOrNull()
-                name to decoded?.let { (bitmap, turn) -> bitmap.toFrame(turn).also { bitmap.recycle() } }
+            val (type, name) = withContext(Dispatchers.IO) {
+                context.contentResolver.getType(uri) to displayName(context, uri)
             }
-            if (frame == null) {
-                _message.value = context.getString(R.string.photo_failed, name)
-                return@launch
+            if (type?.startsWith("video/") == true) {
+                _source.value = Source.Video(uri, name)
+                _message.value = null
+            } else {
+                openPhoto(uri, name)
             }
-            _source.value = Source.Photo(uri, name)
-            frames.publish(frame, frames.open())
-            _message.value = null
         }
+    }
+
+    /** Called when the video shown cannot be played; the camera is shown instead. */
+    fun onVideoError(error: Throwable) {
+        val video = source.value as? Source.Video ?: return
+        val context = getApplication<Application>()
+        val reason = error.message ?: error.javaClass.simpleName
+        _message.value = context.getString(R.string.video_failed, video.name, reason)
+        openCamera()
+    }
+
+    /** Shows the photo at [uri], called [name], instead of the camera, scaled down to [PREVIEW_LONGEST_SIDE]. */
+    private suspend fun openPhoto(uri: Uri, name: String) {
+        val context = getApplication<Application>()
+        val frame = withContext(Dispatchers.IO) {
+            val decoded = runCatching { decodePhoto(context, uri, PREVIEW_LONGEST_SIDE) }.getOrNull()
+            decoded?.let { (bitmap, turn) -> bitmap.toFrame(turn).also { bitmap.recycle() } }
+        }
+        if (frame == null) {
+            _message.value = context.getString(R.string.media_failed, name)
+            return
+        }
+        _source.value = Source.Photo(uri, name)
+        frames.publish(frame, frames.open())
+        _message.value = null
     }
 
     fun openCamera() {
