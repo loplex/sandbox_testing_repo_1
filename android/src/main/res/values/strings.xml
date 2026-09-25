@@ -9,7 +9,7 @@
     <string name="percent">%1$s%%</string>
 
     <!-- The controls -->
-    <string name="side_panel">Side panel</string>
+    <string name="toggle_controls">Show or hide the controls</string>
     <string name="species">Species</string>
     <string name="simulation">Simulation</string>
     <string name="adaptation">Adaptation to scene [%]</string>

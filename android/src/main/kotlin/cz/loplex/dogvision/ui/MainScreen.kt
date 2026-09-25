@@ -226,7 +226,8 @@ private fun WhileRecording(model: MainViewModel, recording: Boolean) {
 /**
  * [images] with the controls beside them on a wide screen and under them on a tall one, where they
  * take at most [CONTROLS_SHARE] of the height. [buttons] go over the images' top right corner,
- * followed by one that hides or shows the controls.
+ * followed by one that hides or shows the controls. On a tall screen, the room that hiding them
+ * gives the images can turn them from side by side to one above another, as layOut shows them larger.
  *
  * The images move between the two as the screen turns, rather than being made anew: made anew, the
  * camera would start again, and the surface would lose its GL context and the frames with it.
@@ -249,7 +250,7 @@ private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, 
                         .background(Color.Black.copy(alpha = 0.45f), MaterialTheme.shapes.large),
                 ) {
                     currentButtons()
-                    ImageButton(R.drawable.ic_tune, R.string.side_panel) { shown = !shown }
+                    ImageButton(R.drawable.ic_tune, R.string.toggle_controls) { shown = !shown }
                 }
             }
         }
