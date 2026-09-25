@@ -27,6 +27,11 @@ class MainViewModel : ViewModel() {
 
     fun update(change: (View) -> View) = _view.update(change)
 
+    /** Every control back to where it started. */
+    fun reset() {
+        _view.value = View()
+    }
+
     /** Called on the GL thread. */
     fun onDrawn(drawn: Drawn) {
         _drawn.value = drawn
