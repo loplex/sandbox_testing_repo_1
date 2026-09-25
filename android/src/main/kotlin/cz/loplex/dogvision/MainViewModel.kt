@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
+import androidx.core.graphics.createBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cz.loplex.dogvision.core.Arrangement
@@ -144,7 +145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val (decoded, turn) = decodePhoto(context, photo.uri) ?: throw IOException(photo.name)
                 val upright = upright(decoded, turn)
                 val (width, height) = composedSize(view, upright.width, upright.height)
-                val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val out = createBitmap(width, height)
                 val mean = { meanLinearRgb(upright.width, upright.height, upright::getPixel) }
                 compose(BitmapSource(upright), view, BitmapSink(out), mean) { rows ->
                     val done = rows.toDouble() / upright.height
