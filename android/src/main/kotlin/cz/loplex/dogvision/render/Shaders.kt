@@ -1,7 +1,7 @@
 package cz.loplex.dogvision.render
 
 /**
- * The GLSL ES 3.00 programs of [ViewRenderer].
+ * The GLSL ES 3.00 programs of [ViewPasses].
  *
  * Every offscreen texture holds 8-bit sRGB, with an image's first row at t = 0, and is read with
  * texelFetch at whole pixels. A pass draws one triangle over the whole of its target, so that
@@ -186,7 +186,16 @@ void main() {
 }
 """
 
-    /** A texture drawn into a rectangle of the screen, its first row at the top. */
+    /** Every 8th pixel of every 8th row of the source, for its mean, as core's meanLinearRgb samples it. */
+    const val EVERY_EIGHTH = HEADER + """
+uniform sampler2D uSource;
+
+void main() {
+    outColour = texelFetch(uSource, pixel() * 8, 0);
+}
+"""
+
+    /** A texture drawn into a rectangle of the framebuffer, its first row at the top. */
     const val SCREEN_VERTEX = """#version 300 es
 uniform vec4 uRect; // left, bottom, right, top, in normalised device coordinates
 out vec2 vTexture;
