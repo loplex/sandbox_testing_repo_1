@@ -45,9 +45,16 @@ import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.core.simulationOf
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.exp
+
+/** Is handed the images of a frame drawn and the layout they were drawn in, on the GL thread. */
+typealias OnImages = (List<Image>, ScreenLayout) -> Unit
+
+/** Asks for the images of the next frame drawn. */
+typealias Capture = (OnImages) -> Unit
 
 /** What the renderer last drew: how the images were laid out, and the share of pixels that differ, if mapped. */
 data class Drawn(val layout: ScreenLayout, val differenceShare: Double?)
@@ -92,6 +99,15 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     private var screenHeight = 0
     private var shown: Frame? = null
     private var lastDrawn: Drawn? = null
+    private val captures = ConcurrentLinkedQueue<OnImages>()
+
+    /**
+     * Hands [onImages] the images of the next frame drawn, and the layout they were drawn in, on the
+     * GL thread; follow it with GLSurfaceView.requestRender(). It is not called before a first frame.
+     */
+    fun capture(onImages: OnImages) {
+        captures.add(onImages)
+    }
 
     /** The longest side a texture may have on this GPU. */
     var maxTextureSize = 0
@@ -151,6 +167,10 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
         val layout = layOut(screenWidth, screenHeight, frame.width, frame.height, view.images, captionHeight, gap)
         val share = compose(source, view)
         draw(layout)
+        while (true) {
+            val capture = captures.poll() ?: break
+            capture(readImages(), layout)
+        }
         val drawn = Drawn(layout, share)
         if (drawn != lastDrawn) {
             lastDrawn = drawn

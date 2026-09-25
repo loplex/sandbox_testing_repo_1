@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.loplex.dogvision.MainViewModel
 import cz.loplex.dogvision.R
 import cz.loplex.dogvision.Source
+import cz.loplex.dogvision.savingNeedsPermission
 import cz.loplex.dogvision.camera.CameraFeed
 
 private val CAPTION_HEIGHT = 40.dp
@@ -72,6 +73,7 @@ fun MainScreen(model: MainViewModel) {
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(model::openPhoto)
     }
+    val save = rememberSaving(model)
     Box(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
         WithControls(
             model,
@@ -80,6 +82,10 @@ fun MainScreen(model: MainViewModel) {
                     pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
                 if (source is Source.Photo) ImageButton(R.drawable.ic_camera, R.string.show_camera, model::openCamera)
+                ImageButton(R.drawable.ic_save, R.string.save_snapshot) { save(model::saveSnapshot) }
+                if (source is Source.Photo) {
+                    ImageButton(R.drawable.ic_full_size, R.string.save_full_size) { save(model::convertPhoto) }
+                }
             },
         ) {
             Images(model)
@@ -99,6 +105,31 @@ fun MainScreen(model: MainViewModel) {
             ) {
                 Text(it, modifier = Modifier.padding(12.dp))
             }
+        }
+    }
+}
+
+/**
+ * Runs a saving action, first asking for the storage permission where saving to Pictures needs it;
+ * without it the action is not run, and the model says why.
+ */
+@Composable
+private fun rememberSaving(model: MainViewModel): (() -> Unit) -> Unit {
+    val context = LocalContext.current
+    val storageNeeded = stringResource(R.string.storage_needed)
+    var waiting by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) waiting?.invoke() else model.say(storageNeeded)
+        waiting = null
+    }
+    return { action ->
+        val permission = Manifest.permission.WRITE_EXTERNAL_STORAGE
+        val granted = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        if (!savingNeedsPermission || granted) {
+            action()
+        } else {
+            waiting = action
+            ask.launch(permission)
         }
     }
 }
@@ -205,6 +236,7 @@ private fun Images(model: MainViewModel) {
             captionHeight = with(density) { CAPTION_HEIGHT.roundToPx() },
             gap = with(density) { GAP.roundToPx() },
             onDrawn = model::onDrawn,
+            bindCapture = { model.capture = it },
             modifier = Modifier.fillMaxSize(),
         )
         val shown = drawn ?: return@Box

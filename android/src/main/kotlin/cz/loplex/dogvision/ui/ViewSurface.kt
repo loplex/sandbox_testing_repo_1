@@ -11,13 +11,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.render.Capture
 import cz.loplex.dogvision.render.Drawn
 import cz.loplex.dogvision.render.FrameExchange
 import cz.loplex.dogvision.render.ViewRenderer
 
 /**
  * The images of [view], drawn by the GPU from the newest of [frames], with room for a caption
- * [captionHeight] pixels tall under each and [gap] pixels between them.
+ * [captionHeight] pixels tall under each and [gap] pixels between them. [bindCapture] is given a
+ * function that asks for the images drawn next while the surface is shown, and null after.
  */
 @Composable
 fun ViewSurface(
@@ -26,6 +28,7 @@ fun ViewSurface(
     captionHeight: Int,
     gap: Int,
     onDrawn: (Drawn) -> Unit,
+    bindCapture: (Capture?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -53,6 +56,13 @@ fun ViewSurface(
         },
         onRelease = { frames.onPublish = null },
     )
+    DisposableEffect(renderer) {
+        bindCapture { onImages ->
+            renderer.capture(onImages)
+            surface.requestRender()
+        }
+        onDispose { bindCapture(null) }
+    }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
