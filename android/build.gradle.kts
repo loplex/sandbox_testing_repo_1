@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.savedstate)
     implementation(libs.androidx.media3.effect)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.transformer)
