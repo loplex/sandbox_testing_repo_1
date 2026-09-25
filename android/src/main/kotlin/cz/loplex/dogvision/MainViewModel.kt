@@ -144,6 +144,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (_recorder.value == null) _source.value = Source.Camera
     }
 
+    private val _frontCamera = MutableStateFlow(false)
+
+    /** Whether the camera is the front one, whose image is shown mirrored, as a mirror shows a face. */
+    val frontCamera: StateFlow<Boolean> = _frontCamera.asStateFlow()
+
+    /** Switches between the back and the front camera; not while recording, as the frames' size would change. */
+    fun switchCamera() {
+        if (_recorder.value == null) _frontCamera.update { !it }
+    }
+
     /** Asks the renderer for the images it draws next, with their layout; set while one is shown. */
     var capture: Capture? = null
 

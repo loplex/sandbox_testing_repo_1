@@ -17,6 +17,8 @@ Its README explains the model and the science behind it.
 
 The app opens on the back camera, with the scene as it is and as a dog sees it.
 
+- **The button with two arrows switches to the front camera**, and back;
+  the front camera's image is shown mirrored, as a mirror shows a face, and saved and recorded as shown.
 - **The images are laid out to show them largest**: side by side on a wide screen,
   one above another on a tall one, each with a caption under it saying what it shows.
 - **The controls are beside the images on a wide screen and under them on a tall one.**\
@@ -79,7 +81,7 @@ Before Android 10, saving asks for the storage permission.
 - **The video has 30 frames a second, without sound**, each frame repeated for as long as it was shown.
 - **It is called `dog-<species>-<time>.mp4`** and goes to *Movies/Dog vision*.
 - **While it records, whatever would change the video's size is locked**:
-  the source, *Side by side*, *Map of differences*, and the screen's orientation.
+  the source and the camera, *Side by side*, *Map of differences*, and the screen's orientation.
 - **It stops when the app leaves the screen**, and the video recorded so far is saved.
 
 ### Language
