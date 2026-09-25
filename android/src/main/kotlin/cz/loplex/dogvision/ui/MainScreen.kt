@@ -3,6 +3,7 @@ package cz.loplex.dogvision.ui
 import android.Manifest
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -41,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -286,7 +286,6 @@ private fun Camera(model: MainViewModel) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val display = LocalView.current.display
-    val configuration = LocalConfiguration.current
     val front by model.frontCamera.collectAsStateWithLifecycle()
     val feed = remember(owner) { CameraFeed(context, owner, model.frames, model::onCameraError) }
     // Declared first, so disposed of last: the feed is released once, after it last started.
@@ -297,9 +296,20 @@ private fun Camera(model: MainViewModel) {
         feed.start(front, display.rotation)
         onDispose { }
     }
-    DisposableEffect(configuration.orientation) {
-        feed.setRotation(display.rotation)
-        onDispose { }
+    // Every turn of the display, including one of 180 degrees, which changes no configuration.
+    DisposableEffect(feed, display) {
+        val displays = context.getSystemService(DisplayManager::class.java)
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) = Unit
+
+            override fun onDisplayRemoved(displayId: Int) = Unit
+
+            override fun onDisplayChanged(displayId: Int) {
+                if (displayId == display.displayId) feed.setRotation(display.rotation)
+            }
+        }
+        displays.registerDisplayListener(listener, null)
+        onDispose { displays.unregisterDisplayListener(listener) }
     }
 }
 
