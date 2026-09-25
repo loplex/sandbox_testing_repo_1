@@ -4,9 +4,11 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Bundle
 import android.os.SystemClock
 import androidx.core.graphics.createBitmap
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.View
@@ -48,13 +50,20 @@ sealed interface Source {
     data class Video(val uri: Uri, val name: String) : Source
 }
 
-/** What the screen shows, kept while the activity is recreated. */
-class MainViewModel(application: Application) : AndroidViewModel(application) {
+/**
+ * What the screen shows, kept while the activity is recreated. The controls and the choice of camera
+ * are kept in [state] too, so that they come back when Android has ended the app in the background.
+ */
+class MainViewModel(application: Application, state: SavedStateHandle) : AndroidViewModel(application) {
     /** The frames of the source shown. */
     val frames = FrameExchange()
 
-    private val _view = MutableStateFlow(View())
+    private val _view = MutableStateFlow(state.get<Bundle>(VIEW_STATE)?.toView() ?: View())
     val view: StateFlow<View> = _view.asStateFlow()
+
+    init {
+        state.setSavedStateProvider(VIEW_STATE) { _view.value.toBundle() }
+    }
 
     private val _source = MutableStateFlow<Source>(Source.Camera)
     val source: StateFlow<Source> = _source.asStateFlow()
@@ -144,7 +153,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (_recorder.value == null) _source.value = Source.Camera
     }
 
-    private val _frontCamera = MutableStateFlow(false)
+    private val _frontCamera = state.getMutableStateFlow(FRONT_CAMERA_STATE, false)
 
     /** Whether the camera is the front one, whose image is shown mirrored, as a mirror shows a face. */
     val frontCamera: StateFlow<Boolean> = _frontCamera.asStateFlow()
@@ -364,3 +373,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+private const val VIEW_STATE = "view"
+private const val FRONT_CAMERA_STATE = "frontCamera"
