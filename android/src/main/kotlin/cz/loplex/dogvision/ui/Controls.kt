@@ -59,9 +59,19 @@ import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.speciesFacts
 import kotlin.math.roundToInt
 
-/** The simulation's controls, in sections that open and close, as the desktop window has them. */
+/**
+ * The simulation's controls, in sections that open and close, as the desktop window has them. While
+ * [recording], the controls that change how many images the view has are locked, as the desktop
+ * locks them: a video cannot change its size.
+ */
 @Composable
-fun Controls(view: View, onChange: ((View) -> View) -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
+fun Controls(
+    view: View,
+    recording: Boolean,
+    onChange: ((View) -> View) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val params = view.params
     fun setParams(change: Params.() -> Params) = onChange { it.copy(params = it.params.change()) }
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -108,9 +118,12 @@ fun Controls(view: View, onChange: ((View) -> View) -> Unit, onReset: () -> Unit
             ) { degrees -> setParams { copy(fieldOfView = degrees.toDouble()) } }
         }
         Section(R.string.view, startsOpen = view.compare != null || view.difference) {
-            Toggle(stringResource(R.string.side_by_side), R.string.about_side_by_side, view.sideBySide) { on ->
-                onChange { it.copy(sideBySide = on) }
-            }
+            Toggle(
+                stringResource(R.string.side_by_side),
+                R.string.about_side_by_side,
+                view.sideBySide,
+                enabled = !recording,
+            ) { on -> onChange { it.copy(sideBySide = on) } }
             SpeciesChoice(
                 label = stringResource(R.string.compare_with),
                 about = R.string.about_compare_with,
@@ -123,7 +136,7 @@ fun Controls(view: View, onChange: ((View) -> View) -> Unit, onReset: () -> Unit
                 stringResource(R.string.difference),
                 R.string.about_difference,
                 view.difference,
-                enabled = view.sideBySide,
+                enabled = view.sideBySide && !recording,
             ) { on -> onChange { it.copy(difference = on) } }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,6 +1,7 @@
 package cz.loplex.dogvision.video
 
 import android.content.Context
+import android.media.MediaFormat
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -24,10 +25,17 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * How a video was written: its format, such as H.265, the encoder, whether it has sound, and the size
- * it was scaled down to if the encoder could not take the view's, null if it was not.
+ * How a video was written: its format, such as H.265, the encoder, whether it has the original's
+ * sound or is [silent] as a recording is, and the size it was scaled down to if the encoder could not
+ * take the view's, null if it was not.
  */
-data class Written(val format: String, val encoder: String, val sound: Boolean, val scaledTo: Pair<Int, Int>?)
+data class Written(
+    val format: String,
+    val encoder: String,
+    val sound: Boolean,
+    val scaledTo: Pair<Int, Int>?,
+    val silent: Boolean = false,
+)
 
 /**
  * Writes [view] of every frame of the video at [uri] to [output], at the video's size and rate,
@@ -97,10 +105,10 @@ suspend fun convertVideo(
 }
 
 /** The name a video's format goes by, as the desktop dog-vision names it. */
-private fun formatName(mimeType: String?): String = when (mimeType) {
-    MimeTypes.VIDEO_H265 -> "H.265"
-    MimeTypes.VIDEO_H264 -> "H.264"
-    MimeTypes.VIDEO_MP4V -> "MPEG-4"
+internal fun formatName(mimeType: String?): String = when (mimeType) {
+    MediaFormat.MIMETYPE_VIDEO_HEVC -> "H.265"
+    MediaFormat.MIMETYPE_VIDEO_AVC -> "H.264"
+    MediaFormat.MIMETYPE_VIDEO_MPEG4 -> "MPEG-4"
     else -> mimeType ?: "?"
 }
 
