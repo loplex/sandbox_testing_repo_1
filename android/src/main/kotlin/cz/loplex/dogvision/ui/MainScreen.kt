@@ -32,8 +32,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -225,29 +227,36 @@ private fun WhileRecording(model: MainViewModel, recording: Boolean) {
  * [images] with the controls beside them on a wide screen and under them on a tall one, where they
  * take at most [CONTROLS_SHARE] of the height. [buttons] go over the images' top right corner,
  * followed by one that hides or shows the controls.
+ *
+ * The images move between the two as the screen turns, rather than being made anew: made anew, the
+ * camera would start again, and the surface would lose its GL context and the frames with it.
  */
 @Composable
 private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, images: @Composable () -> Unit) {
     val view by model.view.collectAsStateWithLifecycle()
     val recorder by model.recorder.collectAsStateWithLifecycle()
     var shown by rememberSaveable { mutableStateOf(true) }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val wide = maxWidth > maxHeight
-        val controlsHeight = maxHeight * CONTROLS_SHARE
-        val imagesWithButtons = @Composable { boxModifier: Modifier ->
+    val currentButtons by rememberUpdatedState(buttons)
+    val currentImages by rememberUpdatedState(images)
+    val imagesWithButtons = remember {
+        movableContentOf { boxModifier: Modifier ->
             Box(boxModifier) {
-                images()
+                currentImages()
                 Row(
                     Modifier
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                         .background(Color.Black.copy(alpha = 0.45f), MaterialTheme.shapes.large),
                 ) {
-                    buttons()
+                    currentButtons()
                     ImageButton(R.drawable.ic_tune, R.string.side_panel) { shown = !shown }
                 }
             }
         }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth > maxHeight
+        val controlsHeight = maxHeight * CONTROLS_SHARE
         val controls = @Composable { panelModifier: Modifier ->
             Surface(panelModifier, color = MaterialTheme.colorScheme.surface) {
                 Controls(view, recorder != null, model::update, model::reset)
