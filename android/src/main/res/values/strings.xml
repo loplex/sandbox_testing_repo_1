@@ -8,6 +8,24 @@
     <string name="difference_caption">red: noticeably different (%1$s of pixels)</string>
     <string name="percent">%1$s%%</string>
 
+    <!-- The controls -->
+    <string name="side_panel">Side panel</string>
+    <string name="species">Species</string>
+    <string name="simulation">Simulation</string>
+    <string name="adaptation">Adaptation to scene [%]</string>
+    <string name="strength">Simulation strength [%]</string>
+    <string name="colour_saturation">Colour saturation</string>
+    <string name="chroma_fixed">Fixed by the projection</string>
+    <string name="chroma_rnl">Matched to discrimination (RNL)</string>
+    <string name="acuity">Acuity</string>
+    <string name="acuity_blur">Blur to the species\' acuity</string>
+    <string name="field_of_view">Image spans [degrees]</string>
+    <string name="view">View</string>
+    <string name="side_by_side">Side by side</string>
+    <string name="compare_with">Compared with</string>
+    <string name="difference">Map of differences</string>
+    <string name="reset">Reset</string>
+
     <!-- The camera -->
     <string name="camera_needed">The camera shows the scene as the chosen animal sees it. Allow the app to use it to see the live view.</string>
     <string name="allow_camera">Allow the camera</string>

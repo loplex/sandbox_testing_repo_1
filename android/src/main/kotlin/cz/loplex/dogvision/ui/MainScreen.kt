@@ -7,6 +7,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -41,7 +52,7 @@ import cz.loplex.dogvision.MainViewModel
 import cz.loplex.dogvision.R
 import cz.loplex.dogvision.camera.CameraFeed
 
-private val CAPTION_HEIGHT = 28.dp
+private val CAPTION_HEIGHT = 40.dp
 private val GAP = 6.dp
 
 @Composable
@@ -54,7 +65,7 @@ fun MainScreen(model: MainViewModel) {
     Box(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
         if (cameraAllowed) {
             Camera(model)
-            Images(model)
+            WithControls(model) { Images(model) }
         } else {
             Column(
                 Modifier.align(Alignment.Center).padding(24.dp),
@@ -77,6 +88,47 @@ fun MainScreen(model: MainViewModel) {
         }
     }
 }
+
+/**
+ * [images] with the controls beside them on a wide screen and under them on a tall one, where they
+ * take at most [CONTROLS_SHARE] of the height; a button over the images hides or shows the controls.
+ */
+@Composable
+private fun WithControls(model: MainViewModel, images: @Composable () -> Unit) {
+    val view by model.view.collectAsStateWithLifecycle()
+    var shown by rememberSaveable { mutableStateOf(true) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth > maxHeight
+        val controlsHeight = maxHeight * CONTROLS_SHARE
+        val imagesWithButton = @Composable { boxModifier: Modifier ->
+            Box(boxModifier) {
+                images()
+                IconButton(onClick = { shown = !shown }, modifier = Modifier.align(Alignment.TopEnd)) {
+                    Icon(painterResource(R.drawable.ic_tune), contentDescription = stringResource(R.string.side_panel), tint = Color.White)
+                }
+            }
+        }
+        val controls = @Composable { panelModifier: Modifier ->
+            Surface(panelModifier, color = MaterialTheme.colorScheme.surface) {
+                Controls(view, model::update, model::reset)
+            }
+        }
+        if (wide) {
+            Row(Modifier.fillMaxSize()) {
+                imagesWithButton(Modifier.weight(1f).fillMaxHeight())
+                if (shown) controls(Modifier.width(CONTROLS_WIDTH).fillMaxHeight())
+            }
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                imagesWithButton(Modifier.weight(1f).fillMaxWidth())
+                if (shown) controls(Modifier.fillMaxWidth().heightIn(max = controlsHeight))
+            }
+        }
+    }
+}
+
+private val CONTROLS_WIDTH = 360.dp
+private const val CONTROLS_SHARE = 0.45f
 
 /** The camera, feeding the model's frames while the screen is started. */
 @Composable
@@ -119,9 +171,9 @@ private fun Images(model: MainViewModel) {
                 Text(
                     caption,
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .offset { IntOffset(box.left, box.top) }
