@@ -55,8 +55,10 @@ class ViewRendererTest {
             EGL14.EGL_NONE,
         )
         EGL14.eglChooseConfig(display, attributes, 0, configs, 0, 1, IntArray(1), 0)
-        context = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT, intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 3, EGL14.EGL_NONE), 0)
-        surface = EGL14.eglCreatePbufferSurface(display, configs[0], intArrayOf(EGL14.EGL_WIDTH, 256, EGL14.EGL_HEIGHT, 256, EGL14.EGL_NONE), 0)
+        val version = intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 3, EGL14.EGL_NONE)
+        context = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT, version, 0)
+        val size = intArrayOf(EGL14.EGL_WIDTH, 256, EGL14.EGL_HEIGHT, 256, EGL14.EGL_NONE)
+        surface = EGL14.eglCreatePbufferSurface(display, configs[0], size, 0)
         assertTrue(EGL14.eglMakeCurrent(display, surface, surface, context))
         renderer.onSurfaceCreated(null, null)
         renderer.onSurfaceChanged(null, 256, 256)
@@ -165,13 +167,15 @@ class ViewRendererTest {
     fun aMonochromat() = check(View(Params(Species.HARBOUR_SEAL), sideBySide = false))
 
     @Test
-    fun aTrichromatOnTheRnlScale() = check(View(Params(Species.MACAQUE, chromaScale = ChromaScale.RNL), sideBySide = false))
+    fun aTrichromatOnTheRnlScale() =
+        check(View(Params(Species.MACAQUE, chromaScale = ChromaScale.RNL), sideBySide = false))
 
     @Test
     fun theAcuityBlur() = check(View(Params(acuity = true, fieldOfView = 2.0), sideBySide = false))
 
     @Test
-    fun theCattleBlurDiffersByDirection() = check(View(Params(Species.COW, acuity = true, fieldOfView = 4.0), sideBySide = false))
+    fun theCattleBlurDiffersByDirection() =
+        check(View(Params(Species.COW, acuity = true, fieldOfView = 4.0), sideBySide = false))
 
     @Test
     fun theMapOfDifferences() = check(View(compare = Species.DEUTERANOPE, difference = true))
@@ -187,8 +191,10 @@ class ViewRendererTest {
                 val frame = publish(image, rotation, mirrored)
                 renderer.view = View(Params(strength = 0.0), sideBySide = false)
                 renderer.onDrawFrame(null)
-                val upright = Image(frame.uprightWidth, frame.uprightHeight, IntArray(frame.uprightWidth * frame.uprightHeight) {
-                    frame.uprightPixel(it % frame.uprightWidth, it / frame.uprightWidth)
+                val width = frame.uprightWidth
+                val height = frame.uprightHeight
+                val upright = Image(width, height, IntArray(width * height) {
+                    frame.uprightPixel(it % width, it / width)
                 })
                 assertClose(upright, renderer.readImages().single(), "rotation $rotation, mirrored $mirrored")
             }

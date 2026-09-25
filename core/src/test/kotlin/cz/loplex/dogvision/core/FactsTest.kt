@@ -15,7 +15,8 @@ object EnglishTexts : FactTexts {
 
     override fun colourVision(kind: ColourVision) = kind.name.lowercase()
 
-    override fun coneTypes(kind: String, count: Int) = if (count == 1) "$kind, 1 cone type" else "$kind, $count cone types"
+    override fun coneTypes(kind: String, count: Int) =
+        if (count == 1) "$kind, 1 cone type" else "$kind, $count cone types"
 
     override fun percent(value: String) = "$value%"
 
@@ -132,20 +133,26 @@ class FactsTest {
     @Test
     fun `a note is translated and kept after its citation`() {
         assertEquals(listOf("(Sumita et al. 2013,", "11.7 to 14)"), acuityValue(Species.SHEEP, EnglishTexts).drop(1))
-        assertEquals(listOf("(L shifted 10 nm,", "see text)"), facts(Species.PROTANOMALOUS)[FactLabel.CONE_PEAKS]!!.drop(3))
+        assertEquals(
+            listOf("(L shifted 10 nm,", "see text)"),
+            facts(Species.PROTANOMALOUS)[FactLabel.CONE_PEAKS]!!.drop(3),
+        )
     }
 
     @ParameterizedTest
     @EnumSource(Species::class)
     fun `every species has every fact it should have, none of them empty`(species: Species) {
         val labels = speciesFacts(species, EnglishTexts).map { it.label }
-        val expected = when (species.peaks.size) {
-            1 -> listOf(FactLabel.COLOUR_VISION, FactLabel.CONE_PEAKS, FactLabel.RNL_SCALE, FactLabel.ACUITY)
-            2 -> listOf(FactLabel.COLOUR_VISION, FactLabel.CONE_PEAKS, FactLabel.S_CONES, FactLabel.NEUTRAL_POINT, FactLabel.RNL_SCALE, FactLabel.ACUITY)
-            else -> listOf(FactLabel.COLOUR_VISION, FactLabel.CONE_PEAKS, FactLabel.S_CONES, FactLabel.L_TO_M, FactLabel.RNL_SCALE, FactLabel.ACUITY)
+        val colourAxes = when (species.peaks.size) {
+            1 -> listOf()
+            2 -> listOf(FactLabel.S_CONES, FactLabel.NEUTRAL_POINT)
+            else -> listOf(FactLabel.S_CONES, FactLabel.L_TO_M)
         }
+        val expected = listOf(FactLabel.COLOUR_VISION, FactLabel.CONE_PEAKS) + colourAxes +
+            listOf(FactLabel.RNL_SCALE, FactLabel.ACUITY)
         assertEquals(expected, labels)
-        assertTrue(speciesFacts(species, EnglishTexts).all { fact -> fact.value.isNotEmpty() && fact.value.all(String::isNotEmpty) })
+        val facts = speciesFacts(species, EnglishTexts)
+        assertTrue(facts.all { fact -> fact.value.isNotEmpty() && fact.value.all(String::isNotEmpty) })
     }
 
     @Test
@@ -184,7 +191,9 @@ class FactsTest {
         val expected = rows.groupBy({ it[0] }) { Fact(englishLabels.getValue(it[1]), it.drop(2)) }
         assertEquals(Species.entries.map { it.id }, expected.keys.toList())
         return Species.entries.map { species ->
-            DynamicTest.dynamicTest(species.id) { assertEquals(expected[species.id], speciesFacts(species, EnglishTexts)) }
+            DynamicTest.dynamicTest(species.id) {
+                assertEquals(expected[species.id], speciesFacts(species, EnglishTexts))
+            }
         }
     }
 }
