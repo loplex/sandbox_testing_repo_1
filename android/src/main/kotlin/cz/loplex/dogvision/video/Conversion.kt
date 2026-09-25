@@ -6,8 +6,11 @@ import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.Clock
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultAssetLoaderFactory
+import androidx.media3.transformer.DefaultDecoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -64,6 +67,15 @@ suspend fun convertVideo(
     val result = CompletableDeferred<ExportResult>()
     val transformer = Transformer.Builder(context)
         .setVideoMimeType(MimeTypes.VIDEO_H265)
+        // Transformer's own asset loader, but for a decoder refusing the video, which the next one is tried for.
+        .setAssetLoaderFactory(
+            DefaultAssetLoaderFactory(
+                context,
+                DefaultDecoderFactory.Builder(context).setEnableDecoderFallback(true).build(),
+                Clock.DEFAULT,
+                null,
+            ),
+        )
         .addListener(object : Transformer.Listener {
             override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                 result.complete(exportResult)
