@@ -1,0 +1,9 @@
+# Probe, temporary: which commit a workflow_dispatch run checks out when its branch moves right after dispatch.
+name: probe-dispatch
+on: workflow_dispatch
+jobs:
+  x:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: echo "GITHUB_SHA=$GITHUB_SHA HEAD=$(git rev-parse HEAD) REF=$GITHUB_REF"
