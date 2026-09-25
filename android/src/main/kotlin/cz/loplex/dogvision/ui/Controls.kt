@@ -1,5 +1,6 @@
 package cz.loplex.dogvision.ui
 
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.core.os.LocaleListCompat
 import cz.loplex.dogvision.R
 import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Params
@@ -129,6 +131,44 @@ fun Controls(view: View, onChange: ((View) -> View) -> Unit, onReset: () -> Unit
                 Text(stringResource(R.string.reset))
             }
             InfoButton(stringResource(R.string.reset), R.string.about_reset)
+        }
+        LanguageChoice()
+    }
+}
+
+/**
+ * The app's language: the system's, or one the app speaks, each named in itself as the desktop
+ * window's Language menu names them. Android remembers the choice.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageChoice() {
+    val languages = listOf("" to stringResource(R.string.system_language), "en" to "English", "cs" to "Čeština")
+    val current = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = languages.firstOrNull { it.first == current }?.second ?: languages.first().second,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(stringResource(R.string.language)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            languages.forEach { (tag, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = {
+                        expanded = false
+                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+                    },
+                )
+            }
         }
     }
 }
