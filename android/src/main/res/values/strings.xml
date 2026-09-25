@@ -106,6 +106,12 @@
     <string name="written_with_sound">%1$s (%2$s), with the original sound</string>
     <string name="written_without_sound">%1$s (%2$s); the original has no sound</string>
     <string name="scaled_to">%1$s, scaled down to %2$s for the encoder</string>
+    <string name="written_silent">%1$s (%2$s)</string>
+    <string name="record">Record video</string>
+    <string name="stop_recording">Stop recording</string>
+    <string name="recording">Recording %1$s: %2$s</string>
+    <string name="finishing">Finishing %1$s</string>
+    <string name="recording_failed">Recording failed: %1$s</string>
     <string name="snapshot_failed">Cannot save the snapshot: %1$s</string>
     <string name="converting">Converting: %1$s</string>
     <string name="conversion_failed">Conversion failed: %1$s</string>

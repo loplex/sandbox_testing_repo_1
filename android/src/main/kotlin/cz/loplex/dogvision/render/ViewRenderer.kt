@@ -19,6 +19,7 @@ import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
+import cz.loplex.dogvision.video.Recorder
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -48,11 +49,20 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     @Volatile
     var gap = 0
 
+    /** The recording to draw each frame into as well, set from any thread; null while there is none. */
+    @Volatile
+    var recorder: Recorder? = null
+
     private val passes = ViewPasses()
+    private var recording: Recording? = null
     private var raw = 0
     private var screenWidth = 0
     private var screenHeight = 0
     private var shown: Frame? = null
+
+    /** The view the images were composed for last, and the share of their pixels that differs. */
+    private var composed: View? = null
+    private var share: Double? = null
     private var lastDrawn: Drawn? = null
     private val captures = ConcurrentLinkedQueue<OnImages>()
 
@@ -71,6 +81,8 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     override fun onSurfaceCreated(unused: GL10?, config: EGLConfig?) {
         passes.lose()
         shown = null
+        composed = null
+        recording = null // its surface went with the context it was made in
         passes.create()
         raw = texture()
         val max = IntArray(1)
@@ -102,18 +114,38 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
         val view = view
         val upright = passes.frame
         val layout = layOut(screenWidth, screenHeight, upright.width, upright.height, view.images, captionHeight, gap)
-        val share = passes.compose(view)
+        // A still photo is drawn again for every change of layout and every frame recorded; it is composed once.
+        if (newest != null || view != composed) {
+            share = passes.compose(view)
+            composed = view
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         passes.draw(layout.images, screenWidth, screenHeight)
         while (true) {
             val capture = captures.poll() ?: break
             capture(readImages(), layout)
         }
+        record(view, layout)
         val drawn = Drawn(layout, share)
         if (drawn != lastDrawn) {
             lastDrawn = drawn
             onDrawn(drawn)
         }
+    }
+
+    /** Draws the images into the recording [recorder] asks for, starting it with the first frame drawn. */
+    private fun record(view: View, layout: ScreenLayout) {
+        val recorder = recorder
+        if (recording?.recorder !== recorder) {
+            recording?.close()
+            recording = null
+        }
+        if (recorder == null) return
+        val recording = recording
+            ?: Recording.open(recorder, view, layout.arrangement, passes.frame.width, passes.frame.height)
+            ?: return
+        this.recording = recording
+        recording.draw(passes)
     }
 
     /**
