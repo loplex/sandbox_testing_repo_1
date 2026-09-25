@@ -150,7 +150,9 @@ fun applyMatrix(
         val channels = Array(3) { c ->
             // Mixing the channels first and blurring the mix is the same as the reverse: both are linear.
             val mixed = inputRows.map { (r, g, b) ->
-                FloatArray(width) { coefficients[3 * c] * r[it] + coefficients[3 * c + 1] * g[it] + coefficients[3 * c + 2] * b[it] }
+                FloatArray(width) {
+                    coefficients[3 * c] * r[it] + coefficients[3 * c + 1] * g[it] + coefficients[3 * c + 2] * b[it]
+                }
             }
             if (kernelX == null || kernelY == null) {
                 mixed

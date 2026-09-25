@@ -15,7 +15,8 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /** An image of one grey. */
-fun solid(value: Int, width: Int = 128, height: Int = 96) = Image(width, height, IntArray(width * height) { rgb(value, value, value) })
+fun solid(value: Int, width: Int = 128, height: Int = 96) =
+    Image(width, height, IntArray(width * height) { rgb(value, value, value) })
 
 /** The image drawn by the reference script's pattern(): neighbouring pixels differ in every channel. */
 fun pattern(width: Int = 40, height: Int = 30) = Image(width, height, IntArray(width * height) {
@@ -44,11 +45,14 @@ fun standardDeviation(image: Image): Double {
 }
 
 class ImagingTest {
-    private val photo = Image(64, 48, Random(0).let { random -> IntArray(64 * 48) { random.nextInt() or (0xFF shl 24) } })
+    private val photo = Random(0).let { random ->
+        Image(64, 48, IntArray(64 * 48) { random.nextInt() or (0xFF shl 24) })
+    }
 
     @Test
     fun `the matrix is read in RGB order`() {
-        val redToBlue = Matrix.of(doubleArrayOf(0.0, 0.0, 0.0), doubleArrayOf(0.0, 0.0, 0.0), doubleArrayOf(1.0, 0.0, 0.0))
+        val none = doubleArrayOf(0.0, 0.0, 0.0)
+        val redToBlue = Matrix.of(none, none, doubleArrayOf(1.0, 0.0, 0.0))
         val out = Image(1, 1)
         applyMatrix(Image(1, 1, intArrayOf(rgb(255, 0, 0))), redToBlue, null, out)
         assertEquals(rgb(0, 0, 255), out[0, 0])
@@ -125,9 +129,10 @@ class ImagingTest {
 
     @Test
     fun `CIELAB of white, black and red`() {
-        assertAllClose(doubleArrayOf(100.0, 0.0, 0.0), lab(rgb(255, 255, 255)).map(Float::toDouble).toDoubleArray(), atol = 0.05)
-        assertAllClose(doubleArrayOf(0.0, 0.0, 0.0), lab(rgb(0, 0, 0)).map(Float::toDouble).toDoubleArray(), atol = 1e-6)
-        assertAllClose(doubleArrayOf(53.24, 80.09, 67.20), lab(rgb(255, 0, 0)).map(Float::toDouble).toDoubleArray(), atol = 0.05)
+        fun lab(r: Int, g: Int, b: Int) = lab(rgb(r, g, b)).map(Float::toDouble).toDoubleArray()
+        assertAllClose(doubleArrayOf(100.0, 0.0, 0.0), lab(255, 255, 255), atol = 0.05)
+        assertAllClose(doubleArrayOf(0.0, 0.0, 0.0), lab(0, 0, 0), atol = 1e-6)
+        assertAllClose(doubleArrayOf(53.24, 80.09, 67.20), lab(255, 0, 0), atol = 0.05)
     }
 
     private fun difference(left: Image, right: Image): Pair<Image, Double> {
@@ -220,7 +225,9 @@ class ImagingTest {
         val (image, _) = render(photo, View(difference = true, arrangement = Arrangement.COLUMN))
         val (row, _) = render(photo, View(difference = true))
         assertEquals(64 to 144, image.width to image.height)
-        for (i in 0 until 3) assertContentEquals(row.crop(64 * i, 0, 64, 48).pixels, image.crop(0, 48 * i, 64, 48).pixels)
+        for (i in 0 until 3) {
+            assertContentEquals(row.crop(64 * i, 0, 64, 48).pixels, image.crop(0, 48 * i, 64, 48).pixels)
+        }
     }
 
     @Test
@@ -252,7 +259,10 @@ class ImagingTest {
 
     private val cases = mapOf(
         "dog" to View(sideBySide = false),
-        "dog-rnl-adapted" to View(Params(adaptation = 0.5, strength = 0.75, chromaScale = ChromaScale.RNL), sideBySide = false),
+        "dog-rnl-adapted" to View(
+            Params(adaptation = 0.5, strength = 0.75, chromaScale = ChromaScale.RNL),
+            sideBySide = false,
+        ),
         "dog-acuity" to View(Params(acuity = true, fieldOfView = 1.0), sideBySide = false),
         "cow-acuity" to View(Params(Species.COW, acuity = true, fieldOfView = 2.0), sideBySide = false),
         "seal" to View(Params(Species.HARBOUR_SEAL), sideBySide = false),

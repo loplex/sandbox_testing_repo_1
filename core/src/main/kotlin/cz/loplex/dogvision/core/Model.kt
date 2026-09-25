@@ -95,7 +95,8 @@ fun planck(temperature: Double, wl: DoubleArray = WAVELENGTHS): DoubleArray {
     }
 }
 
-private fun sensitivities(conePeaks: List<Double>): Matrix = Matrix.of(*conePeaks.map { govardovskiiA1(it) }.toTypedArray())
+private fun sensitivities(conePeaks: List<Double>): Matrix =
+    Matrix.of(*conePeaks.map { govardovskiiA1(it) }.toTypedArray())
 
 /** Cone excitations (rows) produced by each display primary (columns). */
 fun coneMatrix(conePeaks: List<Double>, primaries: Matrix): Matrix = sensitivities(conePeaks) * primaries.transpose()

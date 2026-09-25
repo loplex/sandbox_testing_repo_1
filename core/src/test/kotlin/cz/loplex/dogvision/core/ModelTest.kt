@@ -27,7 +27,8 @@ class ModelTest {
         fun everyScale() = Species.entries.flatMap { species -> ChromaScale.entries.map { arrayOf(species, it) } }
 
         @JvmStatic
-        fun dichromatsEveryScale() = dichromats().flatMap { species -> ChromaScale.entries.map { arrayOf(species, it) } }
+        fun dichromatsEveryScale() =
+            dichromats().flatMap { species -> ChromaScale.entries.map { arrayOf(species, it) } }
     }
 
     private val ones = DoubleArray(3) { 1.0 }

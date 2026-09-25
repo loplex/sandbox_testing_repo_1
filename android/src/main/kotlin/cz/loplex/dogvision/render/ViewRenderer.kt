@@ -131,19 +131,17 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     }
 
     override fun onDrawFrame(unused: GL10?) {
-        val newest = frames.take()
+        val newest = frames.take() ?: frames.current().takeIf { shown == null }
         if (newest != null) {
             glBindTexture(GL_TEXTURE_2D, raw)
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, newest.width, newest.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, newest.pixels.rewind())
+            glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGBA8, newest.width, newest.height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                newest.pixels.rewind(),
+            )
             shown = newest
             turnUpright(newest)
         }
-        val source = shown ?: frames.current()?.also {
-            shown = it
-            glBindTexture(GL_TEXTURE_2D, raw)
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, it.width, it.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, it.pixels.rewind())
-            turnUpright(it)
-        }
+        val source = shown
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         glViewport(0, 0, screenWidth, screenHeight)
         glClearColor(0f, 0f, 0f, 1f)

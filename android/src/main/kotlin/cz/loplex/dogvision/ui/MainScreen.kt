@@ -59,9 +59,12 @@ private val GAP = 6.dp
 fun MainScreen(model: MainViewModel) {
     val context = LocalContext.current
     var cameraAllowed by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+        val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+        mutableStateOf(permission == PackageManager.PERMISSION_GRANTED)
     }
-    val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { cameraAllowed = it }
+    val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        cameraAllowed = it
+    }
     Box(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
         if (cameraAllowed) {
             Camera(model)
@@ -104,7 +107,11 @@ private fun WithControls(model: MainViewModel, images: @Composable () -> Unit) {
             Box(boxModifier) {
                 images()
                 IconButton(onClick = { shown = !shown }, modifier = Modifier.align(Alignment.TopEnd)) {
-                    Icon(painterResource(R.drawable.ic_tune), contentDescription = stringResource(R.string.side_panel), tint = Color.White)
+                    Icon(
+                        painterResource(R.drawable.ic_tune),
+                        contentDescription = stringResource(R.string.side_panel),
+                        tint = Color.White,
+                    )
                 }
             }
         }

@@ -5,11 +5,20 @@ import kotlin.test.assertEquals
 import kotlin.test.fail
 
 /** Fails unless every value is within atol + rtol * |expected|, as numpy.testing.assert_allclose. */
-fun assertAllClose(expected: DoubleArray, actual: DoubleArray, rtol: Double = 1e-7, atol: Double = 0.0, what: String = "") {
+fun assertAllClose(
+    expected: DoubleArray,
+    actual: DoubleArray,
+    rtol: Double = 1e-7,
+    atol: Double = 0.0,
+    what: String = "",
+) {
     assertEquals(expected.size, actual.size, "$what: sizes differ")
     for (i in expected.indices) {
         if (abs(actual[i] - expected[i]) > atol + rtol * abs(expected[i])) {
-            fail("$what: element $i is ${actual[i]}, expected ${expected[i]}\nexpected ${expected.toList()}\nactual   ${actual.toList()}")
+            fail(
+                "$what: element $i is ${actual[i]}, expected ${expected[i]}" +
+                    "\nexpected ${expected.toList()}\nactual   ${actual.toList()}",
+            )
         }
     }
 }

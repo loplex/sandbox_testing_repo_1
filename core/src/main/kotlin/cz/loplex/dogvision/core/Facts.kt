@@ -108,7 +108,10 @@ fun speciesFacts(species: Species, texts: FactTexts): List<Fact> {
     val cones = peaks.mapIndexed { i, peak -> "${names[i]} ${formatSignificant(peak, 6, decimal)} nm" }
     val facts = mutableListOf(
         Fact(FactLabel.COLOUR_VISION, listOf(texts.coneTypes(texts.colourVision(species.colourVision), n))),
-        Fact(FactLabel.CONE_PEAKS, cones.dropLast(1).map { "$it," } + cones.last() + sourcePieces(species.peaksFrom, texts)),
+        Fact(
+            FactLabel.CONE_PEAKS,
+            cones.dropLast(1).map { "$it," } + cones.last() + sourcePieces(species.peaksFrom, texts),
+        ),
     )
     if (n == 1) {
         facts += Fact(FactLabel.RNL_SCALE, listOf(texts.noColourAxis, texts.seesOnlyGrey))
@@ -137,6 +140,10 @@ fun acuityValue(species: Species, texts: FactTexts): List<String> {
     val acuity = species.acuity ?: return listOf(texts.notFoundMeasured, texts.leftSharp)
     val across = formatSignificant(acuity.across, 3, texts.decimalSeparator)
     val up = formatSignificant(acuity.up, 3, texts.decimalSeparator)
-    val value = if (across == up) listOf(texts.acuity(across)) else listOf(texts.acuityAcross(across), texts.acuityUp(up))
+    val value = if (across == up) {
+        listOf(texts.acuity(across))
+    } else {
+        listOf(texts.acuityAcross(across), texts.acuityUp(up))
+    }
     return value + sourcePieces(acuity.source, texts)
 }
