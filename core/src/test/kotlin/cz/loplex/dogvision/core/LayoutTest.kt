@@ -28,7 +28,8 @@ class LayoutTest {
         for ((width, height) in listOf(2000 to 600, 1080 to 2000, 500 to 500)) {
             val layout = layOut(width, height, 640, 480, 3, captionHeight = 40, gap = 8)
             for (box in layout.images + layout.captions) {
-                assertTrue(box.left >= 0 && box.top >= 0 && box.right <= width && box.bottom <= height, "$box in $width x $height")
+                val inside = box.left >= 0 && box.top >= 0 && box.right <= width && box.bottom <= height
+                assertTrue(inside, "$box in $width x $height")
             }
             for (box in layout.images) assertEquals(640.0 / 480, box.width.toDouble() / box.height, 0.01)
         }

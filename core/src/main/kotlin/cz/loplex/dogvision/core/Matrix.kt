@@ -44,10 +44,13 @@ class Matrix(val rows: Int, val cols: Int, private val values: DoubleArray = Dou
 
     fun transpose(): Matrix = build(cols, rows) { i, j -> this[j, i] }
 
-    fun map(transform: (Double) -> Double): Matrix = Matrix(rows, cols, DoubleArray(values.size) { transform(values[it]) })
+    fun map(transform: (Double) -> Double): Matrix =
+        Matrix(rows, cols, DoubleArray(values.size) { transform(values[it]) })
 
     private fun zip(other: Matrix, combine: (Double, Double) -> Double): Matrix {
-        require(rows == other.rows && cols == other.cols) { "Cannot combine $rows x $cols with ${other.rows} x ${other.cols}" }
+        require(rows == other.rows && cols == other.cols) {
+            "Cannot combine $rows x $cols with ${other.rows} x ${other.cols}"
+        }
         return Matrix(rows, cols, DoubleArray(values.size) { combine(values[it], other.values[it]) })
     }
 
@@ -163,7 +166,8 @@ class Matrix(val rows: Int, val cols: Int, private val values: DoubleArray = Dou
 
         fun identity(n: Int): Matrix = build(n, n) { i, j -> if (i == j) 1.0 else 0.0 }
 
-        fun diagonal(values: DoubleArray): Matrix = build(values.size, values.size) { i, j -> if (i == j) values[i] else 0.0 }
+        fun diagonal(values: DoubleArray): Matrix =
+            build(values.size, values.size) { i, j -> if (i == j) values[i] else 0.0 }
 
         fun ones(rows: Int, cols: Int): Matrix = build(rows, cols) { _, _ -> 1.0 }
 

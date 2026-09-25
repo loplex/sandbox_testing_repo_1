@@ -46,7 +46,8 @@ class ReferenceTest {
     fun `every species has its reference values`(): List<DynamicTest> = Species.entries.map { species ->
         DynamicTest.dynamicTest(species.id) {
             val kinds = references.filter { it.species == species }.map { it.kind }.toSet()
-            val expected = setOf("simulation", "adapted", "rnl-gains") + if (species.peaks.size == 2) setOf("neutral-point") else setOf()
+            val dichromatOnly = if (species.peaks.size == 2) setOf("neutral-point") else setOf()
+            val expected = setOf("simulation", "adapted", "rnl-gains") + dichromatOnly
             assertEquals(expected, kinds)
         }
     }
