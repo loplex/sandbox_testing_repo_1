@@ -5,7 +5,7 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Saving to Pictures before Android 10; later, the gallery takes the app's own images without it. -->
+    <!-- Saving to Pictures and Movies before Android 10; later, the gallery takes the app's own files without it. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
