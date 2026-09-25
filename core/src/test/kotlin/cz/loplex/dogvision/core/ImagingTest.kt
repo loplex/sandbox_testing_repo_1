@@ -19,11 +19,15 @@ fun solid(value: Int, width: Int = 128, height: Int = 96) =
     Image(width, height, IntArray(width * height) { rgb(value, value, value) })
 
 /** The image drawn by the reference script's pattern(): neighbouring pixels differ in every channel. */
-fun pattern(width: Int = 40, height: Int = 30) = Image(width, height, IntArray(width * height) {
-    val x = it % width
-    val y = it / width
-    rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
-})
+fun pattern(width: Int = 40, height: Int = 30) = Image(
+    width,
+    height,
+    IntArray(width * height) {
+        val x = it % width
+        val y = it / width
+        rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
+    },
+)
 
 fun render(source: Image, view: View): Pair<Image, Double?> {
     val (width, height) = composedSize(view, source.width, source.height)
@@ -234,8 +238,10 @@ class ImagingTest {
     fun `compose covers a source taller than a strip`() {
         val tall = Image(8, 150, IntArray(8 * 150) { rgb(it % 256, (it * 7) % 256, 90) })
         val (image, _) = render(tall, View(Params(acuity = true, fieldOfView = 1.0), difference = true))
-        for (y in 0 until tall.height) for (x in 0 until tall.width) {
-            assertEquals(tall[x, y], image[x, y], "the original at $x, $y")
+        for (y in 0 until tall.height) {
+            for (x in 0 until tall.width) {
+                assertEquals(tall[x, y], image[x, y], "the original at $x, $y")
+            }
         }
         val alone = simulate(tall, Params(acuity = true, fieldOfView = 1.0))
         assertContentEquals(alone.pixels, image.crop(8, 0, 8, 150).pixels)

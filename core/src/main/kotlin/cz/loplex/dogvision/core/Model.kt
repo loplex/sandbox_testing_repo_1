@@ -1,4 +1,4 @@
-/**
+/*
  * The colour-vision model, for one species at a time.
  *
  * After Brettel, Viénot & Mollon 1997:
@@ -136,8 +136,13 @@ fun greyWorldGains(mAnimal: Matrix, meanRgb: DoubleArray, adaptation: Double): D
 }
 
 /** [I | -1]: takes cone excitations q to the chromatic coordinates c = (q_i - q_L). */
-private fun toChroma(coneTypes: Int): Matrix =
-    Matrix.build(coneTypes - 1, coneTypes) { i, j -> if (j == coneTypes - 1) -1.0 else if (i == j) 1.0 else 0.0 }
+private fun toChroma(coneTypes: Int): Matrix = Matrix.build(coneTypes - 1, coneTypes) { i, j ->
+    when {
+        j == coneTypes - 1 -> -1.0
+        i == j -> 1.0
+        else -> 0.0
+    }
+}
 
 /**
  * Columns: output colours that raise one non-L cone's excitation by one, leaving the rest.
@@ -236,12 +241,17 @@ fun rnlGains(species: Species): DoubleArray {
     val k = rnlChromaMatrix(species)
     val eigenvalues = when (k.rows) {
         0 -> doubleArrayOf()
+
         1 -> doubleArrayOf(k[0, 0])
+
         else -> { // the real parts of the eigenvalues of a 2x2 matrix
             val halfTrace = (k[0, 0] + k[1, 1]) / 2
             val discriminant = halfTrace * halfTrace - (k[0, 0] * k[1, 1] - k[0, 1] * k[1, 0])
-            if (discriminant >= 0) doubleArrayOf(halfTrace + sqrt(discriminant), halfTrace - sqrt(discriminant))
-            else doubleArrayOf(halfTrace, halfTrace)
+            if (discriminant >= 0) {
+                doubleArrayOf(halfTrace + sqrt(discriminant), halfTrace - sqrt(discriminant))
+            } else {
+                doubleArrayOf(halfTrace, halfTrace)
+            }
         }
     }
     return eigenvalues.sortedDescending().toDoubleArray()

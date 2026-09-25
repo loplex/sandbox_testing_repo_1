@@ -195,14 +195,18 @@ internal class ViewPasses {
         val pixels = ByteBuffer.allocateDirect(target.width * target.height * 4)
         glBindFramebuffer(GL_FRAMEBUFFER, target.framebuffer)
         glReadPixels(0, 0, target.width, target.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
-        Image(target.width, target.height, IntArray(target.width * target.height) {
-            val offset = it * 4
-            rgb(
-                pixels.get(offset).toInt() and 0xFF,
-                pixels.get(offset + 1).toInt() and 0xFF,
-                pixels.get(offset + 2).toInt() and 0xFF,
-            )
-        })
+        Image(
+            target.width,
+            target.height,
+            IntArray(target.width * target.height) {
+                val offset = it * 4
+                rgb(
+                    pixels.get(offset).toInt() and 0xFF,
+                    pixels.get(offset + 1).toInt() and 0xFF,
+                    pixels.get(offset + 2).toInt() and 0xFF,
+                )
+            },
+        )
     }
 
     /** Runs [passes] with the passes' own vertex array bound, and nothing blending or cutting what they draw. */
