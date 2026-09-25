@@ -10,8 +10,8 @@ model and the science behind it.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording,
   the language.
-- [How it differs from the desktop program](#how-it-differs-from-the-desktop-program) — what is
-  not there yet, and what works the Android way.
+- [How it differs from the desktop program](#how-it-differs-from-the-desktop-program) — what
+  works the Android way.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `android`, the GPU renderer.
@@ -23,6 +23,8 @@ model and the science behind it.
 
 The app opens on the back camera, with the scene as it is and as a dog sees it.
 
+- **The button with two arrows switches to the front camera**, and back; the front camera's image
+  is shown mirrored, as a mirror shows a face, and saved and recorded as shown.
 - **The images are laid out to show them largest**: side by side on a wide screen, one above another
   on a tall one, each with a caption under it saying what it shows.
 - **The controls are beside the images on a wide screen and under them on a tall one.** The button
@@ -89,8 +91,8 @@ Before Android 10, saving asks for the storage permission.
 - **The video has 30 frames a second, without sound**, each frame repeated for as long as it was
   shown, as the desktop program records.
 - **It is called `dog-<species>-<time>.mp4`** and goes to *Movies/Dog vision*.
-- **While it records, whatever would change the video's size is locked**: the source,
-  *Side by side*, *Map of differences*, and the screen's orientation.
+- **While it records, whatever would change the video's size is locked**: the source and the
+  camera, *Side by side*, *Map of differences*, and the screen's orientation.
 - **It stops when the app leaves the screen**, and the video recorded so far is saved.
 
 ### Language
@@ -102,13 +104,11 @@ Before Android 10, saving asks for the storage permission.
 
 ## How it differs from the desktop program
 
-### Not there yet
-
-- **The front camera**: the app shows the back one only.
-
 ### The Android way
 
 - **Files go to the gallery**, not to an output folder chosen in the app.
+- **The camera is the back or the front one**, not one picked by its number, and the front one is
+  mirrored, where the desktop program shows a webcam's image as it comes.
 - **A photo or a video converted at full size is named like a snapshot**, not `<name>.dog.png` or
   `<name>.dog.mp4` after the original: the system photo picker does not tell an app a file's name.
 - **Videos are written by the phone's encoders**, not ffmpeg's, so a video too large for them is

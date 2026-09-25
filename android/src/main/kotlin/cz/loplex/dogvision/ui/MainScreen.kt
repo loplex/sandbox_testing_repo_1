@@ -75,6 +75,11 @@ fun MainScreen(model: MainViewModel) {
         val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         mutableStateOf(permission == PackageManager.PERMISSION_GRANTED)
     }
+    val bothCameras = remember {
+        val features = context.packageManager
+        features.hasSystemFeature(PackageManager.FEATURE_CAMERA) &&
+            features.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT)
+    }
     val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         cameraAllowed = it
     }
@@ -94,6 +99,8 @@ fun MainScreen(model: MainViewModel) {
                     }
                     if (source != Source.Camera) {
                         ImageButton(R.drawable.ic_camera, R.string.show_camera, onClick = model::openCamera)
+                    } else if (cameraAllowed && bothCameras) {
+                        ImageButton(R.drawable.ic_switch_camera, R.string.switch_camera, onClick = model::switchCamera)
                     }
                 }
                 ImageButton(R.drawable.ic_save, R.string.save_snapshot) { save(model::saveSnapshot) }
@@ -259,17 +266,22 @@ private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, 
 private val CONTROLS_WIDTH = 360.dp
 private const val CONTROLS_SHARE = 0.45f
 
-/** The camera, feeding the model's frames while the screen is started. */
+/** The back or the front camera, as the model says, feeding the model's frames while the screen is started. */
 @Composable
 private fun Camera(model: MainViewModel) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val display = LocalView.current.display
     val configuration = LocalConfiguration.current
+    val front by model.frontCamera.collectAsStateWithLifecycle()
     val feed = remember(owner) { CameraFeed(context, owner, model.frames, model::onCameraError) }
+    // Declared first, so disposed of last: the feed is released once, after it last started.
     DisposableEffect(feed) {
-        feed.start(front = false, rotation = display.rotation)
         onDispose(feed::release)
+    }
+    DisposableEffect(feed, front) {
+        feed.start(front, display.rotation)
+        onDispose { }
     }
     DisposableEffect(configuration.orientation) {
         feed.setRotation(display.rotation)
