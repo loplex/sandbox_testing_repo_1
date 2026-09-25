@@ -16,6 +16,8 @@ import android.opengl.GLES30.GL_UNPACK_ALIGNMENT
 import android.opengl.GLES30.GL_UNSIGNED_BYTE
 import android.opengl.GLES30.glBindFramebuffer
 import android.opengl.GLES30.glBindVertexArray
+import android.opengl.GLES30.glDeleteTextures
+import android.opengl.GLES30.glDeleteVertexArrays
 import android.opengl.GLES30.glDisable
 import android.opengl.GLES30.glDrawArrays
 import android.opengl.GLES30.glGenVertexArrays
@@ -41,16 +43,17 @@ import java.nio.ByteOrder
 import kotlin.math.exp
 
 /**
- * The GL passes that render a view's images from a frame, in whichever context draws them.
- * Everything here runs on that context's thread, after [create].
+ * The GL passes that render a view's images from a frame, in whichever context draws them: the
+ * screen's, or that of a video being converted. Everything here runs on that context's thread,
+ * between [create] and [release].
  *
  * The frame is turned upright into a texture of its own, each image of the view is rendered into a
  * texture of its own, the size the upright frame has, and [draw] puts the images into boxes of the
  * framebuffer bound. Rendering the map of differences into a texture of its own keeps it from reading
  * the texture it draws into, which GL leaves undefined.
  *
- * The passes bind a vertex array of their own while they draw and unbind it after, so that they
- * leave a context they share with other drawing code as they found it.
+ * The passes bind a vertex array of their own while they draw and unbind it after, so that a context
+ * they share with code drawing from client-side vertex arrays, as Media3's does, is left as it was.
  */
 internal class ViewPasses {
     private lateinit var upright: Program
@@ -104,6 +107,15 @@ internal class ViewPasses {
 
     /** Forgets the GL objects without deleting them, as when their context is gone. */
     fun lose() = targets.forEach(Target::lose)
+
+    /** Deletes the GL objects, in the context they were made in. */
+    fun release() {
+        targets.forEach(Target::release)
+        listOf(upright, copy, colour, blurAcross, blurDown, difference, count, everyEighth, screen)
+            .forEach(Program::release)
+        glDeleteTextures(2, intArrayOf(decodeTable, encodeTable), 0)
+        glDeleteVertexArrays(1, intArrayOf(vertexArray), 0)
+    }
 
     /**
      * Turns the frame in [texture], [width] x [height], upright into [frame]: [rotation] degrees
