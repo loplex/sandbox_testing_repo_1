@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.SystemClock
 import androidx.core.graphics.createBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,9 +18,12 @@ import cz.loplex.dogvision.render.Capture
 import cz.loplex.dogvision.render.Drawn
 import cz.loplex.dogvision.render.FrameExchange
 import cz.loplex.dogvision.ui.AndroidTexts
+import cz.loplex.dogvision.video.Recorder
+import cz.loplex.dogvision.video.Written
 import cz.loplex.dogvision.video.convertVideo
 import java.io.File
 import java.io.IOException
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,12 +69,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** What the last action did, or why it failed, for the user to read. */
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    fun update(change: (View) -> View) = _view.update(change)
+    /** Changes the view; while recording, it keeps how many images it has, as a video cannot change its size. */
+    fun update(change: (View) -> View) = _view.update { change(it).keepingSizeOf(it) }
 
-    /** Every control back to where it started. */
-    fun reset() {
-        _view.value = View()
-    }
+    /** Every control back to where it started, but for how many images the view has while recording. */
+    fun reset() = update { View() }
+
+    private fun View.keepingSizeOf(old: View): View =
+        if (_recorder.value == null) this else copy(sideBySide = old.sideBySide, difference = old.difference)
 
     /** Called on the GL thread. */
     fun onDrawn(drawn: Drawn) {
@@ -91,6 +98,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Shows the photo or the video at [uri] instead of the camera, as its type says it is. */
     fun openMedia(uri: Uri) {
+        if (_recorder.value != null) return
         val context = getApplication<Application>()
         viewModelScope.launch {
             val (type, name) = withContext(Dispatchers.IO) {
@@ -110,6 +118,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val video = source.value as? Source.Video ?: return
         val context = getApplication<Application>()
         val reason = error.message ?: error.javaClass.simpleName
+        stopRecording()
         _message.value = context.getString(R.string.video_failed, video.name, reason)
         openCamera()
     }
@@ -130,8 +139,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _message.value = null
     }
 
+    /** Shows the camera again; not while recording, as the source's size would change the video's. */
     fun openCamera() {
-        _source.value = Source.Camera
+        if (_recorder.value == null) _source.value = Source.Camera
     }
 
     /** Asks the renderer for the images it draws next, with their layout; set while one is shown. */
@@ -238,19 +248,97 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.IO) {
                     saveToGallery(context, name, Gallery.VIDEOS) { out -> file.inputStream().use { it.copyTo(out) } }
                 }
-                val sound = if (written.sound) R.string.written_with_sound else R.string.written_without_sound
-                val description = context.getString(sound, written.format, written.encoder).let { described ->
-                    written.scaledTo?.let { (width, height) ->
-                        context.getString(R.string.scaled_to, described, "$width × $height")
-                    } ?: described
-                }
-                context.getString(R.string.saved_video, name, Gallery.VIDEOS.folder, description)
+                context.getString(R.string.saved_video, name, Gallery.VIDEOS.folder, describe(written))
             } catch (error: IOException) {
                 context.getString(R.string.conversion_failed, error.message)
             } finally {
                 file.delete()
             }
         }
+    }
+
+    private val _recorder = MutableStateFlow<Recorder?>(null)
+
+    /** The recording running, which the renderer draws every frame into as well; null while there is none. */
+    val recorder: StateFlow<Recorder?> = _recorder.asStateFlow()
+
+    private var recordingName = ""
+    private var recordingClock: Job? = null
+
+    /**
+     * Records the view as it is shown, every change included, until [stopRecording], and saves it to
+     * Movies as dog-<species>-<time>.mp4, as the desktop window names it; how long it has run is told
+     * as a message.
+     */
+    fun startRecording() {
+        if (_recorder.value != null) return
+        val context = getApplication<Application>()
+        val name = snapshotName(view.value, extension = "mp4")
+        val file = File(context.cacheDir, name)
+        lateinit var recorder: Recorder
+        recorder = Recorder(file) { result -> finishRecording(recorder, name, file, result) }
+        recordingName = name
+        _recorder.value = recorder
+        val started = SystemClock.elapsedRealtime()
+        recordingClock = viewModelScope.launch {
+            while (true) {
+                val elapsed = SystemClock.elapsedRealtime() - started
+                val seconds = elapsed / 1000
+                val time = String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)
+                _message.value = context.getString(R.string.recording, name, time)
+                delay(1000 - elapsed % 1000)
+            }
+        }
+    }
+
+    /** Stops recording; the video is finished and saved in the background, as the message tells. */
+    fun stopRecording() {
+        val recorder = _recorder.value ?: return
+        _recorder.value = null
+        recordingClock?.cancel()
+        _message.value = getApplication<Application>().getString(R.string.finishing, recordingName)
+        recorder.stop()
+    }
+
+    /** Called on the main thread once [recorder] has finished its video in [file], or failed to. */
+    private fun finishRecording(recorder: Recorder, name: String, file: File, result: Result<Written>) {
+        if (_recorder.value === recorder) { // it failed while running
+            _recorder.value = null
+            recordingClock?.cancel()
+        }
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            _message.value = try {
+                val written = result.getOrThrow()
+                withContext(Dispatchers.IO) {
+                    saveToGallery(context, name, Gallery.VIDEOS) { out -> file.inputStream().use { it.copyTo(out) } }
+                }
+                context.getString(R.string.saved_video, name, Gallery.VIDEOS.folder, describe(written))
+            } catch (error: IOException) {
+                context.getString(R.string.recording_failed, error.message)
+            } catch (error: IllegalStateException) { // MediaCodec.CodecException among them
+                context.getString(R.string.recording_failed, error.message)
+            } finally {
+                file.delete()
+            }
+        }
+    }
+
+    /** How a video was written, e.g. "H.265 (c2.qti.hevc.encoder), with the original sound". */
+    private fun describe(written: Written): String {
+        val context = getApplication<Application>()
+        val sound = when {
+            written.silent -> R.string.written_silent
+            written.sound -> R.string.written_with_sound
+            else -> R.string.written_without_sound
+        }
+        val described = context.getString(sound, written.format, written.encoder)
+        val (width, height) = written.scaledTo ?: return described
+        return context.getString(R.string.scaled_to, described, "$width × $height")
+    }
+
+    override fun onCleared() {
+        stopRecording()
     }
 
     /** The bitmap turned as [turn] says: rotated clockwise, then mirrored. */

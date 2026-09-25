@@ -9,9 +9,10 @@ import android.opengl.EGLSurface
 
 /**
  * An OpenGL ES 3.0 context of its own, made current on the thread that makes it, drawing into
- * framebuffers of its own: its surface is a placeholder of 1 x 1 pixels.
+ * framebuffers of its own: its surface is a placeholder of 1 x 1 pixels. If [recordable], its
+ * configuration also makes window surfaces a video encoder takes, as the screen's does.
  */
-internal class OffscreenContext {
+internal class OffscreenContext(recordable: Boolean = false) {
     private val display: EGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
     private val context: EGLContext
     private val surface: EGLSurface
@@ -21,8 +22,9 @@ internal class OffscreenContext {
         val configs = arrayOfNulls<EGLConfig>(1)
         val attributes = intArrayOf(
             EGL14.EGL_RENDERABLE_TYPE, EGLExt.EGL_OPENGL_ES3_BIT_KHR,
-            EGL14.EGL_SURFACE_TYPE, EGL14.EGL_PBUFFER_BIT,
+            EGL14.EGL_SURFACE_TYPE, EGL14.EGL_PBUFFER_BIT or (if (recordable) EGL14.EGL_WINDOW_BIT else 0),
             EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8, EGL14.EGL_BLUE_SIZE, 8, EGL14.EGL_ALPHA_SIZE, 8,
+            *(if (recordable) intArrayOf(EGLExt.EGL_RECORDABLE_ANDROID, 1) else intArrayOf()),
             EGL14.EGL_NONE,
         )
         val found = IntArray(1)
@@ -44,4 +46,18 @@ internal class OffscreenContext {
         EGL14.eglDestroyContext(display, context)
         EGL14.eglReleaseThread()
     }
+}
+
+/** The configuration the context current on this thread was made with, for surfaces of its own. */
+internal fun currentConfig(): EGLConfig {
+    val display = EGL14.eglGetCurrentDisplay()
+    val id = IntArray(1)
+    EGL14.eglQueryContext(display, EGL14.eglGetCurrentContext(), EGL14.EGL_CONFIG_ID, id, 0)
+    val configs = arrayOfNulls<EGLConfig>(1)
+    val found = IntArray(1)
+    val attributes = intArrayOf(EGL14.EGL_CONFIG_ID, id[0], EGL14.EGL_NONE)
+    check(EGL14.eglChooseConfig(display, attributes, 0, configs, 0, 1, found, 0) && found[0] > 0) {
+        "Cannot find the context's EGL configuration"
+    }
+    return checkNotNull(configs[0])
 }

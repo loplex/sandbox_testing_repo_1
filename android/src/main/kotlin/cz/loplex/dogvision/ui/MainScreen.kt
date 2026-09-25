@@ -1,7 +1,9 @@
 package cz.loplex.dogvision.ui
 
 import android.Manifest
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -67,6 +69,8 @@ fun MainScreen(model: MainViewModel) {
     val context = LocalContext.current
     val source by model.source.collectAsStateWithLifecycle()
     val converting by model.converting.collectAsStateWithLifecycle()
+    val recorder by model.recorder.collectAsStateWithLifecycle()
+    val recording = recorder != null
     var cameraAllowed by remember {
         val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         mutableStateOf(permission == PackageManager.PERMISSION_GRANTED)
@@ -78,17 +82,30 @@ fun MainScreen(model: MainViewModel) {
         uri?.let(model::openMedia)
     }
     val save = rememberSaving(model)
+    WhileRecording(model, recording)
     Box(Modifier.fillMaxSize().background(Color.Black).safeDrawingPadding()) {
         WithControls(
             model,
             buttons = {
-                ImageButton(R.drawable.ic_photo, R.string.open_media) {
-                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                // The source cannot change while recording, as its size would change the video's.
+                if (!recording) {
+                    ImageButton(R.drawable.ic_photo, R.string.open_media) {
+                        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                    }
+                    if (source != Source.Camera) {
+                        ImageButton(R.drawable.ic_camera, R.string.show_camera, onClick = model::openCamera)
+                    }
                 }
-                if (source != Source.Camera) ImageButton(R.drawable.ic_camera, R.string.show_camera, model::openCamera)
                 ImageButton(R.drawable.ic_save, R.string.save_snapshot) { save(model::saveSnapshot) }
+                if (recording) {
+                    ImageButton(R.drawable.ic_stop, R.string.stop_recording, RECORDING_RED, model::stopRecording)
+                } else {
+                    ImageButton(R.drawable.ic_record, R.string.record) { save(model::startRecording) }
+                }
                 when {
-                    converting -> ImageButton(R.drawable.ic_cancel, R.string.cancel_conversion, model::cancelConversion)
+                    converting -> {
+                        ImageButton(R.drawable.ic_cancel, R.string.cancel_conversion, onClick = model::cancelConversion)
+                    }
                     source is Source.Photo -> ImageButton(R.drawable.ic_full_size, R.string.save_full_size) {
                         save(model::convertPhoto)
                     }
@@ -166,9 +183,30 @@ private fun AskForCamera(onAsk: () -> Unit) {
 }
 
 @Composable
-private fun ImageButton(icon: Int, description: Int, onClick: () -> Unit) {
+private fun ImageButton(icon: Int, description: Int, tint: Color = Color.White, onClick: () -> Unit) {
     IconButton(onClick = onClick) {
-        Icon(painterResource(icon), contentDescription = stringResource(description), tint = Color.White)
+        Icon(painterResource(icon), contentDescription = stringResource(description), tint = tint)
+    }
+}
+
+private val RECORDING_RED = Color(0xFFFF5252)
+
+/**
+ * While [recording], keeps the screen turned as it is, so that the layout of the images, and with it
+ * the video's size, stays; and stops the recording when the screen stops, as the view is no longer
+ * drawn then.
+ */
+@Composable
+private fun WhileRecording(model: MainViewModel, recording: Boolean) {
+    val activity = LocalActivity.current
+    DisposableEffect(recording) {
+        if (recording) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+        onDispose {
+            if (recording) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+    LifecycleStartEffect(model) {
+        onStopOrDispose { model.stopRecording() }
     }
 }
 
@@ -180,6 +218,7 @@ private fun ImageButton(icon: Int, description: Int, onClick: () -> Unit) {
 @Composable
 private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, images: @Composable () -> Unit) {
     val view by model.view.collectAsStateWithLifecycle()
+    val recorder by model.recorder.collectAsStateWithLifecycle()
     var shown by rememberSaveable { mutableStateOf(true) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth > maxHeight
@@ -200,7 +239,7 @@ private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, 
         }
         val controls = @Composable { panelModifier: Modifier ->
             Surface(panelModifier, color = MaterialTheme.colorScheme.surface) {
-                Controls(view, model::update, model::reset)
+                Controls(view, recorder != null, model::update, model::reset)
             }
         }
         if (wide) {
@@ -261,6 +300,7 @@ private fun Images(model: MainViewModel) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val view by model.view.collectAsStateWithLifecycle()
+    val recorder by model.recorder.collectAsStateWithLifecycle()
     val drawn by model.drawn.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize()) {
         ViewSurface(
@@ -270,6 +310,7 @@ private fun Images(model: MainViewModel) {
             gap = with(density) { GAP.roundToPx() },
             onDrawn = model::onDrawn,
             bindCapture = { model.capture = it },
+            recorder = recorder,
             modifier = Modifier.fillMaxSize(),
         )
         val shown = drawn ?: return@Box
