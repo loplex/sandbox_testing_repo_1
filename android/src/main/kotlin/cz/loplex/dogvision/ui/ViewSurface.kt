@@ -54,11 +54,13 @@ fun ViewSurface(
             renderer.requestRender = ::requestRender
         }
     }
+    // A surface made anew takes the frames over before the one it replaces is released, which then leaves them alone.
+    val onPublish: () -> Unit = remember(surface) { surface::requestRender }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     AndroidView(
         modifier = modifier,
         factory = {
-            frames.onPublish = surface::requestRender
+            frames.onPublish = onPublish
             surface
         },
         update = {
@@ -68,7 +70,7 @@ fun ViewSurface(
             renderer.gap = gap
             it.requestRender()
         },
-        onRelease = { frames.onPublish = null },
+        onRelease = { if (frames.onPublish === onPublish) frames.onPublish = null },
     )
     LaunchedEffect(recorder) {
         while (recorder != null) {
