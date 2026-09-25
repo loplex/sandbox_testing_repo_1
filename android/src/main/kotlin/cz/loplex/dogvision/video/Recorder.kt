@@ -67,7 +67,8 @@ class Recorder(private val output: File, private val onFinished: (Result<Written
         try {
             val (info, mimeType, encoded) = chooseEncoder(width, height)
             val format = MediaFormat.createVideoFormat(mimeType, encoded.first, encoded.second).apply {
-                val bitRates = info.getCapabilitiesForType(mimeType).videoCapabilities.bitrateRange
+                // chooseEncoder picks only an encoder with video capabilities.
+                val bitRates = checkNotNull(info.getCapabilitiesForType(mimeType).videoCapabilities).bitrateRange
                 val pixels = encoded.first.toDouble() * encoded.second
                 val bitRate = (pixels * RECORDING_FPS * BITS_PER_PIXEL).roundToInt()
                 setInteger(MediaFormat.KEY_COLOR_FORMAT, COLOR_FormatSurface)
@@ -204,7 +205,7 @@ private fun chooseEncoder(width: Int, height: Int): Triple<MediaCodecInfo, Strin
     for ((info, mimeType) in candidates) {
         val capabilities = info.getCapabilitiesForType(mimeType)
         if (COLOR_FormatSurface !in capabilities.colorFormats) continue
-        val size = fit(capabilities.videoCapabilities, width, height) ?: continue
+        val size = fit(capabilities.videoCapabilities ?: continue, width, height) ?: continue
         return Triple(info, mimeType, size)
     }
     throw IOException("No encoder for H.265 or H.264 takes a video of $width x $height")
