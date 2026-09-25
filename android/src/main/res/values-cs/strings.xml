@@ -93,6 +93,12 @@
     <string name="written_with_sound">%1$s (%2$s), s původním zvukem</string>
     <string name="written_without_sound">%1$s (%2$s); originál nemá zvuk</string>
     <string name="scaled_to">%1$s, zmenšeno na %2$s kvůli enkodéru</string>
+    <string name="written_silent">%1$s (%2$s)</string>
+    <string name="record">Nahrávat video</string>
+    <string name="stop_recording">Zastavit nahrávání</string>
+    <string name="recording">Nahrávám %1$s: %2$s</string>
+    <string name="finishing">Dokončuji %1$s</string>
+    <string name="recording_failed">Nahrávání selhalo: %1$s</string>
     <string name="snapshot_failed">Snímek nejde uložit: %1$s</string>
     <string name="converting">Převádím: %1$s</string>
     <string name="conversion_failed">Převod selhal: %1$s</string>
