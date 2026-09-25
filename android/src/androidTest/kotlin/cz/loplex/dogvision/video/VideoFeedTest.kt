@@ -9,14 +9,14 @@ import cz.loplex.dogvision.core.red
 import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.render.Frame
 import cz.loplex.dogvision.render.FrameExchange
-import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 /**
