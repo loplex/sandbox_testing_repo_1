@@ -7,6 +7,7 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.graphics.createBitmap
 import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.PixelSink
@@ -43,9 +44,9 @@ fun stitch(images: List<Image>, arrangement: Arrangement): Bitmap {
     val width = images.first().width
     val height = images.first().height
     val bitmap = if (arrangement == Arrangement.ROW) {
-        Bitmap.createBitmap(width * images.size, height, Bitmap.Config.ARGB_8888)
+        createBitmap(width * images.size, height)
     } else {
-        Bitmap.createBitmap(width, height * images.size, Bitmap.Config.ARGB_8888)
+        createBitmap(width, height * images.size)
     }
     images.forEachIndexed { i, image ->
         val (x, y) = if (arrangement == Arrangement.ROW) width * i to 0 else 0 to height * i
