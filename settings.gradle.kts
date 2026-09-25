@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "dog-vision"
+
+include(":core")
