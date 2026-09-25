@@ -30,11 +30,15 @@ class CameraFeed(
     private var provider: ProcessCameraProvider? = null
     private var analysis: ImageAnalysis? = null
 
+    /** The display's rotation, kept for a camera that has not started yet when it turns. */
+    private var rotation = 0
+
     /**
      * Starts the back or the front camera, stopping the other. The frames of the one stopped that
      * come in meanwhile belong to a generation before, and are dropped.
      */
     fun start(front: Boolean, rotation: Int) {
+        this.rotation = rotation
         val generation = frames.open()
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
@@ -56,7 +60,7 @@ class CameraFeed(
                     )
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                    .setTargetRotation(rotation)
+                    .setTargetRotation(this.rotation)
                     .build()
                 analysis.setAnalyzer(executor) { deliver(it, front, generation) }
                 val selector = if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
@@ -71,6 +75,7 @@ class CameraFeed(
 
     /** Follows the display as it turns, so that each frame's rotation brings it upright on it. */
     fun setRotation(rotation: Int) {
+        this.rotation = rotation
         analysis?.targetRotation = rotation
     }
 
