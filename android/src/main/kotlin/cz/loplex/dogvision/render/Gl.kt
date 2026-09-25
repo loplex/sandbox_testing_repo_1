@@ -28,6 +28,7 @@ import android.opengl.GLES30.glCompileShader
 import android.opengl.GLES30.glCreateProgram
 import android.opengl.GLES30.glCreateShader
 import android.opengl.GLES30.glDeleteFramebuffers
+import android.opengl.GLES30.glDeleteProgram
 import android.opengl.GLES30.glDeleteShader
 import android.opengl.GLES30.glDeleteTextures
 import android.opengl.GLES30.glFramebufferTexture2D
@@ -61,6 +62,8 @@ internal class Program(vertex: String, fragment: String) {
     }
 
     fun use(): Program = apply { glUseProgram(id) }
+
+    fun release() = glDeleteProgram(id)
 
     fun uniform(name: String): Int = locations.getOrPut(name) { glGetUniformLocation(id, name) }
 
