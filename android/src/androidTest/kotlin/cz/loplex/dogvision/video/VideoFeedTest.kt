@@ -105,6 +105,21 @@ class VideoFeedTest {
         assertEquals(96 to 64, shown.width to shown.height)
     }
 
+    @Test
+    fun anHdrVideoIsShownUprightAtItsSize() {
+        // A GPU with GL_EXT_YUV_target tone-maps the HLG video, and one without, as the emulator's, shows it as
+        // decoded; either way its colours are not the ones stored, and only the reddest and the bluest quadrant
+        // are checked.
+        val shown = firstFrame("quadrants-hlg.mp4", longestSide = 128)
+        assertEquals(128 to 72, shown.width to shown.height)
+        val (topLeft, _, bottomLeft) = shown.colours
+        assertTrue("top left ${Integer.toHexString(topLeft)}", red(topLeft) > maxOf(green(topLeft), blue(topLeft)))
+        assertTrue(
+            "bottom left ${Integer.toHexString(bottomLeft)}",
+            blue(bottomLeft) > maxOf(red(bottomLeft), green(bottomLeft)),
+        )
+    }
+
     private companion object {
         val RED = rgb(200, 40, 40)
         val GREEN = rgb(40, 200, 40)
