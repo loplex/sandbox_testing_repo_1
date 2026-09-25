@@ -9,7 +9,7 @@ Its README explains the model and the science behind it.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `android`, the GPU renderer.
-- [Checking it](#checking-it) — `:core:test`, `:android:connectedDebugAndroidTest`, `:android:lintDebug`,
+- [Checking it](#checking-it) — `check`, `:core:test`, `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
 
@@ -147,6 +147,8 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
 
 ## Checking it
 
+- `./gradlew check` runs every test task below that needs no phone, Android Lint and the Kotlin style;
+  it does not run `tools/check_links.py`.
 - `./gradlew :core:test` runs the model's tests on the JVM:
   the invariants of dog-vision-python, ported from its pytest suite, and a comparison with the reference values.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or emulator,
@@ -156,6 +158,10 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   - [`VideoFeedTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/VideoFeedTest.kt) plays a video into the renderer's frames;
   - [`ConversionTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/ConversionTest.kt) converts a video and holds it to `core`'s CPU pipeline.
 - `./gradlew :android:lintDebug` runs Android Lint.
+- **The Kotlin style is [ktlint](https://pinterest.github.io/ktlint/)'s, as IntelliJ IDEA formats Kotlin**, set in [`.editorconfig`](.editorconfig):
+  - `./gradlew ktlintCheck` checks it, and `./gradlew ktlintFormat` fixes what it can;
+  - `./gradlew checkLineLength` holds every line to 120 characters, comments included:
+    ktlint does not measure a line that is a comment and nothing else.
 - `python3 tools/check_links.py` checks that every relative link in the Markdown resolves, down to its anchor.
 
 ### Caveat: the emulator fails the video tests' colour checks

@@ -1,4 +1,4 @@
-/**
+/*
  * The colour-vision model, for one species at a time.
  *
  * After Brettel, Viénot & Mollon 1997:
@@ -7,15 +7,15 @@
  *    parametrised only by its peak wavelength.
  * 2. The display is modelled as three Gaussian primaries (typical sRGB LCD),
  *    scaled so that RGB (1,1,1) excites the human cones like D65 daylight.
- * 3. M_animal (2x3 for a dichromat) maps linear RGB to the animal's S and L cone excitations.\
+ * 3. M_animal (2x3 for a dichromat) maps linear RGB to the animal's S and L cone excitations.
  *    Its one-dimensional null space n is the direction along which colours differ only in ways the animal cannot see.
  * 4. Each pixel is moved along n into the plane R = G.
  *    That plane contains the grey axis (so neutral colours stay neutral)
- *    and the blue-yellow axis (the conventional rendering of a dichromat's single chromatic axis).\
+ *    and the blue-yellow axis (the conventional rendering of a dichromat's single chromatic axis).
  *    A cone monochromat is mapped onto the grey axis instead, and a trichromat maps onto all of RGB:
  *    nothing merges, so without step 6 its image is unchanged.
  * 5. Optionally the cones adapt to the scene (von Kries gains taken from the image mean, "grey world"),
- *    and the result is blended with the input.\
+ *    and the result is blended with the input.
  *    Optionally the image is also blurred to the animal's visual acuity,
  *    as AcuityView does (Caves & Johnsen 2018), for a given field of view.
  * 6. The saturation of the animal's colour axes is either left as step 4 gives it ("fixed"),
@@ -23,7 +23,7 @@
  *    both judged by the receptor noise limited model of Vorobyev & Osorio (1998),
  *    with the same cone noise for animal and human.
  *
- * The whole transform collapses into one 3x3 matrix on linear RGB.\
+ * The whole transform collapses into one 3x3 matrix on linear RGB.
  * Without adaptation its rank equals the number of cone types,
  * and the animal's cone excitation of every output pixel equals that of the input.
  */
@@ -138,8 +138,13 @@ fun greyWorldGains(mAnimal: Matrix, meanRgb: DoubleArray, adaptation: Double): D
 }
 
 /** [I | -1]: takes cone excitations q to the chromatic coordinates c = (q_i - q_L). */
-private fun toChroma(coneTypes: Int): Matrix =
-    Matrix.build(coneTypes - 1, coneTypes) { i, j -> if (j == coneTypes - 1) -1.0 else if (i == j) 1.0 else 0.0 }
+private fun toChroma(coneTypes: Int): Matrix = Matrix.build(coneTypes - 1, coneTypes) { i, j ->
+    when {
+        j == coneTypes - 1 -> -1.0
+        i == j -> 1.0
+        else -> 0.0
+    }
+}
 
 /**
  * Columns: output colours that raise one non-L cone's excitation by one, leaving the rest.
@@ -238,12 +243,17 @@ fun rnlGains(species: Species): DoubleArray {
     val k = rnlChromaMatrix(species)
     val eigenvalues = when (k.rows) {
         0 -> doubleArrayOf()
+
         1 -> doubleArrayOf(k[0, 0])
+
         else -> { // the real parts of the eigenvalues of a 2x2 matrix
             val halfTrace = (k[0, 0] + k[1, 1]) / 2
             val discriminant = halfTrace * halfTrace - (k[0, 0] * k[1, 1] - k[0, 1] * k[1, 0])
-            if (discriminant >= 0) doubleArrayOf(halfTrace + sqrt(discriminant), halfTrace - sqrt(discriminant))
-            else doubleArrayOf(halfTrace, halfTrace)
+            if (discriminant >= 0) {
+                doubleArrayOf(halfTrace + sqrt(discriminant), halfTrace - sqrt(discriminant))
+            } else {
+                doubleArrayOf(halfTrace, halfTrace)
+            }
         }
     }
     return eigenvalues.sortedDescending().toDoubleArray()
