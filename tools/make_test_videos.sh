@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Writes the videos the instrumented tests play, into android/src/androidTest/assets.
+# Writes the videos the instrumented tests play and convert, into android/src/androidTest/assets.
 #
 # Each is 256 x 144 pixels, 10 frames a second for 1 second, in four quadrants of one colour each, so
 # that a test can tell which way up a frame came out and whether its colours survived: red top left,

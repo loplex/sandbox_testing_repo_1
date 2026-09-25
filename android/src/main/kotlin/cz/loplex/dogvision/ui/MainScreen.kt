@@ -66,6 +66,7 @@ private val GAP = 6.dp
 fun MainScreen(model: MainViewModel) {
     val context = LocalContext.current
     val source by model.source.collectAsStateWithLifecycle()
+    val converting by model.converting.collectAsStateWithLifecycle()
     var cameraAllowed by remember {
         val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         mutableStateOf(permission == PackageManager.PERMISSION_GRANTED)
@@ -86,8 +87,14 @@ fun MainScreen(model: MainViewModel) {
                 }
                 if (source != Source.Camera) ImageButton(R.drawable.ic_camera, R.string.show_camera, model::openCamera)
                 ImageButton(R.drawable.ic_save, R.string.save_snapshot) { save(model::saveSnapshot) }
-                if (source is Source.Photo) {
-                    ImageButton(R.drawable.ic_full_size, R.string.save_full_size) { save(model::convertPhoto) }
+                when {
+                    converting -> ImageButton(R.drawable.ic_cancel, R.string.cancel_conversion, model::cancelConversion)
+                    source is Source.Photo -> ImageButton(R.drawable.ic_full_size, R.string.save_full_size) {
+                        save(model::convertPhoto)
+                    }
+                    source is Source.Video -> ImageButton(R.drawable.ic_full_size, R.string.save_video_full_size) {
+                        save(model::convertVideo)
+                    }
                 }
             },
         ) {
