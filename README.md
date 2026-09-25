@@ -56,6 +56,9 @@ as when it was deleted meanwhile, gives way to the camera, and a message says so
   and turned as its EXIF orientation says.
 - **A video plays at its own rate, over and over, without its sound**,
   scaled down as a photo is and turned as its rotation says.
+- **An HDR video is tone-mapped to SDR** as its conversion is,
+  so that it looks as it will once saved, where the GPU can do it (with `GL_EXT_YUV_target`);
+  where not, as on the emulator, it looks flat, its HDR frames taken as SDR.
 - **The camera button goes back to the camera.**
 - **A photo or a video can be opened without allowing the camera**, which the app asks for only to show it.
 
@@ -188,7 +191,7 @@ so a red of 200 comes out as 186 there, and `VideoFeedTest` and `ConversionTest`
 
 [`tools/make_test_videos.sh`](tools/make_test_videos.sh) writes the videos in [`android/src/androidTest/assets`](android/src/androidTest/assets) with ffmpeg:
 four flat quadrants, one of them turned as a phone held upright records,
-and one too small for Qualcomm's hardware decoder.\
+one too small for Qualcomm's hardware decoder, and one in 10-bit HDR.\
 With the same ffmpeg, it writes the same bytes each time it runs.
 
 ### The reference values come from dog-vision-python
