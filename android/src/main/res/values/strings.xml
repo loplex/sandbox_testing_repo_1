@@ -26,6 +26,63 @@
     <string name="difference">Map of differences</string>
     <string name="reset">Reset</string>
 
+    <!-- The facts about the selected species -->
+    <string name="selected_species">Selected species</string>
+    <string name="about">What this means</string>
+    <string name="close">Close</string>
+    <string name="fact_colour_vision">Colour vision</string>
+    <string name="fact_cone_peaks">Cone peaks</string>
+    <string name="fact_s_cones">S cones</string>
+    <string name="fact_l_to_m">L : M cones</string>
+    <string name="fact_neutral_point">Neutral point</string>
+    <string name="fact_rnl_scale">RNL scale</string>
+    <string name="fact_acuity">Acuity</string>
+    <plurals name="cone_types">
+        <item quantity="one">%1$s, %2$d cone type</item>
+        <item quantity="other">%1$s, %2$d cone types</item>
+    </plurals>
+    <string name="percent_range">%1$s%%–%2$s%%</string>
+    <string name="share_of_cones">%1$s of cones</string>
+    <string name="assumed">assumed</string>
+    <string name="no_colour_axis">no colour axis</string>
+    <string name="sees_only_grey">(sees only grey)</string>
+    <string name="rnl_of_fixed">%1$s of fixed</string>
+    <string name="gains_and">" and "</string>
+    <string name="not_found_measured">not found measured;</string>
+    <string name="left_sharp">left sharp</string>
+    <string name="acuity_value">%1$s c/deg</string>
+    <string name="acuity_across">%1$s c/deg side by side,</string>
+    <string name="acuity_up">%1$s one above another</string>
+    <!-- Notes after a citation; a citation itself is never translated -->
+    <string name="note_l_shifted">L shifted 10 nm, see text</string>
+    <string name="note_m_shifted">M shifted 10 nm, see text</string>
+    <string name="note_s_assumed">S assumed</string>
+    <string name="note_range_11_7_to_14">11.7 to 14</string>
+    <string name="note_range_1_8_to_3_8">1.8 to 3.8</string>
+    <string name="note_about_60">about 60</string>
+    <string name="note_in_air">in air</string>
+    <string name="note_stripes_8_2_arcmin">8.2 arcmin stripes</string>
+
+    <!-- What each control and fact means, shown by its info button -->
+    <string name="about_species" formatted="false">The animal to simulate, with its kind of colour vision in brackets.\n\nMost dichromatic mammals look much alike: they share the same two cone genes, tuned a few tens of nanometres apart at most. The large steps are between kinds of colour vision, not between species of one kind.</string>
+    <string name="about_adaptation" formatted="false">How far the cones adapt to the scene instead of to daylight.\n\nAt 0 the eye is adapted to daylight, so a scene lit by a warm sunset looks warm. At 100 each cone\'s signal is scaled so that the scene\'s average colour becomes neutral, the way an eye that has been in that light for a while stops noticing its cast (von Kries adaptation to a \"grey world\").</string>
+    <string name="about_strength" formatted="false">Blends the simulation with the original image: 0 shows the original, 100 the full simulation.\n\nIn between, the colours the animal cannot tell apart are only partly merged.</string>
+    <string name="about_chroma_fixed" formatted="false">Colours the animal cannot tell apart are merged, and the rest keep the saturation the projection happens to give them.\n\nThe merging says which colours look alike, but not how vivid the others look: that has no natural scale. For a trichromat nothing merges, so this leaves the image as it is.</string>
+    <string name="about_chroma_rnl" formatted="false">Saturation is rescaled so that a human looking at the image can tell as many colour steps apart as the animal can in the scene. An animal that tells colours apart worse than we do gets paler colours.\n\nThe steps are counted by the receptor noise limited model, from the share of each kind of cone; the factors are under RNL scale in Selected species.\n\nIt assumes the animal\'s cones are as noisy as ours, and it is matched near grey, so strongly saturated colours are extrapolated.</string>
+    <string name="about_acuity_blur" formatted="false">Removes the detail finer than the species resolves, with a blur matching its measured acuity (Acuity in Selected species).\n\nThe blur shows only if the image has more pixels per degree than the species resolves. A camera image 640 pixels wide spanning 60° has about 11 pixels per degree, so a dog\'s blur is under half a pixel and invisible, while a large photo shows it clearly.</string>
+    <string name="about_field_of_view" formatted="false">How many degrees of view the image spans from left to right. The blur is set per degree, so this decides how many pixels wide it is: halving the angle halves the blur.\n\n60° is typical of a camera. The result is right when the image is seen at that same angle; seen smaller, your own acuity blurs it further.</string>
+    <string name="about_side_by_side" formatted="false">Shows a second image beside the simulation: the original, or another species chosen under Compared with. Off, only the simulation is shown.</string>
+    <string name="about_compare_with" formatted="false">What the second image shows: the original, or another species rendered with the same settings, so that two animals can be compared directly.</string>
+    <string name="about_difference" formatted="false">Adds a third image: grey where the first two images look the same, red where they differ by more than one just-noticeable difference, deeper the larger the difference.\n\nIt compares the two images as a human sees them, in CIELAB, where one just-noticeable difference is about ΔE 2.3 (Mahy et al. 1994), so it catches differences in colour and in sharpness alike.\n\nIt measures the two renderings, each already reduced to what its animal can tell apart. The threshold is an average, so the edge of the red region is approximate.</string>
+    <string name="about_reset" formatted="false">Returns every control to where it started.</string>
+    <string name="about_fact_colour_vision" formatted="false">How many kinds of cone the species has, and so how many independent colour signals its eye sends.\n\nA trichromat, like us, has three. A camera records nothing that would merge for it, so its image stays as it is unless Colour saturation is matched to discrimination.\n\nA dichromat has two. Colours that differ only along one direction look the same to it, and the simulation shows them on the blue–yellow axis.\n\nA cone monochromat has one, and sees shades of grey.</string>
+    <string name="about_fact_cone_peaks" formatted="false">The wavelength each kind of cone is most sensitive to: S for short, M for middle and L for long wavelengths. A dichromat\'s longer cone is listed as L whatever its source calls it.\n\nThe study the peaks are taken from is in brackets; the README of the dog-vision project lists every source in full under References. A note after the citation marks a value that is not simply measured, such as a cone shifted on purpose or one assumed.\n\nEach cone is modelled from its peak alone, with the pigment template of Govardovskii et al. (2000). Its sensitivity is about 100 nm wide at half height, which is why a shift of a few nanometres between species changes little.\n\nA human\'s cones peak at 420.7, 530.3 and 558.9 nm.</string>
+    <string name="about_fact_s_cones" formatted="false">The share of all cones that are S cones, with its source. Where the source reports a range across the retina, the middle of it is used.\n\nOnly the RNL colour saturation uses it: the fewer cones of a kind, the noisier their signal, and the larger a colour difference along that cone\'s axis must be to be noticed.\n\n\"Assumed\" means no measurement was found, and 10 % is used, the middle of what the measured species span.</string>
+    <string name="about_fact_l_to_m" formatted="false">How many L cones a trichromat has for every M cone. Only the RNL colour saturation uses it.\n\nHumans with normal colour vision range from about twice as many L as M cones to the reverse (Roorda &amp; Williams 1999), so every trichromat is given 1 : 1, and it is marked as assumed.</string>
+    <string name="about_fact_neutral_point" formatted="false">The wavelength of pure spectral light that a dichromat cannot tell from white. Shorter wavelengths look bluish to it, longer ones yellowish.\n\nThe value is the model\'s, computed from the cone peaks. For the dog it matches the measured neutral point of about 480 nm (Neitz, Geist &amp; Jacobs 1989). For a human deuteranope it falls well short of the measured 505 nm, probably because the model ignores the lens and the macular pigment.</string>
+    <string name="about_fact_rnl_scale" formatted="false">How much the RNL colour saturation changes saturation compared with the fixed one. Below 1 the species tells colours apart worse than we do, above 1 better.\n\nIt comes from the receptor noise limited model of Vorobyev &amp; Osorio (1998), which counts just-noticeable differences from each cone\'s noise, set by the share of cones of its kind. The output is rescaled until a human looking at it counts as many differences as the animal would. A trichromat has two colour axes and so two factors; a monochromat has none.\n\nIt assumes the animal\'s cones are as noisy as ours, which is measured for almost no mammal.</string>
+    <string name="about_fact_acuity" formatted="false">The finest stripes the species resolves, in cycles per degree: pairs of one dark and one light stripe within one degree of view. A human resolves about 72.\n\nWith Blur to the species\' acuity checked, detail finer than that is removed, as AcuityView does (Caves &amp; Johnsen 2018).\n\nCattle resolve detail side by side better than one above another, since their pupil is a horizontal oval. A species without a measurement is left sharp.</string>
+
     <!-- The camera -->
     <string name="camera_needed">The camera shows the scene as the chosen animal sees it. Allow the app to use it to see the live view.</string>
     <string name="allow_camera">Allow the camera</string>
