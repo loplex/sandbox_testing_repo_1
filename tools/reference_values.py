@@ -4,11 +4,12 @@ The desktop dog-vision is https://github.com/loplex/dog-vision. From a checkout 
 
     uv run --project <checkout> python tools/reference_values.py core/src/test/resources
 
-It writes two files there, each line tab-separated:
+It writes three files there, each line tab-separated:
 
 - reference.tsv: a kind of value, the species and the chroma scale it is for, and the values.
 - images.tsv: a case of the image pipeline, the width and height of its result, and the result's
   pixels, row by row, each as R, G and B. The input is pattern(), which the tests draw alike.
+- facts.tsv: a species, the English label of one of its facts, and the pieces of its value.
 """
 
 import sys
@@ -16,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
+from dog_vision.core.facts import species_facts
 from dog_vision.core.imaging import compose
 from dog_vision.core.model import CHROMA_SCALES, Params, neutral_point, rnl_gains, simulation_matrix
 from dog_vision.core.species import SPECIES
@@ -61,3 +63,7 @@ with open(out / "images.tsv", "w") as images:
         rgb = image[..., ::-1]
         fields = [name, str(rgb.shape[1]), str(rgb.shape[0]), repr(share), *map(str, rgb.ravel())]
         print("\t".join(fields), file=images)
+with open(out / "facts.tsv", "w") as facts:
+    for species in SPECIES:
+        for label, value, _description in species_facts(species):
+            print("\t".join([species, label, *value]), file=facts)
