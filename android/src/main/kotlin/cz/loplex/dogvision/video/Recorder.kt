@@ -108,7 +108,9 @@ class Recorder(private val output: File, private val onFinished: (Result<Written
         val codec = codec
         when {
             finished -> Unit
+
             codec == null -> fail(IOException("No frame was shown while recording"))
+
             else -> handler.post {
                 try {
                     codec.signalEndOfInputStream()
@@ -208,12 +210,11 @@ private fun chooseEncoder(width: Int, height: Int): Triple<MediaCodecInfo, Strin
     throw IOException("No encoder for H.265 or H.264 takes a video of $width x $height")
 }
 
-private fun isHardware(info: MediaCodecInfo): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        info.isHardwareAccelerated
-    } else {
-        !info.name.startsWith("OMX.google.") && !info.name.startsWith("c2.android.")
-    }
+private fun isHardware(info: MediaCodecInfo): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+    info.isHardwareAccelerated
+} else {
+    !info.name.startsWith("OMX.google.") && !info.name.startsWith("c2.android.")
+}
 
 /** The largest size of the shape of [width] x [height], no larger, that [capabilities] take at the recording's rate. */
 private fun fit(capabilities: MediaCodecInfo.VideoCapabilities, width: Int, height: Int): Pair<Int, Int>? {

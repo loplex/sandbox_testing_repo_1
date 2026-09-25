@@ -133,7 +133,8 @@ enum class Species(
     BOTTLENOSE_DOLPHIN( // the L opsin
         "bottlenose-dolphin", listOf(524.0), Source("Fasick et al. 1998"),
         acuity = Acuity(60 / (2 * 8.2), 60 / (2 * 8.2), Source("Herman et al. 1975", Note.STRIPES_8_2_ARCMIN)),
-    );
+    ),
+    ;
 
     val colourVision: ColourVision get() = ColourVision.entries.first { it.coneTypes == peaks.size }
 

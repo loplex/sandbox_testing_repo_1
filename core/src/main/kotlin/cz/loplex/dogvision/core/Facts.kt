@@ -117,8 +117,11 @@ fun speciesFacts(species: Species, texts: FactTexts): List<Fact> {
         facts += Fact(FactLabel.RNL_SCALE, listOf(texts.noColourAxis, texts.seesOnlyGrey))
     } else {
         val share = species.sCones
-        val shareText = if (share == null) percent(ASSUMED_S_CONE_FRACTION, ASSUMED_S_CONE_FRACTION, texts)
-        else percent(share.low, share.high, texts)
+        val shareText = if (share == null) {
+            percent(ASSUMED_S_CONE_FRACTION, ASSUMED_S_CONE_FRACTION, texts)
+        } else {
+            percent(share.low, share.high, texts)
+        }
         facts += Fact(
             FactLabel.S_CONES,
             listOf(texts.shareOfCones(shareText)) + pieces("(${share?.source ?: texts.assumed})"),
