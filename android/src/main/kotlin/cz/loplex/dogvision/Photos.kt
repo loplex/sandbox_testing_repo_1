@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ColorSpace
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import cz.loplex.dogvision.render.Frame
 import kotlin.math.max
@@ -57,7 +58,7 @@ fun decodePhoto(context: Context, uri: Uri, longestSide: Int? = null): Pair<Bitm
     } else {
         val width = (decoded.width * scale).roundToInt()
         val height = (decoded.height * scale).roundToInt()
-        Bitmap.createScaledBitmap(decoded, width, height, true).also { decoded.recycle() }
+        decoded.scale(width, height).also { decoded.recycle() }
     }
     val orientation = resolver.openInputStream(uri)?.use {
         ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
