@@ -48,57 +48,65 @@ data class Written(
  * video is tone-mapped to SDR first, since the model works on SDR. Cancelling the coroutine stops the
  * conversion, and [output] is then left unfinished.
  *
+ * [textureLimit] caps the size of the view's texture below the GPU's own, as a GPU with a smaller one would.
+ *
  * Throws IOException if the video cannot be converted.
  */
 @OptIn(UnstableApi::class)
-suspend fun convertVideo(context: Context, uri: Uri, view: View, output: File, onProgress: (Double) -> Unit): Written =
-    withContext(Dispatchers.Main) {
-        val result = CompletableDeferred<ExportResult>()
-        val transformer = Transformer.Builder(context)
-            .setVideoMimeType(MimeTypes.VIDEO_H265)
-            .addListener(object : Transformer.Listener {
-                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                    result.complete(exportResult)
-                }
-
-                override fun onError(composition: Composition, exportResult: ExportResult, exception: ExportException) {
-                    result.completeExceptionally(IOException(exception.message ?: exception.errorCodeName, exception))
-                }
-            })
-            .build()
-        val effect = ViewEffect(view)
-        val item = EditedMediaItem.Builder(MediaItem.fromUri(uri))
-            .setEffects(Effects(emptyList(), listOf(effect)))
-            .build()
-        val composition = Composition.Builder(EditedMediaItemSequence.withAudioAndVideoFrom(listOf(item)))
-            .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
-            .build()
-        transformer.start(composition, output.path)
-        val progress = ProgressHolder()
-        val exported = try {
-            var done: ExportResult? = null
-            while (done == null) {
-                done = withTimeoutOrNull(PROGRESS_INTERVAL_MS) { result.await() }
-                if (transformer.getProgress(progress) == Transformer.PROGRESS_STATE_AVAILABLE) {
-                    onProgress(progress.progress / 100.0)
-                }
+suspend fun convertVideo(
+    context: Context,
+    uri: Uri,
+    view: View,
+    output: File,
+    textureLimit: Int = Int.MAX_VALUE,
+    onProgress: (Double) -> Unit,
+): Written = withContext(Dispatchers.Main) {
+    val result = CompletableDeferred<ExportResult>()
+    val transformer = Transformer.Builder(context)
+        .setVideoMimeType(MimeTypes.VIDEO_H265)
+        .addListener(object : Transformer.Listener {
+            override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                result.complete(exportResult)
             }
-            done
-        } catch (cancelled: CancellationException) {
-            transformer.cancel()
-            throw cancelled
+
+            override fun onError(composition: Composition, exportResult: ExportResult, exception: ExportException) {
+                result.completeExceptionally(IOException(exception.message ?: exception.errorCodeName, exception))
+            }
+        })
+        .build()
+    val effect = ViewEffect(view, textureLimit)
+    val item = EditedMediaItem.Builder(MediaItem.fromUri(uri))
+        .setEffects(Effects(emptyList(), listOf(effect)))
+        .build()
+    val composition = Composition.Builder(EditedMediaItemSequence.withAudioAndVideoFrom(listOf(item)))
+        .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
+        .build()
+    transformer.start(composition, output.path)
+    val progress = ProgressHolder()
+    val exported = try {
+        var done: ExportResult? = null
+        while (done == null) {
+            done = withTimeoutOrNull(PROGRESS_INTERVAL_MS) { result.await() }
+            if (transformer.getProgress(progress) == Transformer.PROGRESS_STATE_AVAILABLE) {
+                onProgress(progress.progress / 100.0)
+            }
         }
-        // Compared by their pixels, since Transformer turns a video taller than wide on its side to encode it.
-        val rendered = effect.renderedSize
-        val scaled = rendered != null && exported.width > 0 &&
-            exported.width * exported.height < rendered.first * rendered.second
-        Written(
-            format = formatName(exported.videoMimeType),
-            encoder = exported.videoEncoderName ?: "?",
-            sound = exported.audioMimeType != null,
-            scaledTo = if (scaled) exported.width to exported.height else null,
-        )
+        done
+    } catch (cancelled: CancellationException) {
+        transformer.cancel()
+        throw cancelled
     }
+    // Compared by their pixels, since Transformer turns a video taller than wide on its side to encode it.
+    val rendered = effect.renderedSize
+    val scaled = rendered != null && exported.width > 0 &&
+        exported.width * exported.height < rendered.first * rendered.second
+    Written(
+        format = formatName(exported.videoMimeType),
+        encoder = exported.videoEncoderName ?: "?",
+        sound = exported.audioMimeType != null,
+        scaledTo = if (scaled) exported.width to exported.height else null,
+    )
+}
 
 /** The name a video's format goes by, as the desktop dog-vision names it. */
 internal fun formatName(mimeType: String?): String = when (mimeType) {

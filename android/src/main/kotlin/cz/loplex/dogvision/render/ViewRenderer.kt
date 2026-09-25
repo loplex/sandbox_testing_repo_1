@@ -2,7 +2,6 @@ package cz.loplex.dogvision.render
 
 import android.opengl.GLES30.GL_COLOR_BUFFER_BIT
 import android.opengl.GLES30.GL_FRAMEBUFFER
-import android.opengl.GLES30.GL_MAX_TEXTURE_SIZE
 import android.opengl.GLES30.GL_RGBA
 import android.opengl.GLES30.GL_RGBA8
 import android.opengl.GLES30.GL_TEXTURE_2D
@@ -11,7 +10,6 @@ import android.opengl.GLES30.glBindFramebuffer
 import android.opengl.GLES30.glBindTexture
 import android.opengl.GLES30.glClear
 import android.opengl.GLES30.glClearColor
-import android.opengl.GLES30.glGetIntegerv
 import android.opengl.GLES30.glTexImage2D
 import android.opengl.GLES30.glViewport
 import android.opengl.GLSurfaceView
@@ -36,6 +34,10 @@ data class Drawn(val layout: ScreenLayout, val differenceShare: Double?)
 /**
  * Draws the newest frame of [frames] as [view] asks, on the GL thread of a GLSurfaceView: the view's
  * images, rendered by [ViewPasses], scaled to the layout [layOut] gives.
+ *
+ * The frame and each image are a texture of the frame's size, which needs no check against the GPU's
+ * GL_MAX_TEXTURE_SIZE: OpenGL ES 3.0 lets none be under 2048, and the camera's frames, a photo and a
+ * video are shown no longer than that.
  */
 class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Drawn) -> Unit) : GLSurfaceView.Renderer {
     /** What to show; set from any thread, and followed by GLSurfaceView.requestRender(). */
@@ -74,10 +76,6 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
         captures.add(onImages)
     }
 
-    /** The longest side a texture may have on this GPU. */
-    var maxTextureSize = 0
-        private set
-
     override fun onSurfaceCreated(unused: GL10?, config: EGLConfig?) {
         passes.lose()
         shown = null
@@ -85,9 +83,6 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
         recording = null // its surface went with the context it was made in
         passes.create()
         raw = texture()
-        val max = IntArray(1)
-        glGetIntegerv(GL_MAX_TEXTURE_SIZE, max, 0)
-        maxTextureSize = max[0]
     }
 
     override fun onSurfaceChanged(unused: GL10?, width: Int, height: Int) {
