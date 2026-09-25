@@ -21,22 +21,22 @@ import cz.loplex.dogvision.ui.AndroidTexts
 import cz.loplex.dogvision.video.Recorder
 import cz.loplex.dogvision.video.Written
 import cz.loplex.dogvision.video.convertVideo
-import java.io.File
-import java.io.IOException
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+import java.util.Locale
 
 /** What is shown: the camera, a photo, or a video. */
 sealed interface Source {

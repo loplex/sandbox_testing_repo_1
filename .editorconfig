@@ -10,6 +10,15 @@ indent_size = 4
 
 [*.{kt,kts}]
 max_line_length = 120
+# ktlint: the Kotlin coding conventions as IntelliJ IDEA formats them, and Compose's capitalised functions.
+ktlint_code_style = intellij_idea
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# ktlint 1.x runs its unused-import rule only when asked to; the compiler does not report them either.
+ktlint_standard_no-unused-imports = enabled
+
+# The species are a table: a species' name, its cones and their source stay on one line.
+[core/src/main/kotlin/cz/loplex/dogvision/core/Species.kt]
+ktlint_standard_argument-list-wrapping = disabled
 
 [*.{xml,toml,yml,yaml}]
 indent_size = 4
