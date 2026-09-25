@@ -121,6 +121,18 @@ class ConversionTest {
         assertTrue("$width x $height", width <= 480 && height <= 480)
     }
 
+    @Test
+    fun aVideoTheFirstDecoderRefusesIsConverted() {
+        // Qualcomm's hardware decoder refuses 96 x 64, and a phone with it decodes the video with another. Its size
+        // is not held to the view's, which is under the smallest that some encoders take, and is scaled up for them.
+        val input = asset("quadrants-small.mp4")
+        val output = File(context.cacheDir, "converted-small.mp4").apply { delete() }
+        val written = runBlocking { convertVideo(context, Uri.fromFile(input), View(Params(Species.DOG)), output) {} }
+        assertTrue("sound", written.sound)
+        val (mimeTypes, _) = tracks(output)
+        assertTrue(mimeTypes.toString(), mimeTypes.any { it.startsWith("video/") })
+    }
+
     private companion object {
         /** What two rounds of 8-bit 4:2:0 YUV cost a flat colour. */
         const val TOLERANCE = 8
