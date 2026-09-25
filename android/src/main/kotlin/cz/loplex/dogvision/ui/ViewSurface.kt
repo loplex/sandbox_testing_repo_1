@@ -51,6 +51,7 @@ fun ViewSurface(
             preserveEGLContextOnPause = true
             setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+            renderer.requestRender = ::requestRender
         }
     }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
