@@ -34,11 +34,14 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.view.Surface
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import cz.loplex.dogvision.render.FrameExchange
 import cz.loplex.dogvision.render.OffscreenContext
@@ -77,7 +80,7 @@ class VideoFeed(
 
     private var gl: Gl? = null
 
-    private val player = ExoPlayer.Builder(context).build().apply {
+    private val player = playerWithDecoderFallback(context).apply {
         trackSelectionParameters = trackSelectionParameters.buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
             .build()
@@ -205,3 +208,11 @@ class VideoFeed(
         }
     }
 }
+
+/**
+ * A player that tries the next decoder for a video that the first refuses, as a hardware decoder
+ * refuses one below a size of its own; the flag, and the builder taking it, are unstable API.
+ */
+@OptIn(UnstableApi::class)
+private fun playerWithDecoderFallback(context: Context): ExoPlayer =
+    ExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true)).build()
