@@ -196,7 +196,8 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
     as `ViewRendererTest` below holds the app's.\
     Chrome renders WebGL 2 there in software, with SwiftShader, as [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to,
     so it does not test the machine's GPU.
-  - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's wording: plurals.
+  - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's wording:
+    plurals, languages' names, decimal separators and strings a language lacks.
   - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a snapshot puts the images together.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or emulator,
   on that device's GPU and codecs:
