@@ -28,14 +28,14 @@ import kotlin.test.assertTrue
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PassesTest {
-    private lateinit var context: EglContext
+    private lateinit var context: GlContext
     private lateinit var passes: Passes
 
     @BeforeAll
     fun makeContext() {
-        context = EglContext()
+        context = EglContext.onDevice()
         println("OpenGL ES: ${context.renderer}, ${context.version}")
-        passes = Passes(LwjglGles())
+        passes = Passes(context.gl)
     }
 
     @AfterAll

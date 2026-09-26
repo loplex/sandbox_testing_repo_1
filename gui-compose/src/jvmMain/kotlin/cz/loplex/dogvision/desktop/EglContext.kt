@@ -31,28 +31,18 @@ import org.lwjgl.system.MemoryStack
 import java.nio.IntBuffer
 
 /**
- * An OpenGL ES 3.0 context with no window and no surface, current on the thread that makes it, on a GPU that EGL's
- * device platform names: GL draws into framebuffers of its own, which are read back to be shown.
+ * An OpenGL ES 3.0 context through EGL on the [display] given, with no surface, current on the thread that makes it.
  *
- * The device is chosen, the first with a DRM render node, which a GPU has and Mesa's software renderer has not; the
- * display EGL gives by default can be the software renderer's, as its GBM platform's is on a machine with a Radeon
- * 680M. Mesa's surfaceless platform would pick the GPU as well, but LWJGL 3.4.3 cannot ask for it: the platform takes
- * a null native display, which LWJGL's binding refuses. Where no device has a render node, the context is the first
- * device's, and [software] says so.
- *
- * Throws IllegalStateException where EGL, the platform or an ES 3 context is missing.
+ * Throws IllegalStateException where the display, EGL or an ES 3 context is missing.
  */
-class EglContext : AutoCloseable {
-    private val display: Long
+class EglContext private constructor(private val display: Long) : GlContext {
     private val context: Long
 
-    /** What GL says it is running on, as `GL_RENDERER` and `GL_VERSION` name it. */
-    val renderer: String
-    val version: String
+    override val renderer: String
+    override val version: String
 
     init {
-        display = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, device(), null as IntBuffer?)
-        check(display != EGL_NO_DISPLAY) { "EGL cannot open the device (error 0x${eglError()})" }
+        check(display != EGL_NO_DISPLAY) { "EGL cannot open the display (error 0x${eglError()})" }
         MemoryStack.stackPush().use { stack ->
             val major = stack.mallocInt(1)
             val minor = stack.mallocInt(1)
@@ -77,8 +67,10 @@ class EglContext : AutoCloseable {
         version = glGetString(GL_VERSION).orEmpty()
     }
 
+    override val gl = LwjglGles()
+
     /** Whether GL renders in software, on the CPU, as Mesa's llvmpipe and softpipe do. */
-    val software: Boolean get() = "llvmpipe" in renderer || "softpipe" in renderer
+    override val software: Boolean get() = "llvmpipe" in renderer || "softpipe" in renderer
 
     override fun close() {
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)
@@ -87,18 +79,30 @@ class EglContext : AutoCloseable {
         eglTerminate(display)
     }
 
-    private fun eglError() = eglGetError().toString(16)
+    companion object {
+        private const val MAX_DEVICES = 16
 
-    /** The first EGL device with a DRM render node, else the first of all. */
-    private fun device(): Long = MemoryStack.stackPush().use { stack ->
-        val devices = stack.mallocPointer(MAX_DEVICES)
-        val count = stack.mallocInt(1)
-        check(eglQueryDevicesEXT(devices, count) && count[0] > 0) { "EGL finds no device (error 0x${eglError()})" }
-        val all = List(count[0]) { devices[it] }
-        all.firstOrNull { eglQueryDeviceStringEXT(it, EGL_DRM_RENDER_NODE_FILE_EXT) != null } ?: all.first()
-    }
+        private fun eglError() = eglGetError().toString(16)
 
-    private companion object {
-        const val MAX_DEVICES = 16
+        /**
+         * A context on a GPU that EGL's device platform names, as on Linux.
+         *
+         * The device is chosen, the first with a DRM render node, which a GPU has and Mesa's software renderer has
+         * not; the display EGL gives by default can be the software renderer's, as its GBM platform's is on a machine
+         * with a Radeon 680M. Mesa's surfaceless platform would pick the GPU as well, but LWJGL 3.4.3 cannot ask for
+         * it: the platform takes a null native display, which LWJGL's binding refuses. Where no device has a render
+         * node, the context is the first device's, and [software] says so.
+         */
+        fun onDevice(): EglContext =
+            EglContext(eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, device(), null as IntBuffer?))
+
+        /** The first EGL device with a DRM render node, else the first of all. */
+        private fun device(): Long = MemoryStack.stackPush().use { stack ->
+            val devices = stack.mallocPointer(MAX_DEVICES)
+            val count = stack.mallocInt(1)
+            check(eglQueryDevicesEXT(devices, count) && count[0] > 0) { "EGL finds no device (error 0x${eglError()})" }
+            val all = List(count[0]) { devices[it] }
+            all.firstOrNull { eglQueryDeviceStringEXT(it, EGL_DRM_RENDER_NODE_FILE_EXT) != null } ?: all.first()
+        }
     }
 }
