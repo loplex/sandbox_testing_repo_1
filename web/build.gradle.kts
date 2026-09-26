@@ -1,4 +1,4 @@
-// The web page: a photo or the camera shown as a species sees it, rendered by the shared shaders in WebGL 2.
+// The web page: a photo, a video or the camera shown as a species sees it, rendered by the shared shaders in WebGL 2.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
