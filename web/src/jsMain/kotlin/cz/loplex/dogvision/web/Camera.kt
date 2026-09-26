@@ -84,19 +84,30 @@ internal class Camera(
         video.srcObject = null
     }
 
-    /** Hands each new frame to [onFrame] while the stream of [generation] runs, as the browser renders the page. */
-    private fun awaitFrame(generation: Int) {
-        val next = {
-            if (generation == this.generation) {
-                onFrame(video, mirrored)
-                awaitFrame(generation)
-            }
-        }
-        // Once per frame of the video where the browser can say when there is one, else once per frame of the page.
+    /**
+     * Hands each new frame to [onFrame] while the stream of [generation] runs, as the browser renders the page. [shown]
+     * is how many frames the video had presented when one was handed over last, where the browser cannot say when a
+     * frame comes.
+     */
+    private fun awaitFrame(generation: Int, shown: Int = -1) {
         if (video.asDynamic().requestVideoFrameCallback != undefined) {
-            video.asDynamic().requestVideoFrameCallback { _: Double, _: dynamic -> next() }
-        } else {
-            window.requestAnimationFrame { next() }
+            video.asDynamic().requestVideoFrameCallback { _: Double, _: dynamic ->
+                if (generation == this.generation) {
+                    onFrame(video, mirrored)
+                    awaitFrame(generation)
+                }
+            }
+            return
+        }
+        // Checked once per frame of the page, which may come twice as often as the camera's. A live video's time runs
+        // on with the clock, not frame by frame; its count of frames does, where the browser keeps one: Firefox 156
+        // keeps it at 0, and each frame of the page is then handed over.
+        window.requestAnimationFrame {
+            if (generation == this.generation) {
+                val frames = video.asDynamic().getVideoPlaybackQuality?.call(video)?.totalVideoFrames as Int? ?: 0
+                if (frames == 0 || frames != shown) onFrame(video, mirrored)
+                awaitFrame(generation, frames)
+            }
         }
     }
 
