@@ -326,8 +326,10 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's j
   the window to the desktop's menu under Graphics.
 - **The tar.gz is the same application unpacked**, to run as `dog-vision/bin/dog-vision` without
   installing it.
-- **The deb and the rpm depend on neither ffmpeg nor libEGL**: jpackage lists the libraries the
-  image links against, and LWJGL opens libEGL only once it runs.
+- **The deb and the rpm depend on libEGL and ffmpeg** as well as on what jpackage finds the image
+  linked against, since LWJGL opens libEGL only once it runs. The rpm asks for
+  `libEGL.so.1()(64bit)` and `/usr/bin/ffmpeg`, which Fedora's `ffmpeg-free` provides as well as
+  RPM Fusion's `ffmpeg`.
 - **The MSI is built on Linux under Wine**, as jpackage builds an installer only on the system it
   is for. It installs into `Program Files\dog-vision` and adds both launchers to the Start menu, in
   a dog-vision group, and to the desktop. It carries a fixed upgrade code, so that a later version's
