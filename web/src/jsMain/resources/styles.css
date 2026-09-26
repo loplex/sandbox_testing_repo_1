@@ -81,6 +81,11 @@ body {
     cursor: pointer;
 }
 
+/* A button that does not apply, as the camera's where the browser offers none. */
+.button[hidden] {
+    display: none;
+}
+
 .button:disabled {
     opacity: 0.5;
     cursor: default;
