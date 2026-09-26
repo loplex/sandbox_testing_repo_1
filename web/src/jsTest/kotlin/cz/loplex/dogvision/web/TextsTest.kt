@@ -3,7 +3,10 @@ package cz.loplex.dogvision.web
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The page words a plural as Android's getQuantityString does, by the language's plural rules. */
+/**
+ * The page words a plural as Android's getQuantityString does, by the language's plural rules, and takes what else
+ * differs between languages from the browser, so that a language the app gains needs nothing written for the page.
+ */
 class TextsTest {
     @Test
     fun czechTakesOneFewAndOther() {
@@ -19,5 +22,24 @@ class TextsTest {
         val texts = Texts.of("en")
         assertEquals("monochromat, 1 cone type", texts.plural("cone_types", 1, "monochromat", 1))
         assertEquals("dichromat, 2 cone types", texts.plural("cone_types", 2, "dichromat", 2))
+    }
+
+    @Test
+    fun namesEachLanguageInItself() {
+        assertEquals("English", Texts.languageName("en"))
+        assertEquals("Čeština", Texts.languageName("cs"))
+        assertEquals("Deutsch", Texts.languageName("de"))
+    }
+
+    @Test
+    fun separatesDecimalsAsTheLanguageDoes() {
+        assertEquals('.', Texts.of("en").decimalSeparator)
+        assertEquals(',', Texts.of("cs").decimalSeparator)
+    }
+
+    @Test
+    fun takesThePageStringsALanguageLacksFromEnglish() {
+        assertEquals("Open a photo", pageStrings("de").getValue("open_photo"))
+        assertEquals("Otevřít fotku", pageStrings("cs").getValue("open_photo"))
     }
 }
