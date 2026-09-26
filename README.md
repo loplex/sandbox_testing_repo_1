@@ -21,7 +21,7 @@ or a camera.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`,
   `web`, `cli`, `gui-compose`, `testing`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`,
-  `:cli:jvmTest`, `:gui-compose:jvmTest`, `:web:jsTest`,
+  `:ui:jvmTest`, `:cli:jvmTest`, `:gui-compose:jvmTest`, `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
@@ -402,6 +402,10 @@ for IntelliJ IDEA's Android plugin.
   [`TextsTest`](texts/src/commonTest/kotlin/cz/loplex/dogvision/texts/TextsTest.kt) holds every
   language to having every string, as Android Lint's `MissingTranslation` would, and a string, a
   plural and a decimal separator to what Android gives.
+- `./gradlew :ui:jvmTest` runs the shared controls' tests on the JVM, in Compose's test scene:
+  [`ControlsTest`](ui/src/jvmTest/kotlin/cz/loplex/dogvision/ui/ControlsTest.kt) holds which
+  sections start open, the facts to the selected species, a slider to whole percent, the controls
+  a recording locks, the language choice and an info button's dialog.
 - `./gradlew :cli:jvmTest` runs the command line's tests: its options, the EXIF orientation in
   either byte order and each turn it asks for, and a photo converted exactly as `core` composes it.
 - `./gradlew :gui-compose:jvmTest` runs the window's tests, on the machine's GPU through EGL and

@@ -32,5 +32,18 @@ kotlin {
             implementation(libs.compose.multiplatform.ui)
             implementation(libs.compose.multiplatform.material3)
         }
+        // The controls are tested on the JVM, in Compose's test scene, with Skia's native library for this machine.
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.compose.multiplatform.ui.test)
+            implementation(compose.desktop.currentOs)
+            implementation(project.dependencies.platform(libs.junit.bom))
+            implementation(libs.junit.jupiter)
+            runtimeOnly(libs.junit.platform.launcher)
+        }
     }
+}
+
+tasks.named<Test>("jvmTest") {
+    useJUnitPlatform()
 }
