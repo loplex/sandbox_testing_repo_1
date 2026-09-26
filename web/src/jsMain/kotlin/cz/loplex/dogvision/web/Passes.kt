@@ -1,10 +1,12 @@
 package cz.loplex.dogvision.web
 
 import cz.loplex.dogvision.core.Box
+import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Matrix
 import cz.loplex.dogvision.core.Srgb
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.gaussianKernel
+import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.core.simulationOf
 import cz.loplex.dogvision.gl.Shaders
 import org.khronos.webgl.Float32Array
@@ -153,6 +155,27 @@ internal class Passes(private val gl: WebGL2RenderingContext) {
             )
             gl.drawArrays(TRIANGLE_STRIP, 0, 4)
         }
+    }
+
+    /**
+     * The first [count] images composed, read back from the GPU, left to right or top to bottom. The map's alpha, which
+     * marked what COUNT counts, is made opaque.
+     */
+    fun readImages(count: Int): List<Image> = images.take(count).map { target ->
+        gl.bindFramebuffer(FRAMEBUFFER, target.framebuffer)
+        val pixels = read(target)
+        Image(
+            target.width,
+            target.height,
+            IntArray(target.width * target.height) {
+                val offset = it * 4
+                rgb(
+                    pixels[offset].toInt() and 0xFF,
+                    pixels[offset + 1].toInt() and 0xFF,
+                    pixels[offset + 2].toInt() and 0xFF,
+                )
+            },
+        )
     }
 
     /** Runs [passes] with the passes' own vertex array bound, and nothing blending or cutting what they draw. */
