@@ -114,6 +114,45 @@ compose.desktop {
     }
 }
 
+/**
+ * Lists the libraries an app image's runtime and natives link against, as rpm's own generator, elfdeps, names them for
+ * an rpm's requirements (libX11.so.6()(64bit) and the like), less those the image brings itself. jpackage asks the
+ * build machine's rpm database which packages own them, which off an rpm-based system finds none.
+ */
+abstract class RpmLibraryRequires : DefaultTask() {
+    @get:InputDirectory
+    abstract val image: DirectoryProperty
+
+    /** The requirements, joined by commas as jpackage's --linux-package-deps takes them. */
+    @get:OutputFile
+    abstract val requires: RegularFileProperty
+
+    @TaskAction
+    fun list() {
+        val elfMagic = byteArrayOf(0x7F, 'E'.code.toByte(), 'L'.code.toByte(), 'F'.code.toByte())
+        val elfFiles = image.get().asFile.walk()
+            .filter { file -> file.isFile && file.inputStream().use { it.readNBytes(4) }.contentEquals(elfMagic) }
+            .joinToString("") { it.path + "\n" } // elfdeps fails on a last line without its line feed
+        val provided = elfdeps("--provides", elfFiles).map { it.substringBefore('(') }.toSet()
+        val required = elfdeps("--requires", elfFiles).filter { it.substringBefore('(') !in provided }
+        requires.get().asFile.writeText(required.distinct().sorted().joinToString(","))
+    }
+
+    private fun elfdeps(mode: String, files: String): List<String> {
+        val rpmConfigDir = ProcessBuilder("rpm", "--eval", "%{_rpmconfigdir}").start().inputReader().readText().trim()
+        val process = ProcessBuilder("$rpmConfigDir/elfdeps", mode).redirectErrorStream(true).start()
+        process.outputWriter().use { it.write(files) }
+        val lines = process.inputReader().readLines()
+        check(process.waitFor() == 0) { "elfdeps $mode failed: $lines" }
+        return lines
+    }
+}
+
+val rpmLibraryRequires = tasks.register<RpmLibraryRequires>("rpmLibraryRequires") {
+    image = tasks.named<AbstractJPackageTask>("createDistributable").flatMap { it.destinationDir }
+    requires = layout.buildDirectory.file("compose/tmp/rpmLibraryRequires.txt")
+}
+
 // dog-vision-cli beside dog-vision, in the app image and in each package: Compose runs jpackage for each of them from
 // the JARs, not the packages from the app image.
 tasks.withType<AbstractJPackageTask>().configureEach {
@@ -123,10 +162,16 @@ tasks.withType<AbstractJPackageTask>().configureEach {
     inputs.file(launcher)
     // What jpackage cannot find through ldd: LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video or the
     // camera. The rpm names what it needs rather than a package, as Fedora's and openSUSE's names differ, and Fedora
-    // has two ffmpeg packages. No spaces: Compose writes freeArgs into jpackage's argument file unquoted.
+    // has two ffmpeg packages; it takes the libraries rpmLibraryRequires lists as well. No spaces: Compose writes
+    // freeArgs into jpackage's argument file unquoted.
     when {
         name.endsWith("Deb") -> freeArgs.addAll("--linux-package-deps", "libegl1,ffmpeg")
-        name.endsWith("Rpm") -> freeArgs.addAll("--linux-package-deps", "libEGL.so.1()(64bit),/usr/bin/ffmpeg")
+
+        name.endsWith("Rpm") -> {
+            freeArgs.add("--linux-package-deps")
+            val libraries = rpmLibraryRequires.flatMap { it.requires }.map { it.asFile.readText() }
+            freeArgs.add(libraries.map { "$it,libEGL.so.1()(64bit),/usr/bin/ffmpeg" })
+        }
     }
 }
 
