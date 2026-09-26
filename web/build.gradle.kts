@@ -30,6 +30,7 @@ kotlin {
             implementation(project(":texts"))
         }
         jsTest.dependencies {
+            implementation(project(":testing"))
             implementation(kotlin("test"))
         }
     }

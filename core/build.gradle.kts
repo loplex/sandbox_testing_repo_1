@@ -22,6 +22,7 @@ kotlin {
             implementation(kotlin("test"))
         }
         jvmTest.dependencies {
+            implementation(project(":testing"))
             implementation(project.dependencies.platform(libs.junit.bom))
             implementation(libs.junit.jupiter)
             runtimeOnly(libs.junit.platform.launcher)
