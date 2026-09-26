@@ -11,12 +11,17 @@ data class ClockTime(val year: Int, val month: Int, val day: Int, val hour: Int,
  * original as the desktop window names it: the system photo picker hides a file's name.
  */
 fun snapshotName(view: View, time: ClockTime, suffix: String = "", extension: String = "png"): String {
-    val shown = view.compare?.takeIf { view.sideBySide }?.let { "${it.id}-vs-${view.params.species.id}" }
-        ?: view.params.species.id
     val stamp = with(time) {
         "$year" + pad(month) + pad(day) + "-" + pad(hour) + pad(minute) + pad(second)
     }
-    return "dog-$shown-$stamp$suffix.$extension"
+    return "dog-${shownName(view)}-$stamp$suffix.$extension"
 }
+
+/**
+ * The species [view] shows, as the name of what is saved of it says them: cat, or horse-vs-cat where it shows a horse
+ * beside a cat.
+ */
+fun shownName(view: View): String =
+    view.compare?.takeIf { view.sideBySide }?.let { "${it.id}-vs-${view.params.species.id}" } ?: view.params.species.id
 
 private fun pad(value: Int) = value.toString().padStart(2, '0')
