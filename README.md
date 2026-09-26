@@ -187,6 +187,9 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **Camera starts the camera** when clicked, and the browser asks first whether the page may use
   it; it shows the back camera first, where the device tells them apart, asked for at 1280 x 720 as
   the app's frames are.
+  - **The frame is the camera's own**, neither cropped nor scaled by the browser: a camera without
+    1280 x 720 gives the size it has nearest, such as 640 x 480. Asked otherwise, Firefox 156 on
+    Android held upright crops the frame to its middle square.
   - **Switch camera goes to the front camera**, and back; it shows only where the browser knows of
     two cameras or more.
   - **Every camera's image is mirrored** but one that says it faces away from the viewer: a laptop's
