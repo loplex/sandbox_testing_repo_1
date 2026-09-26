@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The language, named in itself, as a language choice lists it -->
+    <string name="language_name">Čeština</string>
+
+    <!-- What only the web page says -->
+    <string name="choose_media">Otevřete fotku nebo video nebo je sem přetáhněte a uvidíte je tak, jak je vidí vybraný živočich.</string>
+    <string name="no_webgl2">Tento prohlížeč neumí zobrazení vykreslit, protože nepodporuje WebGL 2.</string>
+    <string name="gl_failed">Tento prohlížeč neumí zobrazení vykreslit: %1$s</string>
+    <string name="snapshot_not_encoded">prohlížeč ho neumí převést do PNG</string>
+    <string name="browser_language">Podle prohlížeče</string>
+    <string name="switch_camera_short">Přepnout kameru</string>
+    <string name="camera_refused">Kamera ukazuje scénu tak, jak ji vidí vybraný živočich. Aby se zobrazil živý obraz, povolte ji stránce v prohlížeči a prohlížeči v nastavení zařízení.</string>
+    <string name="camera_none">prohlížeč žádnou kameru nenašel</string>
+    <string name="camera_busy">možná ji používá jiná aplikace, nebo ji systém prohlížeči nedovolil spustit</string>
+</resources>
