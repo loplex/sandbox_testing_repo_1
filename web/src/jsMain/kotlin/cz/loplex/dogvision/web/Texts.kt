@@ -133,6 +133,7 @@ private val WEB_TEXTS = mapOf(
         "photo_failed" to "Cannot open %1\$s as a photo",
         "no_webgl2" to "This browser cannot draw the view: it has no WebGL 2.",
         "gl_failed" to "This browser cannot draw the view: %1\$s",
+        "snapshot_not_encoded" to "the browser cannot encode it as PNG",
     ),
     "cs" to mapOf(
         "open_photo" to "Otevřít fotku",
@@ -140,5 +141,6 @@ private val WEB_TEXTS = mapOf(
         "photo_failed" to "%1\$s nejde otevřít jako fotka",
         "no_webgl2" to "Tento prohlížeč neumí zobrazení vykreslit, protože nepodporuje WebGL 2.",
         "gl_failed" to "Tento prohlížeč neumí zobrazení vykreslit: %1\$s",
+        "snapshot_not_encoded" to "prohlížeč ho neumí převést do PNG",
     ),
 )
