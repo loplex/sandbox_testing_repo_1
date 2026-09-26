@@ -17,7 +17,7 @@ import java.nio.ByteBuffer
 
 /**
  * The window's rendering of a photo or a video's or a camera's frames: gl's [ViewPasses],
- * as the Android app and the web page run them, over OpenGL ES 3 in the context current on this thread,
+ * as the Android app and the web page run them, over [gl] in the context current on this thread,
  * drawn into a framebuffer of the window's area and read back to be shown.\
  * The passes compile when this is made, and throw IllegalStateException if the GPU's driver cannot compile or link one.
  *
