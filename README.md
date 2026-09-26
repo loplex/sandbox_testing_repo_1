@@ -316,8 +316,14 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's j
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
 ```
 
-- **Each brings a runtime of its own**, a JDK 25 that jlink cuts down to the modules the window
-  uses, so a video or the camera needs only ffmpeg besides.
+- **Each brings a runtime of its own**, Temurin's JDK 25, which jlink cuts down to the modules the
+  window uses.
+  - **Gradle downloads Temurin for the Linux packages** as a toolchain where the machine has none,
+    through the Foojay resolver in `settings.gradle.kts`; the MSI's comes from the jmods given to
+    its script.
+  - **Temurin brings its own libjpeg, giflib, libpng, lcms2, HarfBuzz and FreeType**, which a
+    distribution's OpenJDK, Ubuntu's among them, takes from the system; so the Linux packages need
+    little more than glibc 2.17 or later, X11, ALSA, fontconfig and the C++ runtime.
 - **Each has two launchers**:
   - `dog-vision`, the window, which converts a photo given alone as the command line does;
   - `dog-vision-cli`, the command line alone, which prints its usage rather than open the window,
@@ -347,17 +353,11 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's j
   - **The Start menu and the desktop get `dog-vision-cli` as well**, which started from there only
     prints its usage: JDK 17's jpackage cannot leave one launcher out.
 
-### Caveat: the Linux packages carry the build machine's JDK
+### Caveat: the deb takes its package names from the build machine
 
-The deb's and the rpm's runtime is linked from the JDK the build runs on. Ubuntu's OpenJDK uses the
-system's libjpeg, giflib, libpng, lcms2 and HarfBuzz rather than its own copies, so packages built
-on Ubuntu 24.04 need Ubuntu's versions of them.
-
-- **The deb depends on Ubuntu 24.04's package names**, such as `libjpeg-turbo8` and
-  `libpng16-16t64`; Debian's libjpeg package is another.
-- **The rpm asks for `libjpeg.so.8`**, which Fedora's libjpeg-turbo does not provide (it has
-  `libjpeg.so.62`), so an rpm built on Ubuntu does not install on Fedora; built on Fedora, it would
-  need Fedora's.
+jpackage looks the deb's dependencies up in the build machine's dpkg database, so a deb built on
+Ubuntu 24.04 depends on that release's names, such as `libasound2t64` and `libpng16-16t64`, which
+older releases do not have. The rpm names libraries rather than packages and has no such tie.
 
 ### Caveat: the Windows window is tried under Wine
 
