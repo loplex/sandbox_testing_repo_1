@@ -10,7 +10,7 @@ A [web page](#the-web-page) shows a photo the same way in a browser.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `android`, `web`, the GPU renderer.
-- [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`,
+- [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
@@ -121,7 +121,8 @@ The build needs:
 - **a JDK 17 or newer**; Gradle itself is fetched by the wrapper,
   and Node.js, which runs `core`'s tests in JavaScript, by the Kotlin Gradle plugin;
 - **the Android SDK with platform 36**, found through `ANDROID_HOME` or `sdk.dir` in `local.properties`,
-  which Android Studio and IntelliJ IDEA write when they open the project.
+  which Android Studio and IntelliJ IDEA write when they open the project;
+- **Google Chrome** for the web page's tests, found on the `PATH` as `google-chrome` or through `CHROME_BIN`.
 
 ```sh
 ./gradlew :android:assembleDebug     # android/build/outputs/apk/debug/android-debug.apk
@@ -187,6 +188,10 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   the invariants of dog-vision-python, ported from its pytest suite, and a comparison with the reference values.
 - `./gradlew :core:allTests` runs them, and in Node.js as well the tests in [`commonTest`](core/src/commonTest/kotlin/cz/loplex/dogvision/core),
   which hold the JVM and JavaScript to rounding a fact's number alike.
+- `./gradlew :web:jsTest` runs [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) in headless Chrome,
+  which holds the page's WebGL 2 passes to `core`'s CPU pipeline as `ViewRendererTest` below holds the app's.\
+  Chrome renders WebGL 2 there in software, with SwiftShader, as [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to,
+  so it does not test the machine's GPU.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or emulator,
   on that device's GPU and codecs:
   - [`ViewRendererTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/ViewRendererTest.kt) holds the GPU renderer to `core`'s CPU pipeline;
