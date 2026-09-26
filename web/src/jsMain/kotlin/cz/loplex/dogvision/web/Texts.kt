@@ -190,8 +190,10 @@ private val WEB_TEXTS = mapOf(
         "snapshot_not_encoded" to "the browser cannot encode it as PNG",
         "browser_language" to "As the browser",
         "switch_camera_short" to "Switch camera",
-        "camera_refused" to "The camera shows the scene as the chosen animal sees it. Allow the page to use it, in " +
-            "the browser's prompt or its site settings, to see the live view.",
+        "camera_refused" to "The camera shows the scene as the chosen animal sees it. To see the live view, allow " +
+            "the page to use it in the browser, and the browser to use it in the device's settings.",
+        "camera_none" to "the browser finds no camera",
+        "camera_busy" to "another app may be using it, or the system does not let the browser start it",
     ),
     "cs" to mapOf(
         "open_photo" to "Otevřít fotku",
@@ -202,7 +204,9 @@ private val WEB_TEXTS = mapOf(
         "snapshot_not_encoded" to "prohlížeč ho neumí převést do PNG",
         "browser_language" to "Podle prohlížeče",
         "switch_camera_short" to "Přepnout kameru",
-        "camera_refused" to "Kamera ukazuje scénu tak, jak ji vidí vybraný živočich. Povolte ji stránce v dotazu " +
-            "prohlížeče nebo v nastavení webu, aby se zobrazil živý obraz.",
+        "camera_refused" to "Kamera ukazuje scénu tak, jak ji vidí vybraný živočich. Aby se zobrazil živý obraz, " +
+            "povolte ji stránce v prohlížeči a prohlížeči v nastavení zařízení.",
+        "camera_none" to "prohlížeč žádnou kameru nenašel",
+        "camera_busy" to "možná ji používá jiná aplikace, nebo ji systém prohlížeči nedovolil spustit",
     ),
 )
