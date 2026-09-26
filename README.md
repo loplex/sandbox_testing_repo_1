@@ -4,7 +4,7 @@
 
 This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-python), a desktop program in Python, as an Android app.\
 Its README explains the model and the science behind it.\
-A [web page](#the-web-page) shows a photo or a camera's live image the same way in a browser.
+A [web page](#the-web-page) shows a photo, a video or a camera's live image the same way in a browser.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording, the language.
 - [The model](#the-model) — where the explanation of the simulation lives.
@@ -141,6 +141,13 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **The built `index.html` opens as it is**, from the folder or from any static server:
   the page fetches nothing, and its wording is compiled into `dog-vision.js`.
 - **The browser needs WebGL 2**; without it the page says so.
+- **Open a photo or a video opens either**, as does dropping one on the images.
+  - **A video plays over and over without its sound**, scaled down to 1280 pixels as a photo is,
+    turned as its file says, and paused while the page is hidden.
+  - **Firefox 156 on Android draws a video into a 2D canvas blank**,
+    where the page turns and scales it for every other browser:
+    there the page reads the turn from the MP4's track header, and scales the frame down bilinearly on the GPU.
+  - **What plays is what the browser decodes**: its codecs, and its own tone mapping of an HDR video.
 - **Camera starts the camera** when clicked, and the browser asks first whether the page may use it;
   it shows the back camera first, where the device tells them apart, asked for at 1280 x 720 as the app's frames are.
   - **The frame is the camera's own**, neither cropped nor scaled by the browser:
@@ -149,13 +156,15 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
   - **Switch camera goes to the front camera**, and back; it shows only where the browser knows of two cameras or more.
   - **Every camera's image is mirrored** but one that says it faces away from the viewer:
     a laptop's webcam often says nothing of where it faces.
-  - **The camera stops while the page is hidden**, and starts again when it is shown; opening a photo stops it.
+  - **The camera stops while the page is hidden**, and starts again when it is shown;
+    opening a photo or a video stops it.
   - **The browser offers a camera only in a secure context**:
     a page served over `https:` or from `localhost`, or opened as a file,
     which Chrome 154 and Firefox 156 count as one.\
     Served over plain `http:` from elsewhere, the page shows no Camera button.
 - **Save snapshot downloads the view as shown**, as a PNG named as the app names it,
-  at the size the photo or the camera's frame is shown at; the photo at full size is only the app's.
+  at the size the photo, the video's or the camera's frame is shown at;
+  the photo and the video at full size are only the app's.
 - **A large photo is scaled down to 1280 pixels by the browser**, with a 2D canvas at its highest smoothing,
   where the app decodes it at a power of two of the size and scales the rest.
   Both end at the same size, so the acuity blur is as wide, but the pixels it blurs can differ slightly.
@@ -183,7 +192,7 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
 - **[`android`](android)** is the Android app:
   the camera, the photos and videos, the GPU renderer, saving, recording, and the Compose screens.
 - **[`web`](web)** is a page for a browser, in Kotlin/JS:
-  a photo or the camera shown with the app's controls and the selected species' facts, and no video.
+  a photo, a video or the camera shown with the app's controls and the selected species' facts.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s `ViewPasses` over [`WebGl`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/WebGl.kt), its `Gl` for WebGL 2.
   - Its wording is the app's string resources, which the build compiles into the page,
     in the language chosen at the end of its panel, which the browser remembers,
@@ -215,9 +224,12 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's WebGL 2 passes to `core`'s CPU pipeline,
     as `ViewRendererTest` below holds the app's;
     the share of differing pixels counted without waiting, as the camera's is, to the share counted at once;
-    and a video's frame, as the camera's are, to its canvas, as it is and mirrored.\
+    and a video's frame, as the camera's are, to its canvas, as it is and mirrored,
+    and scaled down as a photo is when it is larger, or as its file stores it, scaled and turned by the passes.\
     Chrome renders WebGL 2 there in software, with SwiftShader, as [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to,
     so it does not test the machine's GPU.
+  - [`Mp4Test`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/Mp4Test.kt) reads each quarter turn of an MP4's video track,
+    with the movie box after the media as a phone writes it.
   - [`GlConstantsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/GlConstantsTest.kt) holds `gl`'s values of the GL enums to WebGL 2's.
   - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's wording:
     plurals, languages' names, decimal separators and strings a language lacks.
