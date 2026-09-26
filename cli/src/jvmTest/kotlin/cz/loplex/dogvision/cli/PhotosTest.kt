@@ -87,7 +87,7 @@ class PhotosTest {
 
     @Test
     fun aFileTooLargeForAnArrayIsToldNoImageByItsHeader() {
-        // A video of 3 GB, as the command line may be given: sparse, so it takes no room on the disk.
+        // A video of 3 GB, as a window or the command line may be given: sparse, so it takes no room on the disk.
         val file = File(directory, "clip.mp4")
         RandomAccessFile(file, "rw").use { it.setLength(3L shl 30) }
         assertNull(readPhoto(file))

@@ -2,7 +2,8 @@ package cz.loplex.dogvision.gl
 
 /**
  * The GLSL ES 3.00 programs that render a view on the GPU, the same on every platform:
- * OpenGL ES 3.0 on Android, and WebGL 2, which runs GLSL ES 3.00 as it is, in a browser.
+ * OpenGL ES 3.0 on Android and in the desktop window,
+ * and WebGL 2, which runs GLSL ES 3.00 as it is, in a browser.
  *
  * Every offscreen texture holds 8-bit sRGB,
  * with an image's first row at t = 0, and is read with texelFetch at whole pixels.\
