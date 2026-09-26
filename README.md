@@ -207,7 +207,8 @@ java -jar cli/build/jars/dog-vision-cli.jar --species cat --compare dog photo.jp
   A video and the window are not in it.
 - **A photo is turned as its EXIF orientation says**;
   the JDK's ImageIO, which decodes it, reads no EXIF, so the command line reads the orientation itself.
-- **Its messages are in English.**
+- **It speaks the system's language**, English or Czech, in `texts`' strings:
+  the JVM takes it from `LC_ALL`, `LC_MESSAGES` or `LANG`, and not from `LANGUAGE`.
 
 ### The desktop window
 
@@ -267,7 +268,7 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
     which WebGL 2 has as well.
   - `Gl` names GL objects by integers, as OpenGL ES does;
     over WebGL 2, whose objects are JavaScript objects, a table holds them, as Emscripten's GL layer does.
-- **[`texts`](texts)** words what the app and the web page say, in English and Czech,
+- **[`texts`](texts)** words what the app, the web page, the desktop window and the command line say, in English and Czech,
   with no toolkit in it, built alike for the JVM and JavaScript.
   - Its strings are in its [`strings`](texts/strings) folder, in Android's `strings.xml` format,
     which the build compiles into Kotlin, each named by an entry of the enum `Str` or `Plural`.
@@ -291,7 +292,7 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s `ViewPasses` over [`WebGl`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/WebGl.kt), its `Gl` for WebGL 2.
   - Its wording is `texts`', in the language chosen at the end of its panel, which the browser remembers,
     or else in the browser's language if there are strings for it and in English otherwise.
-- **[`cli`](cli)** is the command line on the JVM, with nothing but `core` and the JDK under it:
+- **[`cli`](cli)** is the command line on the JVM, with nothing but `core`, `texts` and the JDK under it:
   [`Arguments`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Arguments.kt) reads the options, and [`Conversion`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Conversion.kt) converts a photo.
   - [`runCommandLine`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and a command line it cannot read itself, converts a photo,
     and hands anything else to a window given to it, so that a desktop window can take the same command line.

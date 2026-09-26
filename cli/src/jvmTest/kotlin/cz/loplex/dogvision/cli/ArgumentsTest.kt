@@ -3,6 +3,8 @@ package cz.loplex.dogvision.cli
 import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -66,7 +68,24 @@ class ArgumentsTest {
     }
 
     @Test
-    fun theUsageNamesEverySpecies() {
-        for (species in Species.entries) assertTrue(species.id in USAGE, species.id)
+    fun aMistakeIsWordedInEachLanguage() {
+        val error = assertFailsWith<UsageException> { parseArguments(listOf("--fov", "0")) }
+        assertEquals(Str.USAGE_NOT_ANGLE, error.key)
+        assertEquals("--fov: 0 is not an angle", error.message(Texts.of("en")))
+        assertEquals("--fov: 0 není úhel", error.message(Texts.of("cs")))
+        assertEquals(error.message(Texts.of("en")), error.message)
+    }
+
+    @Test
+    fun theUsageNamesEverySpeciesAndOptionInEachLanguage() {
+        val options = listOf(
+            "--species", "--compare", "--difference", "--adaptation", "--strength", "--chroma-scale", "--acuity",
+            "--fov", "--window", "--camera", "--output-dir", "--help",
+        )
+        for (language in Texts.LANGUAGES) {
+            val usage = usage(Texts.of(language))
+            for (species in Species.entries) assertTrue(" ${species.id}" in usage, "$language: ${species.id}")
+            for (option in options) assertTrue(option in usage, "$language: $option")
+        }
     }
 }
