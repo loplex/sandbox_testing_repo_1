@@ -14,7 +14,7 @@ model and the science behind it.
   works the Android way.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
-- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `android`, the GPU renderer.
+- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `android`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
@@ -182,12 +182,15 @@ for IntelliJ IDEA's Android plugin.
     [`Facts.jvm.kt`](core/src/jvmMain/kotlin/cz/loplex/dogvision/core/Facts.jvm.kt) and
     [`Facts.js.kt`](core/src/jsMain/kotlin/cz/loplex/dogvision/core/Facts.js.kt), since JavaScript
     has no `BigDecimal`.
+- **[`gl`](gl)** holds the GLSL ES 3.00 programs that render a view, built alike for the JVM and
+  JavaScript: OpenGL ES 3.0 runs them on Android, and WebGL 2 runs GLSL ES 3.00 as it is.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
-- **The view is drawn by OpenGL ES 3.0 shaders** in
+- **The view is drawn by OpenGL ES 3.0 shaders**, `gl`'s
+  [`Shaders`](gl/src/commonMain/kotlin/cz/loplex/dogvision/gl/Shaders.kt), in
   [`ViewPasses`](android/src/main/kotlin/cz/loplex/dogvision/render/ViewPasses.kt), which apply `core`'s
   matrix and blur.
   They decode and encode sRGB through `core`'s own lookup tables, so that they agree with it to the
