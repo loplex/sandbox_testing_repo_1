@@ -1,0 +1,15 @@
+name: rerun-probe
+
+# Probe: can a run, or a job of it, be re-run while the run is still in progress?
+on:
+  workflow_dispatch:
+
+jobs:
+  long:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "attempt ${{ github.run_attempt }}"; sleep 240
+  fails-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "attempt ${{ github.run_attempt }}"; exit 1
