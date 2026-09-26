@@ -206,6 +206,33 @@ body {
     opacity: 0.5;
 }
 
+/*
+ * A fact: its label in a column of its own, and its value, which breaks only between its pieces, unless a piece is
+ * longer than the whole line.
+ */
+.controls .fact {
+    flex-wrap: nowrap;
+    align-items: baseline;
+}
+
+.controls .fact-label {
+    flex: none;
+    width: 112px;
+    font-weight: 500;
+}
+
+.controls .fact-value {
+    flex: 1;
+    min-width: 0;
+}
+
+/* On top, not on its baseline: an inline block's baseline is its last line's, which would drop the label to it. */
+.controls .piece {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
+}
+
 /* What a control means: a small round button beside it, and the text it shows under it. */
 .controls button.info {
     justify-content: center;
