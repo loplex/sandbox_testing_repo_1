@@ -326,8 +326,13 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <the Windows JDK's 
   the window to the desktop's menu under Graphics.
 - **The tar.gz is the same application unpacked**, to run as `dog-vision/bin/dog-vision` without
   installing it.
-- **The deb and the rpm depend on neither ffmpeg nor libEGL**: jpackage lists the libraries the
-  image links against, and LWJGL opens libEGL only once it runs.
+- **The deb and the rpm depend on libEGL and ffmpeg** as well as on the libraries the image links
+  against, since LWJGL opens libEGL only once it runs.
+  - **The deb names packages**, which jpackage looks up in the build machine's dpkg database.
+  - **The rpm names libraries and a file** (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
+    `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently. rpm's
+    `elfdeps` lists the libraries from the image, in the task `rpmLibraryRequires`, as jpackage
+    finds their packages only on an rpm-based build machine.
 - **The MSI is built on Linux under Wine**, as jpackage builds an installer only on the system it
   is for. It installs into `Program Files\dog-vision` and adds both launchers to the Start menu, in
   a dog-vision group, and to the desktop. It carries a fixed upgrade code, so that a later version's
@@ -341,6 +346,18 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <the Windows JDK's 
     vendor's name has a ř that jpackage's Windows-1252 lacks.
   - **The Start menu and the desktop get `dog-vision-cli` as well**, which started from there only
     says that the window is the desktop app's: JDK 17's jpackage cannot leave one launcher out.
+
+### Caveat: the Linux packages carry the build machine's JDK
+
+The deb's and the rpm's runtime is linked from the JDK the build runs on. Ubuntu's OpenJDK uses the
+system's libjpeg, giflib, libpng, lcms2 and HarfBuzz rather than its own copies, so packages built
+on Ubuntu 24.04 need Ubuntu's versions of them.
+
+- **The deb depends on Ubuntu 24.04's package names**, such as `libjpeg-turbo8` and
+  `libpng16-16t64`; Debian's libjpeg package is another.
+- **The rpm asks for `libjpeg.so.8`**, which Fedora's libjpeg-turbo does not provide (it has
+  `libjpeg.so.62`), so an rpm built on Ubuntu does not install on Fedora; built on Fedora, it would
+  need Fedora's.
 
 ### Caveat: the Windows window is tried under Wine
 
