@@ -201,12 +201,18 @@ for IntelliJ IDEA's Android plugin.
     has no `BigDecimal`.
 - **[`gl`](gl)** holds the GLSL ES 3.00 programs that render a view, built alike for the JVM and
   JavaScript: OpenGL ES 3.0 runs them on Android, and WebGL 2 runs GLSL ES 3.00 as it is.
+  - [`ViewPasses`](gl/src/commonMain/kotlin/cz/loplex/dogvision/gl/ViewPasses.kt) runs them in
+    order through [`Gl`](gl/src/commonMain/kotlin/cz/loplex/dogvision/gl/Gl.kt), the part of
+    OpenGL ES 3.0 they need, which WebGL 2 has as well.
+  - `Gl` names GL objects by integers, as OpenGL ES does; over WebGL 2, whose objects are
+    JavaScript objects, a table holds them, as Emscripten's GL layer does.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
 - **[`web`](web)** is a page for a browser, in Kotlin/JS: a photo shown with the app's controls and
   the selected species' facts, and no camera or video.
-  - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s
-    shaders in WebGL 2, as `ViewPasses` does on Android.
+  - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with
+    `gl`'s `ViewPasses` over [`WebGl`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/WebGl.kt),
+    its `Gl` for WebGL 2.
   - Its wording is the app's string resources, which the build compiles into the page, in the
     language chosen at the end of its panel, which the browser remembers, or else in the browser's
     language if the app speaks it and in English otherwise.
@@ -246,6 +252,8 @@ for IntelliJ IDEA's Android plugin.
     Chrome renders WebGL 2 there in software, with SwiftShader, as
     [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
     machine's GPU.
+  - [`GlConstantsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/GlConstantsTest.kt) holds
+    `gl`'s values of the GL enums to WebGL 2's.
   - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's
     wording: plurals, languages' names, decimal separators and strings a language lacks.
   - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a
