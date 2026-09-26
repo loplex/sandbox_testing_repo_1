@@ -1,7 +1,7 @@
 package cz.loplex.dogvision.desktop
 
-import cz.loplex.dogvision.gl.Gl
 import org.lwjgl.opengles.GLES30.GL_ALREADY_SIGNALED
+import org.lwjgl.opengles.GLES30.GL_COLOR_BUFFER_BIT
 import org.lwjgl.opengles.GLES30.GL_COMPILE_STATUS
 import org.lwjgl.opengles.GLES30.GL_CONDITION_SATISFIED
 import org.lwjgl.opengles.GLES30.GL_LINK_STATUS
@@ -17,6 +17,8 @@ import org.lwjgl.opengles.GLES30.glBindTexture
 import org.lwjgl.opengles.GLES30.glBindVertexArray
 import org.lwjgl.opengles.GLES30.glBufferData
 import org.lwjgl.opengles.GLES30.glCheckFramebufferStatus
+import org.lwjgl.opengles.GLES30.glClear
+import org.lwjgl.opengles.GLES30.glClearColor
 import org.lwjgl.opengles.GLES30.glClientWaitSync
 import org.lwjgl.opengles.GLES30.glCompileShader
 import org.lwjgl.opengles.GLES30.glCreateProgram
@@ -61,11 +63,11 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * gl's [Gl] over OpenGL ES 3.0 through LWJGL, in the context current on the calling thread, as the Android app's
+ * gl's Gl over OpenGL ES 3.0 through LWJGL, in the context current on the calling thread, as the Android app's
  * `Gles` is over Android's bindings. LWJGL takes pixels only in direct buffers, so they are copied through one kept
  * for the purpose; [readPixels] and [texImage2D] take a direct buffer as well, for a frame that is one already.
  */
-class LwjglGles : Gl {
+class LwjglGles : DesktopGl {
     private var scratch: ByteBuffer = ByteBuffer.allocateDirect(0)
 
     /** A direct buffer of [size] bytes, from the start, reused while it is large enough. */
@@ -144,8 +146,7 @@ class LwjglGles : Gl {
         pixels?.let { scratch(it.size).put(it).flip() },
     )
 
-    /** Allocates the texture bound, filled from the direct buffer [pixels], from its position to its limit. */
-    fun texImage2D(
+    override fun texImage2D(
         target: Int,
         level: Int,
         internalFormat: Int,
@@ -198,11 +199,7 @@ class LwjglGles : Gl {
         ByteArray(size).also(it::get)
     }
 
-    /**
-     * What [read] makes of the first [size] bytes of the buffer bound to [target], mapped for reading while it runs;
-     * mapping it waits for the GPU to finish writing it.
-     */
-    fun <T> readMapped(target: Int, size: Int, read: (ByteBuffer) -> T): T {
+    override fun <T> readMapped(target: Int, size: Int, read: (ByteBuffer) -> T): T {
         val mapped = checkNotNull(glMapBufferRange(target, 0, size.toLong(), GL_MAP_READ_BIT)) {
             "Cannot map a buffer to read it"
         }
@@ -242,4 +239,9 @@ class LwjglGles : Gl {
     override fun deleteSync(sync: Long) = glDeleteSync(sync)
 
     override fun flush() = glFlush()
+
+    override fun clear() {
+        glClearColor(0f, 0f, 0f, 0f)
+        glClear(GL_COLOR_BUFFER_BIT)
+    }
 }

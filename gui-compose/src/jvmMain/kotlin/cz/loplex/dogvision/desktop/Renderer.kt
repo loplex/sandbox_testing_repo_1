@@ -23,7 +23,7 @@ class Picture(val bitmap: ImageBitmap, val layout: ScreenLayout, val view: View,
 data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap: Int)
 
 /**
- * Renders the view of the frame shown last on a thread of its own, which holds an [EglContext] and [Passes], and hands
+ * Renders the view of the frame shown last on a thread of its own, which holds a [GlContext] and [Passes], and hands
  * each picture to [onPicture] on that thread. [onFailure] is told, once, why nothing can be drawn, if GL cannot be set
  * up.
  *
@@ -87,7 +87,7 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
 
     private fun run() {
         val context = try {
-            EglContext()
+            GlContext.open()
         } catch (error: IllegalStateException) {
             onFailure(error.message.orEmpty())
             return
@@ -95,10 +95,10 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
             onFailure(error.message.orEmpty())
             return
         }
-        if (context.software) System.err.println("OpenGL ES renders on the CPU here: ${context.renderer}")
+        if (context.software) System.err.println("OpenGL renders on the CPU here: ${context.renderer}")
         try {
             val passes = try {
-                Passes(LwjglGles())
+                Passes(context.gl)
             } catch (error: IllegalStateException) {
                 onFailure(error.message.orEmpty())
                 return
