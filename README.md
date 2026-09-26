@@ -9,7 +9,7 @@ A [web page](#the-web-page) shows a photo, a video or a camera's live image the 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording, the language.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
-- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `android`, `web`, the GPU renderer.
+- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`, `web`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`, `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
@@ -214,9 +214,14 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
     and words a species, the facts about it and the images' captions.
   - The JVM has no public plural rules, so English and Czech have theirs in [`Texts.jvm.kt`](texts/src/jvmMain/kotlin/cz/loplex/dogvision/texts/Texts.jvm.kt);
     JavaScript takes them from `Intl`.
-- **[`android`](android)** is the Android app:
-  the camera, the photos and videos, the GPU renderer, saving, recording, and the Compose screens.
-  - Its screens take `texts`' strings through `LocalTexts`, in the language of the activity's configuration,
+- **[`ui`](ui)** holds the controls of the view in Compose Multiplatform, for Android and the JVM:
+  [`Controls`](ui/src/commonMain/kotlin/cz/loplex/dogvision/ui/Controls.kt), its sections, sliders and choices, the selected species' facts, and what each control means.
+  - They take `texts`' strings through `LocalTexts`, which whoever shows them provides.
+  - Compose Multiplatform 1.11 is Jetpack Compose 1.11, and its Material 3 1.9 is androidx Material 3 1.4,
+    the versions of the app's Compose BOM, so that the app runs one of each.
+- **[`android`](android)** is the Android app: the camera, the photos and videos,
+  the GPU renderer, saving, recording, and the Compose screens around `ui`'s controls.
+  - It provides `LocalTexts` in the language of the activity's configuration,
     which the language choice sets as it would for resources.
   - Its one string resource, the name under the launcher's icon, is written by the build from `texts`' `app_name`,
     since the manifest takes a name only from a resource.
