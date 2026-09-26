@@ -3,6 +3,7 @@ package cz.loplex.dogvision
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.ColorSpace
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -66,10 +67,26 @@ fun decodePhoto(context: Context, uri: Uri, longestSide: Int? = null): Pair<Bitm
     return bitmap to exifTurn(orientation)
 }
 
-/** A bitmap's pixels as a frame, turned as [turn] says. */
+/**
+ * A bitmap's pixels as a frame, turned as [turn] says: each pixel's colour as it is stored, whatever its alpha, as the
+ * web page and core's pipeline for a photo saved at full size take it.
+ */
 fun Bitmap.toFrame(turn: Pair<Int, Boolean>): Frame {
     val frame = Frame.allocate(width, height)
-    copyPixelsToBuffer(frame.pixels) // ARGB_8888 is R, G, B, A in memory
+    if (hasAlpha()) {
+        // copyPixelsToBuffer hands the colours over multiplied by alpha, as the bitmap keeps them; getPixels does not.
+        val row = IntArray(width)
+        for (y in 0 until height) {
+            getPixels(row, 0, width, 0, y, width, 1)
+            for (color in row) {
+                frame.pixels.put(Color.red(color).toByte()).put(Color.green(color).toByte())
+                    .put(Color.blue(color).toByte()).put(Color.alpha(color).toByte())
+            }
+        }
+        frame.pixels.rewind()
+    } else {
+        copyPixelsToBuffer(frame.pixels) // ARGB_8888 is R, G, B, A in memory
+    }
     frame.rotation = turn.first
     frame.mirrored = turn.second
     return frame

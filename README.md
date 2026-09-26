@@ -283,6 +283,8 @@ for IntelliJ IDEA's Android plugin.
     video into the renderer's frames;
   - [`ConversionTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/video/ConversionTest.kt)
     converts a video and holds it to `core`'s CPU pipeline;
+  - [`PhotosTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/PhotosTest.kt) holds a photo's
+    semi-transparent pixel to its colour as stored, as the web page takes it;
   - [`SavedViewTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/SavedViewTest.kt) and
     [`SavedSourceTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/SavedSourceTest.kt) bring the
     controls and the source shown back through a Parcel, as when Android ends the app in the
