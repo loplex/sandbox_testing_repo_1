@@ -42,6 +42,7 @@ class Page(private var texts: Texts) {
     private val canvas = element<HTMLCanvasElement>("view")
     private val captions = element<HTMLElement>("captions")
     private val prompt = element<HTMLElement>("prompt")
+    private val notice = element<HTMLElement>("notice")
     private val open = element<HTMLInputElement>("open")
     private val save = element<HTMLButtonElement>("save")
     private val panel = element<HTMLElement>("controls")
@@ -60,8 +61,14 @@ class Page(private var texts: Texts) {
     private var share: Double? = null
     private var drawScheduled = false
 
-    /** What the page says over the images, worded anew when the language changes; null once a photo is shown. */
+    /**
+     * What the page says in place of the images, worded anew when the language changes: what to do first, or why it
+     * cannot draw; null once a photo is shown.
+     */
     private var message: ((Texts) -> String)? = { it.get("choose_photo") }
+
+    /** What went wrong last, shown under the images until it is clicked away or a photo is opened, as in the app. */
+    private var noticeText: ((Texts) -> String)? = null
 
     /** The language the viewer chose, or null for the browser's, kept here as well where storage is blocked. */
     private var language = Texts.chosenLanguage
@@ -99,6 +106,7 @@ class Page(private var texts: Texts) {
             open.value = ""
         })
         save.addEventListener("click", { saveSnapshot() })
+        notice.addEventListener("click", { showNotice(null) })
         stage.addEventListener("dragover", Event::preventDefault)
         stage.addEventListener("drop", { event ->
             event.preventDefault()
@@ -127,6 +135,8 @@ class Page(private var texts: Texts) {
         element<HTMLElement>("open-text").textContent = texts.get("open_photo")
         save.textContent = texts.get("save_snapshot")
         prompt.textContent = message?.invoke(texts).orEmpty()
+        notice.title = texts.get("close")
+        showNotice(noticeText)
         controls.show(view)
     }
 
@@ -154,7 +164,7 @@ class Page(private var texts: Texts) {
         }
         image.onerror = { _, _, _, _, _ ->
             URL.revokeObjectURL(url)
-            say { it.get("photo_failed", file.name) }
+            showNotice { it.get("photo_failed", file.name) }
         }
         image.src = url
     }
@@ -165,6 +175,7 @@ class Page(private var texts: Texts) {
         composed = null
         message = null
         prompt.textContent = ""
+        showNotice(null)
         invalidate()
     }
 
@@ -178,8 +189,14 @@ class Page(private var texts: Texts) {
         composeIfChanged(passes)
         val arrangement = layout(canvas.width, canvas.height, photo).arrangement
         download(stitch(passes.readImages(view.images), arrangement), snapshotName(view, now())) {
-            say { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
+            showNotice { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
         }
+    }
+
+    private fun showNotice(text: ((Texts) -> String)?) {
+        noticeText = text
+        notice.textContent = text?.invoke(texts).orEmpty()
+        notice.hidden = text == null
     }
 
     private fun say(message: (Texts) -> String) {
