@@ -199,6 +199,9 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **Save snapshot downloads the view as shown**, as a PNG named as the app names it, at the size
   the photo, the video's or the camera's frame is shown at; the photo and the video at full size are
   only the app's.
+  - **The PNG has no alpha channel**, as the app's has none: the page encodes it itself, since a
+    canvas' `toBlob` always writes one, and compresses it with the browser's `CompressionStream`,
+    which Chrome 80, Firefox 113 and Safari 16.4 are the first to have.
 - **Record video records the view as shown** until Stop recording, as the app records it: the
   images at the size they are composed, in the arrangement they had at the start, without captions
   or sound, at up to 30 frames a second.
@@ -295,6 +298,9 @@ for IntelliJ IDEA's Android plugin.
     wording: plurals, languages' names, decimal separators and strings a language lacks.
   - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a
     snapshot puts the images together.
+  - [`PngTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PngTest.kt) holds the snapshot's
+    PNG to truecolour without alpha, and has the browser decode it, under each filter, to the same
+    pixels.
   - [`RecordingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/RecordingTest.kt) records a
     photo's view and plays the video back, at the size of its images side by side.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or

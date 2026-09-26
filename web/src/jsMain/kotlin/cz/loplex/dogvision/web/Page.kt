@@ -363,7 +363,8 @@ class Page(private var texts: Texts) {
         if (!shown(passes)) return
         composeIfChanged(passes)
         val arrangement = layout(canvas.width, canvas.height, passes).arrangement
-        download(stitch(passes.readImages(view.images), arrangement), snapshotName(view, now())) {
+        val name = snapshotName(view, now())
+        encodePng(stitch(passes.readImages(view.images), arrangement), { download(it, name) }) {
             showNotice { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
         }
     }
