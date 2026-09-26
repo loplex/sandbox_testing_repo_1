@@ -41,11 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -57,6 +54,10 @@ import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.speciesFacts
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
+import cz.loplex.dogvision.texts.aboutKey
+import cz.loplex.dogvision.texts.nameKey
 import kotlin.math.roundToInt
 
 /**
@@ -75,75 +76,75 @@ fun Controls(
     val params = view.params
     fun setParams(change: Params.() -> Params) = onChange { it.copy(params = it.params.change()) }
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Section(R.string.species, startsOpen = true) {
+        Section(Str.SPECIES, startsOpen = true) {
             SpeciesChoice(
-                label = stringResource(R.string.species),
-                about = R.string.about_species,
+                label = text(Str.SPECIES),
+                about = Str.ABOUT_SPECIES,
                 choices = Species.entries,
                 selected = params.species,
                 onSelect = { species -> setParams { copy(species = species!!) } },
             )
         }
-        Section(R.string.selected_species, startsOpen = true) {
+        Section(Str.SELECTED_SPECIES, startsOpen = true) {
             Facts(params.species)
         }
-        Section(R.string.simulation, startsOpen = true) {
-            PercentSlider(R.string.adaptation, R.string.about_adaptation, params.adaptation) { value ->
+        Section(Str.SIMULATION, startsOpen = true) {
+            PercentSlider(Str.ADAPTATION, Str.ABOUT_ADAPTATION, params.adaptation) { value ->
                 setParams { copy(adaptation = value) }
             }
-            PercentSlider(R.string.strength, R.string.about_strength, params.strength) { value ->
+            PercentSlider(Str.STRENGTH, Str.ABOUT_STRENGTH, params.strength) { value ->
                 setParams { copy(strength = value) }
             }
-            Text(stringResource(R.string.colour_saturation), style = MaterialTheme.typography.labelLarge)
+            Text(text(Str.COLOUR_SATURATION), style = MaterialTheme.typography.labelLarge)
             ChromaScale.entries.forEach { scale ->
                 val fixed = scale == ChromaScale.FIXED
                 Choice(
-                    text = stringResource(if (fixed) R.string.chroma_fixed else R.string.chroma_rnl),
-                    about = if (fixed) R.string.about_chroma_fixed else R.string.about_chroma_rnl,
+                    text = text(if (fixed) Str.CHROMA_FIXED else Str.CHROMA_RNL),
+                    about = if (fixed) Str.ABOUT_CHROMA_FIXED else Str.ABOUT_CHROMA_RNL,
                     selected = params.chromaScale == scale,
                     onClick = { setParams { copy(chromaScale = scale) } },
                 )
             }
         }
-        Section(R.string.acuity, startsOpen = params.acuity) {
-            Check(stringResource(R.string.acuity_blur), R.string.about_acuity_blur, params.acuity) { on ->
+        Section(Str.ACUITY, startsOpen = params.acuity) {
+            Check(text(Str.ACUITY_BLUR), Str.ABOUT_ACUITY_BLUR, params.acuity) { on ->
                 setParams { copy(acuity = on) }
             }
             LabelledSlider(
-                label = stringResource(R.string.field_of_view),
-                about = R.string.about_field_of_view,
+                label = text(Str.FIELD_OF_VIEW),
+                about = Str.ABOUT_FIELD_OF_VIEW,
                 value = params.fieldOfView.roundToInt(),
                 range = 10..120,
                 enabled = params.acuity,
             ) { degrees -> setParams { copy(fieldOfView = degrees.toDouble()) } }
         }
-        Section(R.string.view, startsOpen = view.compare != null || view.difference) {
+        Section(Str.VIEW, startsOpen = view.compare != null || view.difference) {
             Toggle(
-                stringResource(R.string.side_by_side),
-                R.string.about_side_by_side,
+                text(Str.SIDE_BY_SIDE),
+                Str.ABOUT_SIDE_BY_SIDE,
                 view.sideBySide,
                 enabled = !recording,
             ) { on -> onChange { it.copy(sideBySide = on) } }
             SpeciesChoice(
-                label = stringResource(R.string.compare_with),
-                about = R.string.about_compare_with,
+                label = text(Str.COMPARE_WITH),
+                about = Str.ABOUT_COMPARE_WITH,
                 choices = listOf(null) + Species.entries,
                 selected = view.compare,
                 enabled = view.sideBySide,
                 onSelect = { species -> onChange { it.copy(compare = species) } },
             )
             Toggle(
-                stringResource(R.string.difference),
-                R.string.about_difference,
+                text(Str.DIFFERENCE),
+                Str.ABOUT_DIFFERENCE,
                 view.difference,
                 enabled = view.sideBySide && !recording,
             ) { on -> onChange { it.copy(difference = on) } }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(onClick = onReset, modifier = Modifier.padding(vertical = 8.dp)) {
-                Text(stringResource(R.string.reset))
+                Text(text(Str.RESET))
             }
-            InfoButton(stringResource(R.string.reset), R.string.about_reset)
+            InfoButton(text(Str.RESET), Str.ABOUT_RESET)
         }
         LanguageChoice()
     }
@@ -156,7 +157,8 @@ fun Controls(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LanguageChoice() {
-    val languages = listOf("" to stringResource(R.string.system_language), "en" to "English", "cs" to "Čeština")
+    val languages = listOf("" to text(Str.SYSTEM_LANGUAGE)) +
+        Texts.LANGUAGES.map { it to Texts.of(it).get(Str.LANGUAGE_NAME) }
     val current = AppCompatDelegate.getApplicationLocales().toLanguageTags()
     var expanded by rememberSaveable { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
@@ -165,7 +167,7 @@ private fun LanguageChoice() {
             onValueChange = {},
             readOnly = true,
             singleLine = true,
-            label = { Text(stringResource(R.string.language)) },
+            label = { Text(text(Str.LANGUAGE)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -188,14 +190,14 @@ private fun LanguageChoice() {
 
 /** A section: its title, which opens or closes it, and what it holds. */
 @Composable
-private fun Section(title: Int, startsOpen: Boolean, content: @Composable () -> Unit) {
+private fun Section(title: Str, startsOpen: Boolean, content: @Composable () -> Unit) {
     var open by rememberSaveable { mutableStateOf(startsOpen) }
     Column {
         Row(
             Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(text(title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Icon(
                 painterResource(R.drawable.ic_expand),
                 contentDescription = null,
@@ -214,15 +216,15 @@ private fun Section(title: Int, startsOpen: Boolean, content: @Composable () -> 
 @Composable
 private fun SpeciesChoice(
     label: String,
-    about: Int,
+    about: Str,
     choices: List<Species?>,
     selected: Species?,
     onSelect: (Species?) -> Unit,
     enabled: Boolean = true,
 ) {
-    val context = LocalContext.current
-    val original = stringResource(R.string.original)
-    val name = { species: Species? -> species?.let(context::speciesLabel) ?: original }
+    val texts = LocalTexts.current
+    val original = text(Str.ORIGINAL)
+    val name = { species: Species? -> species?.let(texts::speciesLabel) ?: original }
     var expanded by rememberSaveable { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         ExposedDropdownMenuBox(
@@ -261,13 +263,13 @@ private fun SpeciesChoice(
 
 /** A share from 0 to 1, shown and set in whole percent. */
 @Composable
-private fun PercentSlider(label: Int, about: Int, value: Double, onChange: (Double) -> Unit) =
-    LabelledSlider(stringResource(label), about, (value * 100).roundToInt(), 0..100) { onChange(it / 100.0) }
+private fun PercentSlider(label: Str, about: Str, value: Double, onChange: (Double) -> Unit) =
+    LabelledSlider(text(label), about, (value * 100).roundToInt(), 0..100) { onChange(it / 100.0) }
 
 @Composable
 private fun LabelledSlider(
     label: String,
-    about: Int,
+    about: Str,
     value: Int,
     range: IntRange,
     enabled: Boolean = true,
@@ -289,7 +291,7 @@ private fun LabelledSlider(
 }
 
 @Composable
-private fun Choice(text: String, about: Int, selected: Boolean, onClick: () -> Unit) {
+private fun Choice(text: String, about: Str, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -304,7 +306,7 @@ private fun Choice(text: String, about: Int, selected: Boolean, onClick: () -> U
 }
 
 @Composable
-private fun Check(text: String, about: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun Check(text: String, about: Str, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -319,7 +321,7 @@ private fun Check(text: String, about: Int, checked: Boolean, onChange: (Boolean
 }
 
 @Composable
-private fun Toggle(text: String, about: Int, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+private fun Toggle(text: String, about: Str, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth()
             .toggleable(checked, enabled = enabled, onValueChange = onChange, role = Role.Switch)
@@ -334,17 +336,17 @@ private fun Toggle(text: String, about: Int, checked: Boolean, enabled: Boolean 
 
 /** An info button that shows [about], what the control or fact called [title] means. */
 @Composable
-fun InfoButton(title: String, about: Int) {
+fun InfoButton(title: String, about: Str) {
     var shown by rememberSaveable { mutableStateOf(false) }
     IconButton(onClick = { shown = true }) {
-        Icon(painterResource(R.drawable.ic_info), contentDescription = stringResource(R.string.about))
+        Icon(painterResource(R.drawable.ic_info), contentDescription = text(Str.ABOUT))
     }
     if (shown) {
         AlertDialog(
             onDismissRequest = { shown = false },
-            confirmButton = { TextButton(onClick = { shown = false }) { Text(stringResource(R.string.close)) } },
+            confirmButton = { TextButton(onClick = { shown = false }) { Text(text(Str.CLOSE)) } },
             title = { Text(title) },
-            text = { Text(stringResource(about), modifier = Modifier.verticalScroll(rememberScrollState())) },
+            text = { Text(text(about), modifier = Modifier.verticalScroll(rememberScrollState())) },
         )
     }
 }
@@ -356,8 +358,8 @@ fun InfoButton(title: String, about: Int) {
  */
 @Composable
 private fun Facts(species: Species) {
-    val context = LocalContext.current
-    val facts = remember(species, LocalConfiguration.current) { speciesFacts(species, AndroidTexts(context)) }
+    val texts = LocalTexts.current
+    val facts = remember(species, texts) { speciesFacts(species, texts.facts) }
     val style = MaterialTheme.typography.bodyMedium
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -365,7 +367,7 @@ private fun Facts(species: Species) {
     facts.forEach { fact ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(fact.label.nameRes),
+                text(fact.label.nameKey),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.width(112.dp),
             )
@@ -376,7 +378,7 @@ private fun Facts(species: Species) {
             ) {
                 fact.value.forEach { Text(it, style = style) }
             }
-            InfoButton(stringResource(fact.label.nameRes), fact.label.aboutRes)
+            InfoButton(text(fact.label.nameKey), fact.label.aboutKey)
         }
     }
 }

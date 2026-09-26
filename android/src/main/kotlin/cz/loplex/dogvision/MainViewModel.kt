@@ -20,7 +20,8 @@ import cz.loplex.dogvision.core.snapshotName
 import cz.loplex.dogvision.render.Capture
 import cz.loplex.dogvision.render.Drawn
 import cz.loplex.dogvision.render.FrameExchange
-import cz.loplex.dogvision.ui.AndroidTexts
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.ui.texts
 import cz.loplex.dogvision.video.Recorder
 import cz.loplex.dogvision.video.Written
 import cz.loplex.dogvision.video.convertVideo
@@ -106,7 +107,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
 
     fun onCameraError(error: Throwable) {
         val context = getApplication<Application>()
-        _message.value = context.getString(R.string.camera_failed, error.message ?: error.javaClass.simpleName)
+        _message.value = context.texts.get(Str.CAMERA_FAILED, error.message ?: error.javaClass.simpleName)
     }
 
     fun say(message: String) {
@@ -140,7 +141,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
         val context = getApplication<Application>()
         val reason = error.message ?: error.javaClass.simpleName
         stopRecording()
-        _message.value = context.getString(R.string.video_failed, video.name, reason)
+        _message.value = context.texts.get(Str.VIDEO_FAILED, video.name, reason)
         openCamera()
     }
 
@@ -152,7 +153,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
             decoded?.let { (bitmap, turn) -> bitmap.toFrame(turn).also { bitmap.recycle() } }
         }
         if (frame == null) {
-            _message.value = context.getString(R.string.media_failed, name)
+            _message.value = context.texts.get(Str.MEDIA_FAILED, name)
             return
         }
         _source.value = Source.Photo(uri, name)
@@ -190,9 +191,9 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
             viewModelScope.launch(Dispatchers.IO) {
                 _message.value = try {
                     savePng(context, stitch(images, layout.arrangement), name)
-                    context.getString(R.string.saved, name, Gallery.IMAGES.folder)
+                    context.texts.get(Str.SAVED, name, Gallery.IMAGES.folder)
                 } catch (error: IOException) {
-                    context.getString(R.string.snapshot_failed, error.message)
+                    context.texts.get(Str.SNAPSHOT_FAILED, error.message)
                 }
             }
         }
@@ -232,11 +233,11 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
     fun convertPhoto() {
         val photo = source.value as? Source.Photo ?: return
         val context = getApplication<Application>()
-        val texts = AndroidTexts(context)
+        val facts = context.texts.facts
         val view = viewToConvert()
         val name = snapshotName(view, now(), suffix = "-full")
         startConversion(Dispatchers.Default) {
-            _message.value = context.getString(R.string.converting, percent(0.0, 0.0, texts))
+            _message.value = context.texts.get(Str.CONVERTING, percent(0.0, 0.0, facts))
             _message.value = try {
                 val (decoded, turn) = decodePhoto(context, photo.uri) ?: throw IOException(photo.name)
                 val upright = upright(decoded, turn)
@@ -246,14 +247,14 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
                 compose(BitmapSource(upright), view, BitmapSink(out), mean) { rows ->
                     ensureActive()
                     val done = rows.toDouble() / upright.height
-                    _message.value = context.getString(R.string.converting, percent(done, done, texts))
+                    _message.value = context.texts.get(Str.CONVERTING, percent(done, done, facts))
                 }
                 savePng(context, out, name)
-                context.getString(R.string.saved, name, Gallery.IMAGES.folder)
+                context.texts.get(Str.SAVED, name, Gallery.IMAGES.folder)
             } catch (error: IOException) {
-                context.getString(R.string.conversion_failed, error.message)
+                context.texts.get(Str.CONVERSION_FAILED, error.message)
             } catch (error: OutOfMemoryError) {
-                context.getString(R.string.conversion_failed, context.getString(R.string.too_large))
+                context.texts.get(Str.CONVERSION_FAILED, context.texts.get(Str.TOO_LARGE))
             }
         }
     }
@@ -265,23 +266,23 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
     fun convertVideo() {
         val video = source.value as? Source.Video ?: return
         val context = getApplication<Application>()
-        val texts = AndroidTexts(context)
+        val facts = context.texts.facts
         val view = viewToConvert()
         val name = snapshotName(view, now(), suffix = "-full", extension = "mp4")
         startConversion(Dispatchers.Main) {
-            _message.value = context.getString(R.string.converting, percent(0.0, 0.0, texts))
+            _message.value = context.texts.get(Str.CONVERTING, percent(0.0, 0.0, facts))
             // Transformer writes to a path, which the gallery does not give out; the video is copied there after.
             val file = File(context.cacheDir, name)
             _message.value = try {
                 val written = convertVideo(context, video.uri, view, file) { done ->
-                    _message.value = context.getString(R.string.converting, percent(done, done, texts))
+                    _message.value = context.texts.get(Str.CONVERTING, percent(done, done, facts))
                 }
                 withContext(Dispatchers.IO) {
                     saveToGallery(context, name, Gallery.VIDEOS) { out -> file.inputStream().use { it.copyTo(out) } }
                 }
-                context.getString(R.string.saved_video, name, Gallery.VIDEOS.folder, describe(written))
+                context.texts.get(Str.SAVED_VIDEO, name, Gallery.VIDEOS.folder, describe(written))
             } catch (error: IOException) {
-                context.getString(R.string.conversion_failed, error.message)
+                context.texts.get(Str.CONVERSION_FAILED, error.message)
             } finally {
                 file.delete()
             }
@@ -316,7 +317,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
                 val elapsed = SystemClock.elapsedRealtime() - started
                 val seconds = elapsed / 1000
                 val time = String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)
-                _message.value = context.getString(R.string.recording, name, time)
+                _message.value = context.texts.get(Str.RECORDING, name, time)
                 delay(1000 - elapsed % 1000)
             }
         }
@@ -327,7 +328,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
         val recorder = _recorder.value ?: return
         _recorder.value = null
         recordingClock?.cancel()
-        _message.value = getApplication<Application>().getString(R.string.finishing, recordingName)
+        _message.value = getApplication<Application>().texts.get(Str.FINISHING, recordingName)
         recorder.stop()
     }
 
@@ -344,11 +345,11 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
                 withContext(Dispatchers.IO) {
                     saveToGallery(context, name, Gallery.VIDEOS) { out -> file.inputStream().use { it.copyTo(out) } }
                 }
-                context.getString(R.string.saved_video, name, Gallery.VIDEOS.folder, describe(written))
+                context.texts.get(Str.SAVED_VIDEO, name, Gallery.VIDEOS.folder, describe(written))
             } catch (error: IOException) {
-                context.getString(R.string.recording_failed, error.message)
+                context.texts.get(Str.RECORDING_FAILED, error.message)
             } catch (error: IllegalStateException) { // MediaCodec.CodecException among them
-                context.getString(R.string.recording_failed, error.message)
+                context.texts.get(Str.RECORDING_FAILED, error.message)
             } finally {
                 file.delete()
             }
@@ -359,13 +360,13 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
     private fun describe(written: Written): String {
         val context = getApplication<Application>()
         val sound = when {
-            written.silent -> R.string.written_silent
-            written.sound -> R.string.written_with_sound
-            else -> R.string.written_without_sound
+            written.silent -> Str.WRITTEN_SILENT
+            written.sound -> Str.WRITTEN_WITH_SOUND
+            else -> Str.WRITTEN_WITHOUT_SOUND
         }
-        val described = context.getString(sound, written.format, written.encoder)
+        val described = context.texts.get(sound, written.format, written.encoder)
         val (width, height) = written.scaledTo ?: return described
-        return context.getString(R.string.scaled_to, described, "$width × $height")
+        return context.texts.get(Str.SCALED_TO, described, "$width × $height")
     }
 
     override fun onCleared() {
