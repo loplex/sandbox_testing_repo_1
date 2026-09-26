@@ -19,7 +19,8 @@ import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.composedSize
-import cz.loplex.dogvision.render.ViewPasses
+import cz.loplex.dogvision.gl.ViewPasses
+import cz.loplex.dogvision.render.Gles
 
 /**
  * A Media3 effect that turns each frame of a video into [view] of it, its images side by side or
@@ -60,7 +61,7 @@ class ViewEffect(private val view: View, private val textureLimit: Int = Int.MAX
                 if (!version.startsWith("OpenGL ES 3")) {
                     throw VideoFrameProcessingException("The view needs OpenGL ES 3.0, and the context is $version")
                 }
-                passes = ViewPasses().apply { create() }
+                passes = ViewPasses(Gles).apply { create() }
             }
             this.inputWidth = inputWidth
             this.inputHeight = inputHeight

@@ -17,6 +17,8 @@ import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
+import cz.loplex.dogvision.gl.ViewPasses
+import cz.loplex.dogvision.gl.texture
 import cz.loplex.dogvision.video.Recorder
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
@@ -59,7 +61,7 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     @Volatile
     var recorder: Recorder? = null
 
-    private val passes = ViewPasses()
+    private val passes = ViewPasses(Gles)
     private var recording: Recording? = null
     private var raw = 0
     private var screenWidth = 0
@@ -89,7 +91,7 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
         composed = null
         recording = null // its surface went with the context it was made in
         passes.create()
-        raw = texture()
+        raw = texture(Gles)
     }
 
     override fun onSurfaceChanged(unused: GL10?, width: Int, height: Int) {
