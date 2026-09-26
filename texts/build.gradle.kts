@@ -155,10 +155,7 @@ abstract class WriteStrings : DefaultTask() {
 
 val writeStrings = tasks.register<WriteStrings>("writeStrings") {
     description = "Writes the strings.xml files into a Kotlin source of the texts."
-    sources.from(
-        fileTree(rootProject.file("android/src/main/res")) { include("values/strings.xml", "values-*/strings.xml") },
-        fileTree(file("strings")) { include("values/strings.xml", "values-*/strings.xml") },
-    )
+    sources.from(fileTree(file("strings")) { include("values/strings.xml", "values-*/strings.xml") })
     output = layout.buildDirectory.dir("generated/strings")
 }
 
