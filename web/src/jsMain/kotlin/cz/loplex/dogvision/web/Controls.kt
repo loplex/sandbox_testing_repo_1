@@ -5,6 +5,10 @@ import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.speciesFacts
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
+import cz.loplex.dogvision.texts.aboutKey
+import cz.loplex.dogvision.texts.nameKey
 import kotlinx.browser.document
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLElement
@@ -34,7 +38,7 @@ class Controls(
     private val acuity = checkbox()
     private val fieldOfView = slider(10..120)
     private val sideBySide = checkbox()
-    private val compare = select(listOf("" to texts.get("original")) + speciesOptions)
+    private val compare = select(listOf("" to texts.get(Str.ORIGINAL)) + speciesOptions)
     private val difference = checkbox()
 
     /** What is known about the species chosen, a row per fact, and the species it was built for. */
@@ -45,39 +49,39 @@ class Controls(
     private val outputs = mutableMapOf<HTMLInputElement, HTMLElement>()
     private val reset = (document.createElement("button") as HTMLButtonElement).apply {
         type = "button"
-        textContent = texts.get("reset")
+        textContent = texts.get(Str.RESET)
     }
 
     init {
-        section("species") {
-            labelled("species", "about_species", species)
+        section(Str.SPECIES) {
+            labelled(Str.SPECIES, Str.ABOUT_SPECIES, species)
         }
-        section("selected_species") {
+        section(Str.SELECTED_SPECIES) {
             appendChild(facts)
         }
-        section("simulation") {
-            labelled("adaptation", "about_adaptation", adaptation)
-            labelled("strength", "about_strength", strength)
+        section(Str.SIMULATION) {
+            labelled(Str.ADAPTATION, Str.ABOUT_ADAPTATION, adaptation)
+            labelled(Str.STRENGTH, Str.ABOUT_STRENGTH, strength)
             val heading = document.createElement("p") as HTMLElement
             heading.className = "label"
-            heading.textContent = texts.get("colour_saturation")
+            heading.textContent = texts.get(Str.COLOUR_SATURATION)
             appendChild(heading)
-            inline("chroma_fixed", "about_chroma_fixed", chroma.getValue(ChromaScale.FIXED))
-            inline("chroma_rnl", "about_chroma_rnl", chroma.getValue(ChromaScale.RNL))
+            inline(Str.CHROMA_FIXED, Str.ABOUT_CHROMA_FIXED, chroma.getValue(ChromaScale.FIXED))
+            inline(Str.CHROMA_RNL, Str.ABOUT_CHROMA_RNL, chroma.getValue(ChromaScale.RNL))
         }
-        section("acuity") {
-            inline("acuity_blur", "about_acuity_blur", acuity)
-            labelled("field_of_view", "about_field_of_view", fieldOfView)
+        section(Str.ACUITY) {
+            inline(Str.ACUITY_BLUR, Str.ABOUT_ACUITY_BLUR, acuity)
+            labelled(Str.FIELD_OF_VIEW, Str.ABOUT_FIELD_OF_VIEW, fieldOfView)
         }
-        section("view") {
-            inline("side_by_side", "about_side_by_side", sideBySide)
-            labelled("compare_with", "about_compare_with", compare)
-            inline("difference", "about_difference", difference)
+        section(Str.VIEW) {
+            inline(Str.SIDE_BY_SIDE, Str.ABOUT_SIDE_BY_SIDE, sideBySide)
+            labelled(Str.COMPARE_WITH, Str.ABOUT_COMPARE_WITH, compare)
+            inline(Str.DIFFERENCE, Str.ABOUT_DIFFERENCE, difference)
             val row = document.createElement("div") as HTMLElement
             row.className = "row"
             row.appendChild(reset)
             appendChild(row)
-            about(row, "about_reset")
+            about(row, Str.ABOUT_RESET)
         }
 
         // In a Params.copy, the params' own names hide the controls'.
@@ -99,8 +103,8 @@ class Controls(
         reset.addEventListener("click", { onChange { View() } })
 
         // Each language named in itself, as the Android app's LanguageChoice names them.
-        val languages = listOf("" to texts.get("browser_language")) +
-            Texts.LANGUAGES.map { it to Texts.languageName(it) }
+        val languages = listOf("" to texts.get(Str.BROWSER_LANGUAGE)) +
+            Texts.LANGUAGES.map { it to Texts.of(it).get(Str.LANGUAGE_NAME) }
         val languageChoice = select(languages)
         languageChoice.value = language.orEmpty()
         languageChoice.onChange { onLanguage(languageChoice.value.takeIf(String::isNotEmpty)) }
@@ -111,7 +115,7 @@ class Controls(
         val label = document.createElement("label") as HTMLElement
         languageChoice.id = "control-language"
         label.setAttribute("for", languageChoice.id)
-        label.textContent = texts.get("language")
+        label.textContent = texts.get(Str.LANGUAGE)
         row.appendChild(label)
         choice.appendChild(row)
         choice.appendChild(languageChoice)
@@ -147,13 +151,12 @@ class Controls(
      */
     private fun showFacts(species: Species) {
         facts.innerHTML = ""
-        speciesFacts(species, FactWording(texts)).forEach { fact ->
-            val name = fact.label.name.lowercase()
+        speciesFacts(species, texts.facts).forEach { fact ->
             val row = document.createElement("div") as HTMLElement
             row.className = "row fact"
             val label = document.createElement("span") as HTMLElement
             label.className = "fact-label"
-            label.textContent = texts.get("fact_$name")
+            label.textContent = texts.get(fact.label.nameKey)
             row.appendChild(label)
             val value = document.createElement("span") as HTMLElement
             value.className = "fact-value"
@@ -166,7 +169,7 @@ class Controls(
             }
             row.appendChild(value)
             facts.appendChild(row)
-            facts.about(row, "about_fact_$name")
+            facts.about(row, fact.label.aboutKey)
         }
         factsOf = species
     }
@@ -179,7 +182,7 @@ class Controls(
 
     private fun setParams(change: Params.() -> Params) = onChange { it.copy(params = it.params.change()) }
 
-    private fun section(title: String, build: HTMLElement.() -> Unit) {
+    private fun section(title: Str, build: HTMLElement.() -> Unit) {
         val section = document.createElement("section") as HTMLElement
         val heading = document.createElement("h2") as HTMLElement
         heading.textContent = texts.get(title)
@@ -189,8 +192,8 @@ class Controls(
     }
 
     /** A control under its label, with the value of a slider beside the label, and what it means. */
-    private fun HTMLElement.labelled(label: String, about: String, control: HTMLElement) {
-        val id = "control-$label"
+    private fun HTMLElement.labelled(label: Str, about: Str, control: HTMLElement) {
+        val id = "control-${label.name.lowercase()}"
         control.id = id
         val row = document.createElement("div") as HTMLElement
         row.className = "row"
@@ -212,7 +215,7 @@ class Controls(
     }
 
     /** A check box or radio button with its label after it, and what it means. */
-    private fun HTMLElement.inline(label: String, about: String, input: HTMLInputElement) {
+    private fun HTMLElement.inline(label: Str, about: Str, input: HTMLInputElement) {
         val row = document.createElement("div") as HTMLElement
         row.className = "row"
         val text = document.createElement("label") as HTMLElement
@@ -227,10 +230,10 @@ class Controls(
      * A button that shows what a control means, into [row], and the text it shows, hidden until then, at the end of
      * this section.
      */
-    private fun HTMLElement.about(row: HTMLElement, name: String) {
+    private fun HTMLElement.about(row: HTMLElement, name: Str) {
         val text = document.createElement("div") as HTMLElement
         text.className = "about"
-        text.id = "about-$name"
+        text.id = "about-${name.name.lowercase()}"
         text.hidden = true
         texts.get(name).split("\n\n").forEach { paragraph ->
             val p = document.createElement("p") as HTMLElement
@@ -241,8 +244,8 @@ class Controls(
         button.type = "button"
         button.className = "info"
         button.textContent = "i"
-        button.title = texts.get("about")
-        button.setAttribute("aria-label", texts.get("about"))
+        button.title = texts.get(Str.ABOUT)
+        button.setAttribute("aria-label", texts.get(Str.ABOUT))
         button.setAttribute("aria-expanded", "false")
         button.setAttribute("aria-controls", text.id)
         button.addEventListener("click", {
