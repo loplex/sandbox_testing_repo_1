@@ -208,7 +208,8 @@ for IntelliJ IDEA's Android plugin.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s
     shaders in WebGL 2, as `ViewPasses` does on Android.
   - Its wording is the app's string resources, which the build compiles into the page, in the
-    browser's language if the app speaks it and in English otherwise.
+    language chosen at the end of its panel, which the browser remembers, or else in the browser's
+    language if the app speaks it and in English otherwise.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
