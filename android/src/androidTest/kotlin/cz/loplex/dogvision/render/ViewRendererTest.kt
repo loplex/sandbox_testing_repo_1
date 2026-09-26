@@ -8,20 +8,19 @@ import android.opengl.EGLExt
 import android.opengl.EGLSurface
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.blue
-import cz.loplex.dogvision.core.compose
-import cz.loplex.dogvision.core.composedSize
-import cz.loplex.dogvision.core.differenceRow
 import cz.loplex.dogvision.core.green
-import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.red
 import cz.loplex.dogvision.core.rgb
+import cz.loplex.dogvision.testing.coreImages
+import cz.loplex.dogvision.testing.coreMap
+import cz.loplex.dogvision.testing.pattern
+import cz.loplex.dogvision.testing.worstChannelDifference
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -29,7 +28,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.math.abs
 
 /**
  * The GPU renders what core's CPU pipeline renders, within [TOLERANCE] of 8 bits, in an offscreen
@@ -89,17 +87,6 @@ class ViewRendererTest {
         EGL14.eglTerminate(display)
     }
 
-    /** Neighbouring pixels differ in every channel, as in core's reference pattern. */
-    private fun pattern(width: Int, height: Int) = Image(
-        width,
-        height,
-        IntArray(width * height) {
-            val x = it % width
-            val y = it / width
-            rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
-        },
-    )
-
     private fun publish(image: Image, rotation: Int = 0, mirrored: Boolean = false): Frame {
         val frame = Frame.allocate(image.width, image.height)
         for (pixel in image.pixels) {
@@ -111,33 +98,8 @@ class ViewRendererTest {
         return frame
     }
 
-    /** What core renders of [image] for [view], cut into its images. */
-    private fun expected(image: Image, view: View): Pair<List<Image>, Double?> {
-        val row = view.copy(arrangement = Arrangement.ROW)
-        val (width, height) = composedSize(row, image.width, image.height)
-        val composed = Image(width, height)
-        val share = compose(image, row, composed, { meanLinearRgb(image) })
-        val images = List(view.images) { i ->
-            Image(
-                image.width,
-                image.height,
-                IntArray(image.width * image.height) {
-                    composed[i * image.width + it % image.width, it / image.width]
-                },
-            )
-        }
-        return images to share
-    }
-
     private fun assertClose(expected: Image, actual: Image, what: String) {
-        assertEquals("$what: width", expected.width, actual.width)
-        assertEquals("$what: height", expected.height, actual.height)
-        var worst = 0
-        for (i in expected.pixels.indices) {
-            for (channel in listOf(::red, ::green, ::blue)) {
-                worst = maxOf(worst, abs(channel(expected.pixels[i]) - channel(actual.pixels[i])))
-            }
-        }
+        val worst = worstChannelDifference(expected, actual)
         assertTrue("$what: a channel differs by $worst", worst <= TOLERANCE)
     }
 
@@ -150,7 +112,7 @@ class ViewRendererTest {
         publish(image)
         renderer.view = view
         drawFrames()
-        val (expected, share) = expected(image, view)
+        val (expected, share) = coreImages(image, view)
         val actual = renderer.readImages()
         assertEquals(expected.size, actual.size)
         expected.zip(actual).take(2).forEachIndexed { i, (e, a) -> assertClose(e, a, "$view image $i") }
@@ -159,19 +121,9 @@ class ViewRendererTest {
             return
         }
         val (left, right, map) = actual
-        val expectedMap = Image(map.width, map.height)
-        var noticeable = 0
-        val a = IntArray(map.width)
-        val b = IntArray(map.width)
-        val row = IntArray(map.width)
-        for (y in 0 until map.height) {
-            left.readRow(y, a)
-            right.readRow(y, b)
-            noticeable += differenceRow(a, b, row)
-            expectedMap.writeRow(y, 0, row, 0, row.size)
-        }
+        val (expectedMap, expectedShare) = coreMap(left, right)
         assertClose(expectedMap, map, "$view map")
-        assertEquals(noticeable.toDouble() / (map.width * map.height), drawn!!.differenceShare!!, 1e-9)
+        assertEquals(expectedShare, drawn!!.differenceShare!!, 1e-9)
         assertEquals(share, drawn!!.differenceShare!!, 0.02)
     }
 
