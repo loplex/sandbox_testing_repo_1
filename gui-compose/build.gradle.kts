@@ -89,7 +89,7 @@ val packaging = layout.projectDirectory.dir("packaging")
 
 // packageUberJarForCurrentOS writes build/compose/jars/dog-vision-linux-x64-<version>.jar, which runs alone on a JDK
 // 17 or newer, with this machine's natives in it. packageDeb and packageRpm write jpackage's packages for Linux, with a
-// runtime of their own, under build/compose/binaries/main/{deb,rpm}.
+// runtime of their own, under build/compose/binaries/main/{deb,rpm}; Windows's MSI is tools/package_msi_on_linux.sh's.
 compose.desktop {
     application {
         mainClass = mainClassName
