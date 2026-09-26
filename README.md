@@ -9,8 +9,8 @@ It simulates the same species with the same model, and the desktop program's REA
 model and the science behind it.
 A [web page](#the-web-page) shows a photo, a video or a camera's live image the same way in a
 browser, a [command line](#the-command-line) on the JVM converts a photo as the desktop program's
-does, and a [desktop window](#the-desktop-window) for Linux, a first version, shows a photo, a video
-or a camera.
+does, and a [desktop window](#the-desktop-window) for Linux and Windows, a first version, shows a
+photo, a video or a camera.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording,
   the language.
@@ -258,25 +258,39 @@ java -jar cli/build/jars/dog-vision-cli.jar --species cat --compare dog photo.jp
 ./gradlew :gui-compose:run --args="--window photo.jpg"       # a photo, or a video played over and over
 ./gradlew :gui-compose:run --args="--species cat photo.jpg"  # converts it, as the command line does
 ./gradlew :gui-compose:packageUberJarForCurrentOS            # gui-compose/build/compose/jars/dog-vision-linux-x64-0.1.0.jar
+./gradlew :gui-compose:windowsUberJar                        # gui-compose/build/compose/jars/dog-vision-windows-x64-0.1.0.jar
 ```
 
-The JAR holds everything the window needs, the natives for Linux on x86-64 included, and runs as
-`java -jar dog-vision-linux-x64-0.1.0.jar` with the same options.
+- **Each JAR holds everything the window needs**, the natives for its system on x86-64 included,
+  and runs as `java -jar dog-vision-linux-x64-0.1.0.jar` with the same options.
+- **The Windows JAR is built on any machine**, Linux included, with Windows's natives and ANGLE in
+  place of this machine's; an installer, which jpackage builds only on Windows, is not made.
 
-It is a first version, for Linux on x86-64, of a window to replace the desktop program's.
+It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
+program's.
 
 - **It takes the command line's options**, and converts a photo given without `--window` as the
-  command line does; `--camera N` shows `/dev/videoN`.
-- **The view is rendered on the GPU**, by the passes the app and the web page run, in an OpenGL ES 3
-  context with no window of its own, which is read back and shown in the Compose window.
+  command line does.
+- **The view is rendered on the GPU**, by the passes the app and the web page run, in a GL context
+  with no window of its own, which is read back and shown in the Compose window.
   - **It is read back without waiting for the GPU**, through a pixel pack buffer and a fence, two
     at a time, so that the next frame is uploaded and composed while the GPU reads the last.
-  - **It needs EGL with Mesa's device platform** (`EGL_EXT_platform_device`), and takes the first
-    device with a DRM render node; with none, it renders on the CPU and says so on its standard
-    error.
+  - **On Linux it needs EGL with Mesa's device platform** (`EGL_EXT_platform_device`) for an
+    OpenGL ES 3 context, and takes the first device with a DRM render node; with none, it renders
+    on the CPU and says so on its standard error.
+  - **On Windows it draws through ANGLE**, OpenGL ES 3 over Direct3D 11, as Chrome draws WebGL
+    there. ANGLE's DLLs come in the JAR, from Nucleus's build of it
+    (`dev.nucleusframework:nucleus.angle-natives`), as Google ships none.
+  - **Where ANGLE cannot start, WGL draws**: the graphics driver's own desktop OpenGL 3.3, whose
+    GLSL takes the passes' shaders with their first line rewritten. `--gl angle` or `--gl wgl`
+    picks one alone.
 - **A video or the camera comes through the system's `ffmpeg`**, which must be on the `PATH` with
   `ffprobe`: it decodes the frames, turns a video as its file says and scales it down to 1280
   pixels, and hands them over as raw RGBA through a pipe.
+  - **Windows has no ffmpeg of its own**, so it has to be installed; where `ffmpeg` or `ffprobe`
+    cannot run, the window says so in place of the video or the camera.
+  - **`--camera N` is `/dev/videoN` on Linux**, through Video4Linux, and on Windows the Nth camera
+    ffmpeg lists through DirectShow, counted from 0.
   - **The camera is asked for Motion-JPEG at 1280 x 720**, which a USB webcam gives at 30 frames a
     second, and for whatever it gives where it has none. It is not mirrored, as the desktop
     program's is not.
@@ -289,6 +303,18 @@ It is a first version, for Linux on x86-64, of a window to replace the desktop p
   command line names.
 - **q or Escape closes it**, as it closes the desktop program's window.
 - **It has no menus, no settings, no snapshots and no recording yet.**
+
+### Caveat: the Windows window is tried under Wine
+
+Under Wine 11.18 on Linux, with a Windows JDK 21 and the Windows build of ffmpeg, it was tried with
+a photo, a video, the camera through DirectShow, WGL chosen and WGL taken where Direct3D 11 is
+switched off, and the command line.
+
+- **Wine's own `d3dcompiler_47` never finishes linking one of the passes' shaders**, the count of
+  differing pixels, so ANGLE hangs there under Wine; Microsoft's, which Windows ships and
+  `winetricks d3dcompiler_47` installs into a Wine prefix, links it.
+- **ANGLE's Direct3D 11 runs on Wine's translation to OpenGL** there, not on a Windows driver, so
+  what Wine shows is the code and ANGLE, not the drivers people have.
 
 ### Caveat: the libraries wait for a stable SDK 37
 
@@ -357,10 +383,17 @@ for IntelliJ IDEA's Android plugin.
 - **[`gui-compose`](gui-compose)** is the desktop window, in Compose Multiplatform for the JVM, around
   `ui`'s controls; its `main` is `cli`'s, with the window for what `cli` does not answer itself.
   - [`Renderer`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/Renderer.kt) runs `gl`'s
-    `ViewPasses` on a thread of its own, through
-    [`LwjglGles`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/LwjglGles.kt), its `Gl`
-    over LWJGL's OpenGL ES bindings, in the context
-    [`EglContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/EglContext.kt) makes.
+    `ViewPasses` on a thread of its own, in the context
+    [`GlContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/GlContext.kt) opens for
+    the system, through the `Gl` that comes with it.
+  - [`EglContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/EglContext.kt) makes
+    an OpenGL ES context on Linux's device platform or ANGLE's display, drawn in through
+    [`LwjglGles`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/LwjglGles.kt), over
+    LWJGL's OpenGL ES bindings.
+  - [`WglContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/WglContext.kt) makes
+    Windows's desktop OpenGL context through GLFW, drawn in through
+    [`LwjglGl`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/LwjglGl.kt), over LWJGL's
+    desktop OpenGL bindings.
   - [`FfmpegFeed`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/FfmpegFeed.kt) reads a
     video's or the camera's frames from `ffmpeg`.
 - **[`testing`](testing)** is what the renderers' tests hold them to, for `core`'s tests, the app's
@@ -410,11 +443,14 @@ for IntelliJ IDEA's Android plugin.
   either byte order and each turn it asks for, and a photo converted exactly as `core` composes it.
 - `./gradlew :gui-compose:jvmTest` runs the window's tests, on the machine's GPU through EGL and
   with its `ffmpeg`:
-  [`PassesTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/PassesTest.kt) holds the
-  passes to `core`'s CPU pipeline, as the page's and the app's tests do, and the area read back to
-  its top row first;
-  [`FfmpegFeedTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/FfmpegFeedTest.kt)
-  plays a video it makes, turned by its file, upright and over and over.
+  - [`PassesTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/PassesTest.kt) holds
+    the passes to `core`'s CPU pipeline, as the page's and the app's tests do, and the area read
+    back to its top row first, over OpenGL ES 3.0 and over desktop OpenGL 3.3, as WGL draws, each
+    in a JVM of its own.
+  - [`FfmpegFeedTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/FfmpegFeedTest.kt)
+    plays a video it makes, turned by its file, upright and over and over; reads ffmpeg's list of
+    DirectShow cameras as ffmpeg words it now and as it did before 4.4; and holds a program that
+    cannot run to being said to be missing, and one that runs to reading nothing.
 - `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
     WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's; the share
