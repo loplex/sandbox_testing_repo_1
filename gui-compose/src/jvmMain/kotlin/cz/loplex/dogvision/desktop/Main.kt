@@ -1,0 +1,12 @@
+package cz.loplex.dogvision.desktop
+
+import cz.loplex.dogvision.cli.runCommandLine
+import kotlin.system.exitProcess
+
+/**
+ * `dog-vision`: the command line answers --help and a command line it cannot read,
+ * and converts a photo given alone; anything else opens the window.
+ */
+fun main(args: Array<String>) {
+    exitProcess(runCommandLine(args.toList(), System.out, System.err, ::showWindow))
+}
