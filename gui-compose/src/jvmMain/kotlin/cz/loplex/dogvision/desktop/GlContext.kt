@@ -46,9 +46,12 @@ interface GlContext : AutoCloseable {
 
     companion object {
         /**
-         * The context this system draws in, current on the calling thread. Throws IllegalStateException, or
-         * UnsatisfiedLinkError where a library is missing, if none can be made.
+         * The context this system draws in, current on the calling thread: ANGLE's on Windows, and on a GPU that EGL's
+         * device platform names elsewhere, as on Linux. Throws IllegalStateException, or UnsatisfiedLinkError where a
+         * library is missing, if none can be made.
          */
-        fun open(): GlContext = EglContext.onDevice()
+        fun open(): GlContext = if (windows) EglContext.angle() else EglContext.onDevice()
+
+        private val windows = System.getProperty("os.name").startsWith("Windows")
     }
 }
