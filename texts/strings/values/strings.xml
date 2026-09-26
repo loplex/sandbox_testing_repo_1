@@ -165,6 +165,7 @@
 
     <!-- What only the desktop window says -->
     <string name="draw_failed">Cannot draw the view: %1$s</string>
+    <string name="ffmpeg_missing">Videos and the camera need %1$s, which comes with ffmpeg and cannot be run here. Install ffmpeg so that it is on the PATH.</string>
 
     <!-- What only the command line says; option names, species ids and file names stay as they are typed -->
     <string name="usage_synopsis">usage: dog-vision [options] [file]</string>
@@ -182,7 +183,7 @@
     <string name="usage_option_acuity">blurs to the species\' visual acuity</string>
     <string name="usage_option_fov">degrees the image spans across, for --acuity (default %1$s)</string>
     <string name="usage_option_window">shows the file in the window instead of converting it</string>
-    <string name="usage_option_camera">the camera the window shows, /dev/videoN (default %1$s)</string>
+    <string name="usage_option_camera">the camera the window shows, counted from 0: /dev/videoN on Linux (default %1$s)</string>
     <string name="usage_option_output_dir">writes a converted file there instead of next to its original</string>
     <string name="usage_option_gl">how the window draws on Windows: angle, or wgl (default angle, and wgl where it cannot start)</string>
     <string name="usage_option_help">shows this and exits</string>

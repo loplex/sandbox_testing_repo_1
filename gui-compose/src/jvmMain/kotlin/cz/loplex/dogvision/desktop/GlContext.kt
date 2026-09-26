@@ -53,7 +53,7 @@ interface GlContext : AutoCloseable {
          * missing, if none can be made.
          */
         fun open(windowsGl: WindowsGl? = null): GlContext {
-            if (!windows) {
+            if (!onWindows) {
                 check(windowsGl == null) { "--gl chooses how to draw on Windows, and this is not Windows" }
                 return EglContext.onDevice()
             }
@@ -81,7 +81,5 @@ interface GlContext : AutoCloseable {
                 throw IllegalStateException("${angle.message}; ${wgl.message}", wgl)
             }
         }
-
-        private val windows = System.getProperty("os.name").startsWith("Windows")
     }
 }

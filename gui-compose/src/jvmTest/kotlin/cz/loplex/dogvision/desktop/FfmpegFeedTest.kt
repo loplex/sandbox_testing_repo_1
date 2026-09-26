@@ -5,6 +5,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,7 +13,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The system's ffmpeg plays a video file upright, over and over, as the window shows it. */
+/**
+ * The system's ffmpeg plays a video file upright, over and over, as the window shows it, and ffmpeg's list of Windows's
+ * cameras is read as it words it.
+ */
 class FfmpegFeedTest {
     @TempDir
     lateinit var directory: File
@@ -72,6 +76,70 @@ class FfmpegFeedTest {
         // Turned counter-clockwise, the left half is at the bottom.
         assertEquals("blue" to "red", ends.get())
         assertNull(ended.get())
+    }
+
+    /**
+     * Frames passed on as they come, as a camera's are, are the input's own, none repeated over a pause in it: ten
+     * frames with a second's pause after the fifth give ten, where frames of a constant rate would be twenty.
+     */
+    @Test
+    fun framesPassedOnAsTheyComeAreNotRepeatedOverAPause() {
+        val file = File(directory, "paused.mkv")
+        val paused = "testsrc=s=16x16:r=10:d=1,setpts='(N+if(gte(N,5),10,0))/10/TB'"
+        run("-f", "lavfi", "-i", paused, "-c:v", "libx264", "-qp", "0", file.path)
+        val frames = AtomicInteger()
+        val ended = CountDownLatch(1)
+        val onFrame: (Frame) -> Unit = { frames.incrementAndGet() }
+        FfmpegFeed.start(listOf("-i", file.path), 16 to 16, onFrame, { ended.countDown() }, asTheyCome = true).use {
+            assertTrue(ended.await(20, TimeUnit.SECONDS), "ffmpeg did not end")
+        }
+        assertEquals(10, frames.get())
+    }
+
+    @Test
+    fun aProgramThatCannotRunIsSaidToBeMissing() {
+        val error = assertFailsWith<FfmpegMissing> { FfmpegFeed.start(listOf("dog-vision-no-such-ffmpeg")) }
+        assertEquals("dog-vision-no-such-ffmpeg", error.program)
+    }
+
+    /** cat copies its standard input until it ends, so it ends at once with nothing to copy. */
+    @Test
+    fun aProgramStartedReadsNothing() {
+        val process = FfmpegFeed.start(listOf("cat"))
+        assertTrue(process.waitFor(5, TimeUnit.SECONDS), "cat still waits for its input")
+        assertEquals("", process.inputStream.bufferedReader().readText())
+    }
+
+    /**
+     * What ffmpeg 9.0.2 lists under Wine, whose DirectShow shows Video4Linux's camera, shortened, with another camera
+     * after it.
+     */
+    @Test
+    fun directShowCamerasAreListedByTheirAlternativeNames() {
+        val listed = """
+            [in#0 @ 00007ffffe846280] "Integrated Camera: Integrated C" (video)
+            [in#0 @ 00007ffffe846280]   Alternative name "@device_cm_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\video0"
+            [in#0 @ 00007ffffe846280] "Microphone (Family 17h/19h HD A" (audio)
+            [in#0 @ 00007ffffe846280] "OBS Virtual Camera" (video)
+            Error opening input file dummy.
+        """.trimIndent()
+        val cameras = listOf("""@device_cm_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\video0""", "OBS Virtual Camera")
+        assertEquals(cameras, FfmpegFeed.directShowCameras(listed))
+    }
+
+    @Test
+    fun directShowCamerasAreListedUnderTheirHeadingByOlderFfmpeg() {
+        val listed = """
+            [dshow @ 0000000000346f00] DirectShow video devices (some may be both video and audio devices)
+            [dshow @ 0000000000346f00]  "USB2.0 HD UVC WebCam"
+            [dshow @ 0000000000346f00]     Alternative name "@device_pnp_\\?\usb#vid_13d3"
+            [dshow @ 0000000000346f00] DirectShow audio devices
+            [dshow @ 0000000000346f00]  "Microphone (Realtek High Definition Audio)"
+            [dshow @ 0000000000346f00]     Alternative name "@device_cm_{33D9A762}\wave_{A1B2}"
+            dummy: Immediate exit requested
+        """.trimIndent()
+        assertEquals(listOf("""@device_pnp_\\?\usb#vid_13d3"""), FfmpegFeed.directShowCameras(listed))
+        assertEquals(emptyList(), FfmpegFeed.directShowCameras("dummy: Immediate exit requested"))
     }
 
     private fun colour(frame: Frame, x: Int, y: Int): String {
