@@ -23,8 +23,8 @@ import org.w3c.files.get
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** The longest side a photo is shown at, as in the Android app, which keeps the controls quick. */
-private const val PREVIEW_LONGEST_SIDE = 1280
+/** The longest side a photo or a video is shown at, as in the Android app, which keeps the controls quick. */
+internal const val PREVIEW_LONGEST_SIDE = 1280
 
 /** The height of a caption under each image, and the gap between images, in CSS pixels, as the app's in dp. */
 private const val CAPTION_HEIGHT = 40
@@ -34,15 +34,16 @@ private const val GAP = 6
 private class Photo(val width: Int, val height: Int, val pixels: Uint8Array)
 
 /**
- * The page: a photo or the camera's live image shown as the chosen species sees it, and the controls of the view.
+ * The page: a photo, a video or the camera's live image shown as the chosen species sees it, and the controls of the
+ * view.
  *
  * The images of a photo are composed on the GPU once for each view, and drawn again into the canvas whenever its size
- * changes; a camera's are composed for each of its frames, and drawn at once. The captions are text over the canvas,
- * under the boxes [layOut] gives the images.
+ * changes; a camera's or a video's are composed for each of its frames, and drawn at once. The captions are text over
+ * the canvas, under the boxes [layOut] gives the images.
  *
  * The camera starts only when asked for, as the browser asks the viewer whether the page may use it. It stops while
  * the page is hidden, as the Android app's does in the background, and starts again when it is shown, if it is still
- * the source.
+ * the source; a video pauses meanwhile.
  */
 class Page(private var texts: Texts) {
     private val stage = element<HTMLElement>("stage")
@@ -71,7 +72,13 @@ class Page(private var texts: Texts) {
     private var onCamera = false
     private var cameras = 0
 
-    /** Whether a frame of the camera has been uploaded since the images were composed. */
+    /** The video shown, if it is the source. */
+    private var feed: VideoFeed? = null
+
+    /** Whether the source hands over frame after frame, the camera or a video, rather than one photo. */
+    private val live: Boolean get() = onCamera || feed != null
+
+    /** Whether a frame of the camera or the video has been uploaded since the images were composed. */
     private var newFrame = false
 
     private var view = View()
@@ -86,9 +93,9 @@ class Page(private var texts: Texts) {
 
     /**
      * What the page says in place of the images, worded anew when the language changes: what to do first, or why it
-     * cannot draw; null once a photo or the camera is shown.
+     * cannot draw; null once a photo, a video or the camera is shown.
      */
-    private var message: ((Texts) -> String)? = { it.get("choose_photo") }
+    private var message: ((Texts) -> String)? = { it.get("choose_media") }
 
     /** What went wrong last, shown under the images until it is clicked away or a photo is opened, as in the app. */
     private var noticeText: ((Texts) -> String)? = null
@@ -143,6 +150,10 @@ class Page(private var texts: Texts) {
                 startCamera(camera.front)
             }
         })
+        document.addEventListener("visibilitychange", {
+            val feed = feed ?: return@addEventListener
+            if (document.asDynamic().hidden as Boolean) feed.pause() else feed.play()
+        })
         notice.addEventListener("click", { showNotice(null) })
         stage.addEventListener("dragover", Event::preventDefault)
         stage.addEventListener("drop", { event ->
@@ -169,7 +180,7 @@ class Page(private var texts: Texts) {
         document.documentElement?.setAttribute("lang", texts.language)
         document.title = texts.get("app_name")
         element<HTMLElement>("title").textContent = texts.get("app_name")
-        element<HTMLElement>("open-text").textContent = texts.get("open_photo")
+        element<HTMLElement>("open-text").textContent = texts.get("open_media")
         save.textContent = texts.get("save_snapshot")
         cameraButton.textContent = texts.get("show_camera")
         switchButton.textContent = texts.get("switch_camera_short")
@@ -194,8 +205,15 @@ class Page(private var texts: Texts) {
         invalidate()
     }
 
-    /** Decodes [file], turned as its EXIF orientation says, as the browser draws an image. */
+    /**
+     * Opens [file] as a video if its type says it is one, else as a photo, decoded and turned as its EXIF orientation
+     * says, as the browser draws an image, or as a video if it is none.
+     */
     private fun openFile(file: File) {
+        if (file.type.startsWith("video/")) {
+            openVideo(file)
+            return
+        }
         val url = URL.createObjectURL(file)
         val image = document.createElement("img") as HTMLImageElement
         image.onload = {
@@ -204,14 +222,49 @@ class Page(private var texts: Texts) {
         }
         image.onerror = { _, _, _, _, _ ->
             URL.revokeObjectURL(url)
-            showNotice { it.get("photo_failed", file.name) }
+            if (file.type.startsWith("image/")) showNotice { it.get("media_failed", file.name) } else openVideo(file)
         }
         image.src = url
     }
 
-    private fun show(photo: Photo) {
+    /**
+     * Plays [file], which is shown in place of what was shown once its first frame can be; that stays if the browser
+     * cannot play it.
+     */
+    private fun openVideo(file: File) {
+        var ready = false
+        lateinit var opened: VideoFeed
+        opened = VideoFeed(
+            file,
+            onFrame = { video -> if (feed === opened) showFrame(video, mirrored = false, turned = true) },
+            onReady = {
+                ready = true
+                closeLive()
+                photo = null
+                feed = opened
+                showSource()
+            },
+            onFailed = { message ->
+                if (feed === opened) {
+                    showNotice { it.get("video_failed", file.name, message) }
+                } else if (!ready) {
+                    opened.close()
+                    showNotice { it.get("media_failed", file.name) }
+                }
+            },
+        )
+    }
+
+    /** Stops the camera and closes the video, whichever is shown. */
+    private fun closeLive() {
         camera?.stop()
         onCamera = false
+        feed?.close()
+        feed = null
+    }
+
+    private fun show(photo: Photo) {
+        closeLive()
         this.photo = photo
         passes?.upload(photo.width, photo.height, photo.pixels)
         showSource()
@@ -228,6 +281,8 @@ class Page(private var texts: Texts) {
             onStarted = { cameras ->
                 this.cameras = cameras
                 if (!onCamera) {
+                    feed?.close()
+                    feed = null
                     onCamera = true
                     photo = null
                     showSource()
@@ -255,7 +310,7 @@ class Page(private var texts: Texts) {
         else -> texts.get("camera_failed", message)
     }
 
-    /** Shows the source just opened, a photo or the camera, in place of what was shown before. */
+    /** Shows the source just opened, a photo, a video or the camera, in place of what was shown before. */
     private fun showSource() {
         composed = null
         share = null
@@ -265,17 +320,20 @@ class Page(private var texts: Texts) {
         invalidate()
     }
 
-    /** Uploads the camera's frame in [video] and draws it at once, in the browser's rendering of this frame. */
-    private fun showFrame(video: HTMLVideoElement, mirrored: Boolean) {
+    /**
+     * Uploads the camera's or the video's frame in [video] and draws it at once, in the browser's rendering of this
+     * frame.
+     */
+    private fun showFrame(video: HTMLVideoElement, mirrored: Boolean, turned: Boolean = false) {
         val passes = passes ?: return
-        if (!onCamera || !passes.upload(video, mirrored)) return
+        if (!live || !passes.upload(video, mirrored, turned)) return
         newFrame = true
         draw()
     }
 
     /**
-     * Saves the view as shown, at the size the images are composed: the photo's scaled-down view, or the camera's frame
-     * shown last, as the Android app's snapshot.
+     * Saves the view as shown, at the size the images are composed: the photo's scaled-down view, or the frame of the
+     * camera or the video shown last, as the Android app's snapshot.
      */
     private fun saveSnapshot() {
         val passes = passes ?: return
@@ -310,8 +368,8 @@ class Page(private var texts: Texts) {
         }
     }
 
-    /** Whether there is a photo or a frame of the camera to show. */
-    private fun shown(passes: Passes) = (photo != null || onCamera) && passes.frameWidth > 0
+    /** Whether there is a photo, or a frame of the camera or the video, to show. */
+    private fun shown(passes: Passes) = (photo != null || live) && passes.frameWidth > 0
 
     /** Draws the images and their captions, and shows the buttons that apply. */
     private fun draw() {
@@ -323,10 +381,10 @@ class Page(private var texts: Texts) {
             canvas.height = height
         }
         val passes = passes
-        val live = onCamera && camera?.running == true
-        prompt.hidden = (photo != null || onCamera) && prompt.textContent.isNullOrEmpty()
-        cameraButton.hidden = camera == null || live
-        switchButton.hidden = !live || cameras < 2
+        val cameraRunning = onCamera && camera?.running == true
+        prompt.hidden = (photo != null || live) && prompt.textContent.isNullOrEmpty()
+        cameraButton.hidden = camera == null || cameraRunning
+        switchButton.hidden = !cameraRunning || cameras < 2
         if (passes == null || !shown(passes)) {
             save.disabled = true
             showCaptions(scale, emptyList())
@@ -338,7 +396,7 @@ class Page(private var texts: Texts) {
         passes.draw(layout.images, width, height)
         showCaptions(scale, captionTexts().zip(layout.captions))
         // A count is handed over only while the page is drawn, which a camera stopped would not otherwise be.
-        if (onCamera && passes.counting && !live) invalidate()
+        if (onCamera && passes.counting && !cameraRunning) invalidate()
     }
 
     /** Places [shown], each caption's text in its box, over the canvas, unless they are there already. */
@@ -376,11 +434,12 @@ class Page(private var texts: Texts) {
     }
 
     /**
-     * Composes the images anew if the view or the camera's frame changed since. A photo's share of differing pixels is
-     * counted at once; a camera's is taken once the GPU has counted it, and the share shown until then is the last.
+     * Composes the images anew if the view or the frame changed since. A photo's share of differing pixels is counted
+     * at once; a camera's or a video's is taken once the GPU has counted it, and the share shown until then is the
+     * last.
      */
     private fun composeIfChanged(passes: Passes) {
-        if (!onCamera) {
+        if (!live) {
             if (view == composed) return
             share = passes.compose(view)
             composed = view

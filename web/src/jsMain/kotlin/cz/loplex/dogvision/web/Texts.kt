@@ -182,9 +182,7 @@ internal fun pageStrings(language: String): Map<String, String> =
 /** What only the page says, which the Android app has no string for. */
 private val WEB_TEXTS = mapOf(
     "en" to mapOf(
-        "open_photo" to "Open a photo",
-        "choose_photo" to "Open a photo, or drop one here, to see it as the chosen animal sees it.",
-        "photo_failed" to "Cannot open %1\$s as a photo",
+        "choose_media" to "Open a photo or a video, or drop one here, to see it as the chosen animal sees it.",
         "no_webgl2" to "This browser cannot draw the view: it has no WebGL 2.",
         "gl_failed" to "This browser cannot draw the view: %1\$s",
         "snapshot_not_encoded" to "the browser cannot encode it as PNG",
@@ -196,9 +194,8 @@ private val WEB_TEXTS = mapOf(
         "camera_busy" to "another app may be using it, or the system does not let the browser start it",
     ),
     "cs" to mapOf(
-        "open_photo" to "Otevřít fotku",
-        "choose_photo" to "Otevřete fotku nebo ji sem přetáhněte a uvidíte ji tak, jak ji vidí vybraný živočich.",
-        "photo_failed" to "%1\$s nejde otevřít jako fotka",
+        "choose_media" to "Otevřete fotku nebo video nebo je sem přetáhněte a uvidíte je tak, jak je vidí vybraný " +
+            "živočich.",
         "no_webgl2" to "Tento prohlížeč neumí zobrazení vykreslit, protože nepodporuje WebGL 2.",
         "gl_failed" to "Tento prohlížeč neumí zobrazení vykreslit: %1\$s",
         "snapshot_not_encoded" to "prohlížeč ho neumí převést do PNG",

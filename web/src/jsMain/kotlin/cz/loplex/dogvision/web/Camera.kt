@@ -65,7 +65,7 @@ internal class Camera(
                 video.srcObject = stream
                 // A play() cut short by the next stream rejects; that stream starts its own.
                 video.play().catch { }
-                awaitFrame(generation)
+                awaitFrames(video, { generation == this.generation }) { onFrame(video, mirrored) }
                 window.navigator.mediaDevices.enumerateDevices().then({ devices ->
                     if (generation == this.generation) onStarted(devices.count { it.kind.toString() == "videoinput" })
                 }, { if (generation == this.generation) onStarted(1) })
@@ -82,33 +82,6 @@ internal class Camera(
         stream?.getTracks()?.forEach { it.stop() }
         stream = null
         video.srcObject = null
-    }
-
-    /**
-     * Hands each new frame to [onFrame] while the stream of [generation] runs, as the browser renders the page. [shown]
-     * is how many frames the video had presented when one was handed over last, where the browser cannot say when a
-     * frame comes.
-     */
-    private fun awaitFrame(generation: Int, shown: Int = -1) {
-        if (video.asDynamic().requestVideoFrameCallback != undefined) {
-            video.asDynamic().requestVideoFrameCallback { _: Double, _: dynamic ->
-                if (generation == this.generation) {
-                    onFrame(video, mirrored)
-                    awaitFrame(generation)
-                }
-            }
-            return
-        }
-        // Checked once per frame of the page, which may come twice as often as the camera's. A live video's time runs
-        // on with the clock, not frame by frame; its count of frames does, where the browser keeps one: Firefox 156
-        // keeps it at 0, and each frame of the page is then handed over.
-        window.requestAnimationFrame {
-            if (generation == this.generation) {
-                val frames = video.asDynamic().getVideoPlaybackQuality?.call(video)?.totalVideoFrames as Int? ?: 0
-                if (frames == 0 || frames != shown) onFrame(video, mirrored)
-                awaitFrame(generation, frames)
-            }
-        }
     }
 
     companion object {

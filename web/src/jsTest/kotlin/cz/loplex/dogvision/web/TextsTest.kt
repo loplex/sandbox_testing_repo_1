@@ -39,7 +39,7 @@ class TextsTest {
 
     @Test
     fun takesThePageStringsALanguageLacksFromEnglish() {
-        assertEquals("Open a photo", pageStrings("de").getValue("open_photo"))
-        assertEquals("Otevřít fotku", pageStrings("cs").getValue("open_photo"))
+        assertEquals("Switch camera", pageStrings("de").getValue("switch_camera_short"))
+        assertEquals("Přepnout kameru", pageStrings("cs").getValue("switch_camera_short"))
     }
 }
