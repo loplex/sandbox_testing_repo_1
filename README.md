@@ -8,7 +8,7 @@ Its README explains the model and the science behind it.
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording, the language.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
-- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `android`, the GPU renderer.
+- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `android`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
@@ -143,12 +143,15 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   - It is built by Kotlin Multiplatform for the JVM, which the Android app runs it on, and for JavaScript.
   - The one part written for each of them is how a fact's number is rounded,
     in [`Facts.jvm.kt`](core/src/jvmMain/kotlin/cz/loplex/dogvision/core/Facts.jvm.kt) and [`Facts.js.kt`](core/src/jsMain/kotlin/cz/loplex/dogvision/core/Facts.js.kt), since JavaScript has no `BigDecimal`.
+- **[`gl`](gl)** holds the GLSL ES 3.00 programs that render a view, built alike for the JVM and JavaScript:
+  OpenGL ES 3.0 runs them on Android, and WebGL 2 runs GLSL ES 3.00 as it is.
 - **[`android`](android)** is the Android app:
   the camera, the photos and videos, the GPU renderer, saving, recording, and the Compose screens.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
-- **The view is drawn by OpenGL ES 3.0 shaders** in [`ViewPasses`](android/src/main/kotlin/cz/loplex/dogvision/render/ViewPasses.kt), which apply `core`'s matrix and blur.\
+- **The view is drawn by OpenGL ES 3.0 shaders**, `gl`'s [`Shaders`](gl/src/commonMain/kotlin/cz/loplex/dogvision/gl/Shaders.kt),
+  in [`ViewPasses`](android/src/main/kotlin/cz/loplex/dogvision/render/ViewPasses.kt), which apply `core`'s matrix and blur.\
   They decode and encode sRGB through `core`'s own lookup tables, so that they agree with it to the rounding of a float.
 - **The same passes draw every view there is**:
   - the screen, through [`ViewRenderer`](android/src/main/kotlin/cz/loplex/dogvision/render/ViewRenderer.kt);

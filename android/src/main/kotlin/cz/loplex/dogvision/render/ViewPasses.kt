@@ -54,6 +54,7 @@ import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.gaussianKernel
 import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.core.simulationOf
+import cz.loplex.dogvision.gl.Shaders
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.exp
