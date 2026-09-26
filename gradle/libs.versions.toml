@@ -18,6 +18,7 @@ ktlint-cli = "1.8.0"
 ktlint-gradle = "14.2.0"
 lifecycle = "2.10.0"
 lwjgl = "3.4.3"
+nucleus-angle = "8037.1"
 media3 = "1.11.1"
 
 [libraries]
@@ -42,6 +43,8 @@ androidx-media3-transformer = { module = "androidx.media3:media3-transformer", v
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-test-junit" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-test" }
+compose-multiplatform-desktop = { module = "org.jetbrains.compose.desktop:desktop", version.ref = "compose-multiplatform" }
+compose-multiplatform-desktop-windows-x64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-windows-x64", version.ref = "compose-multiplatform" }
 compose-multiplatform-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
 compose-multiplatform-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-multiplatform-material3" }
 compose-multiplatform-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
@@ -53,6 +56,9 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
 lwjgl-egl = { module = "org.lwjgl:lwjgl-egl", version.ref = "lwjgl" }
 lwjgl-opengles = { module = "org.lwjgl:lwjgl-opengles", version.ref = "lwjgl" }
+# Looked up by its name in build-logic.
+# noinspection UnusedVersionCatalogEntry
+nucleus-angle-natives = { module = "dev.nucleusframework:nucleus.angle-natives", version.ref = "nucleus-angle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
