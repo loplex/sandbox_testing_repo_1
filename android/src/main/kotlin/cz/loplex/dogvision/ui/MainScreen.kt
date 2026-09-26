@@ -52,7 +52,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -67,6 +66,7 @@ import cz.loplex.dogvision.R
 import cz.loplex.dogvision.Source
 import cz.loplex.dogvision.camera.CameraFeed
 import cz.loplex.dogvision.savingNeedsPermission
+import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.video.VideoFeed
 
 private val CAPTION_HEIGHT = 40.dp
@@ -102,31 +102,31 @@ fun MainScreen(model: MainViewModel) {
             buttons = {
                 // The source cannot change while recording, as its size would change the video's.
                 if (!recording) {
-                    ImageButton(R.drawable.ic_photo, R.string.open_media) {
+                    ImageButton(R.drawable.ic_photo, Str.OPEN_MEDIA) {
                         pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                     }
                     if (source != Source.Camera) {
-                        ImageButton(R.drawable.ic_camera, R.string.show_camera, onClick = model::openCamera)
+                        ImageButton(R.drawable.ic_camera, Str.SHOW_CAMERA, onClick = model::openCamera)
                     } else if (cameraAllowed && bothCameras) {
-                        ImageButton(R.drawable.ic_switch_camera, R.string.switch_camera, onClick = model::switchCamera)
+                        ImageButton(R.drawable.ic_switch_camera, Str.SWITCH_CAMERA, onClick = model::switchCamera)
                     }
                 }
-                ImageButton(R.drawable.ic_save, R.string.save_snapshot) { save(model::saveSnapshot) }
+                ImageButton(R.drawable.ic_save, Str.SAVE_SNAPSHOT) { save(model::saveSnapshot) }
                 if (recording) {
-                    ImageButton(R.drawable.ic_stop, R.string.stop_recording, RECORDING_RED, model::stopRecording)
+                    ImageButton(R.drawable.ic_stop, Str.STOP_RECORDING, RECORDING_RED, model::stopRecording)
                 } else {
-                    ImageButton(R.drawable.ic_record, R.string.record) { save(model::startRecording) }
+                    ImageButton(R.drawable.ic_record, Str.RECORD) { save(model::startRecording) }
                 }
                 when {
                     converting -> {
-                        ImageButton(R.drawable.ic_cancel, R.string.cancel_conversion, onClick = model::cancelConversion)
+                        ImageButton(R.drawable.ic_cancel, Str.CANCEL_CONVERSION, onClick = model::cancelConversion)
                     }
 
-                    source is Source.Photo -> ImageButton(R.drawable.ic_full_size, R.string.save_full_size) {
+                    source is Source.Photo -> ImageButton(R.drawable.ic_full_size, Str.SAVE_FULL_SIZE) {
                         save(model::convertPhoto)
                     }
 
-                    source is Source.Video -> ImageButton(R.drawable.ic_full_size, R.string.save_video_full_size) {
+                    source is Source.Video -> ImageButton(R.drawable.ic_full_size, Str.SAVE_VIDEO_FULL_SIZE) {
                         save(model::convertVideo)
                     }
                 }
@@ -168,7 +168,7 @@ fun MainScreen(model: MainViewModel) {
 @Composable
 private fun rememberSaving(model: MainViewModel): (() -> Unit) -> Unit {
     val context = LocalContext.current
-    val storageNeeded = stringResource(R.string.storage_needed)
+    val storageNeeded = text(Str.STORAGE_NEEDED)
     var waiting by remember { mutableStateOf<(() -> Unit)?>(null) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) waiting?.invoke() else model.say(storageNeeded)
@@ -195,8 +195,8 @@ private fun AskForCamera(onAsk: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
-            Button(onClick = onAsk) { Text(stringResource(R.string.allow_camera)) }
+            Text(text(Str.CAMERA_NEEDED), color = Color.White, textAlign = TextAlign.Center)
+            Button(onClick = onAsk) { Text(text(Str.ALLOW_CAMERA)) }
         }
     }
 }
@@ -204,8 +204,8 @@ private fun AskForCamera(onAsk: () -> Unit) {
 /** An icon that does what [description] says, which a long press shows under it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ImageButton(icon: Int, description: Int, tint: Color = Color.White, onClick: () -> Unit) {
-    val text = stringResource(description)
+private fun ImageButton(icon: Int, description: Str, tint: Color = Color.White, onClick: () -> Unit) {
+    val text = text(description)
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
         tooltip = { PlainTooltip { Text(text) } },
@@ -265,7 +265,7 @@ private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, 
                         .background(Color.Black.copy(alpha = 0.45f), MaterialTheme.shapes.large),
                 ) {
                     currentButtons()
-                    ImageButton(R.drawable.ic_tune, R.string.toggle_controls) { shown = !shown }
+                    ImageButton(R.drawable.ic_tune, Str.TOGGLE_CONTROLS) { shown = !shown }
                 }
             }
         }
@@ -348,7 +348,7 @@ private fun Video(model: MainViewModel, video: Source.Video) {
 /** The images as the renderer lays them out, each with its caption under it. */
 @Composable
 private fun Images(model: MainViewModel) {
-    val context = LocalContext.current
+    val texts = LocalTexts.current
     val density = LocalDensity.current
     val view by model.view.collectAsStateWithLifecycle()
     val recorder by model.recorder.collectAsStateWithLifecycle()
@@ -366,7 +366,7 @@ private fun Images(model: MainViewModel) {
         )
         val shown = drawn ?: return@Box
         if (shown.layout.captions.size != view.images) return@Box // a layout of the view before
-        context.captions(view, shown.differenceShare).zip(shown.layout.captions).forEach { (caption, box) ->
+        texts.captions(view, shown.differenceShare).zip(shown.layout.captions).forEach { (caption, box) ->
             with(density) {
                 Text(
                     caption,
