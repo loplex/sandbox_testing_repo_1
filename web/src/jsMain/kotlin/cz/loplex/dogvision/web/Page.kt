@@ -4,8 +4,9 @@ import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
-import cz.loplex.dogvision.core.percent
 import cz.loplex.dogvision.core.snapshotName
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.khronos.webgl.Uint8Array
@@ -103,13 +104,13 @@ class Page(private var texts: Texts) {
      * What the page says in place of the images, worded anew when the language changes: what to do first, or why it
      * cannot draw; null once a photo, a video or the camera is shown.
      */
-    private var message: ((Texts) -> String)? = { it.get("choose_media") }
+    private var message: ((Texts) -> String)? = { it.get(Str.CHOOSE_MEDIA) }
 
     /** What went wrong last, shown under the images until it is clicked away or a photo is opened, as in the app. */
     private var noticeText: ((Texts) -> String)? = null
 
     /** The language the viewer chose, or null for the browser's, kept here as well where storage is blocked. */
-    private var language = Texts.chosenLanguage
+    private var language = Language.chosen
 
     private var controls = controls()
 
@@ -117,7 +118,7 @@ class Page(private var texts: Texts) {
         showTexts()
         val gl = gl
         if (gl == null) {
-            say { it.get("no_webgl2") }
+            say { it.get(Str.NO_WEBGL2) }
             open.disabled = true
             return
         }
@@ -125,7 +126,7 @@ class Page(private var texts: Texts) {
             Passes(gl)
         } catch (error: IllegalStateException) {
             // A shader the GPU's driver cannot compile or link.
-            say { it.get("gl_failed", error.message.orEmpty()) }
+            say { it.get(Str.GL_FAILED, error.message.orEmpty()) }
             open.disabled = true
             return
         }
@@ -198,17 +199,17 @@ class Page(private var texts: Texts) {
     /** Words the page in the language of [texts]. */
     private fun showTexts() {
         document.documentElement?.setAttribute("lang", texts.language)
-        document.title = texts.get("app_name")
-        element<HTMLElement>("title").textContent = texts.get("app_name")
-        element<HTMLElement>("open-text").textContent = texts.get("open_media")
-        save.textContent = texts.get("save_snapshot")
-        recordButton.textContent = texts.get("record")
-        stopButton.textContent = texts.get("stop_recording")
-        cameraButton.textContent = texts.get("show_camera")
-        switchButton.textContent = texts.get("switch_camera_short")
-        switchButton.title = texts.get("switch_camera")
+        document.title = texts.get(Str.APP_NAME)
+        element<HTMLElement>("title").textContent = texts.get(Str.APP_NAME)
+        element<HTMLElement>("open-text").textContent = texts.get(Str.OPEN_MEDIA)
+        save.textContent = texts.get(Str.SAVE_SNAPSHOT)
+        recordButton.textContent = texts.get(Str.RECORD)
+        stopButton.textContent = texts.get(Str.STOP_RECORDING)
+        cameraButton.textContent = texts.get(Str.SHOW_CAMERA)
+        switchButton.textContent = texts.get(Str.SWITCH_CAMERA_SHORT)
+        switchButton.title = texts.get(Str.SWITCH_CAMERA)
         prompt.textContent = message?.invoke(texts).orEmpty()
-        notice.title = texts.get("close")
+        notice.title = texts.get(Str.CLOSE)
         showNotice(noticeText)
         controls.show(view, recording != null)
     }
@@ -219,8 +220,8 @@ class Page(private var texts: Texts) {
      */
     private fun switchLanguage(language: String?) {
         this.language = language
-        Texts.chosenLanguage = language
-        texts = Texts.of(language ?: Texts.browserLanguage())
+        Language.chosen = language
+        texts = Texts.of(language ?: Language.browser())
         panel.innerHTML = ""
         controls = controls()
         showTexts()
@@ -244,7 +245,7 @@ class Page(private var texts: Texts) {
         }
         image.onerror = { _, _, _, _, _ ->
             URL.revokeObjectURL(url)
-            if (file.type.startsWith("image/")) showNotice { it.get("media_failed", file.name) } else openVideo(file)
+            if (file.type.startsWith("image/")) showNotice { it.get(Str.MEDIA_FAILED, file.name) } else openVideo(file)
         }
         image.src = url
     }
@@ -268,10 +269,10 @@ class Page(private var texts: Texts) {
             },
             onFailed = { message ->
                 if (feed === opened) {
-                    showNotice { it.get("video_failed", file.name, message) }
+                    showNotice { it.get(Str.VIDEO_FAILED, file.name, message) }
                 } else if (!ready) {
                     opened.close()
-                    showNotice { it.get("media_failed", file.name) }
+                    showNotice { it.get(Str.MEDIA_FAILED, file.name) }
                 }
             },
         )
@@ -326,10 +327,10 @@ class Page(private var texts: Texts) {
      * may have refused, the browser and the device's settings for the browser, which the page cannot tell apart.
      */
     private fun cameraFailure(texts: Texts, name: String, message: String): String = when (name) {
-        "NotAllowedError" -> texts.get("camera_refused")
-        "NotFoundError", "OverconstrainedError" -> texts.get("camera_failed", texts.get("camera_none"))
-        "NotReadableError", "AbortError" -> texts.get("camera_failed", texts.get("camera_busy"))
-        else -> texts.get("camera_failed", message)
+        "NotAllowedError" -> texts.get(Str.CAMERA_REFUSED)
+        "NotFoundError", "OverconstrainedError" -> texts.get(Str.CAMERA_FAILED, texts.get(Str.CAMERA_NONE))
+        "NotReadableError", "AbortError" -> texts.get(Str.CAMERA_FAILED, texts.get(Str.CAMERA_BUSY))
+        else -> texts.get(Str.CAMERA_FAILED, message)
     }
 
     /** Shows the source just opened, a photo, a video or the camera, in place of what was shown before. */
@@ -365,7 +366,7 @@ class Page(private var texts: Texts) {
         val arrangement = layout(canvas.width, canvas.height, passes).arrangement
         val name = snapshotName(view, now())
         encodePng(stitch(passes.readImages(view.images), arrangement), { download(it, name) }) {
-            showNotice { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
+            showNotice { it.get(Str.SNAPSHOT_FAILED, it.get(Str.SNAPSHOT_NOT_ENCODED)) }
         }
     }
 
@@ -380,10 +381,10 @@ class Page(private var texts: Texts) {
         val started = try {
             Recording.start(view.images, passes.frameWidth, passes.frameHeight, arrangement) { message ->
                 endRecording()
-                showNotice { it.get("recording_failed", message) }
+                showNotice { it.get(Str.RECORDING_FAILED, message) }
             }
         } catch (error: IllegalStateException) {
-            showNotice { it.get("recording_failed", error.message.orEmpty()) }
+            showNotice { it.get(Str.RECORDING_FAILED, error.message.orEmpty()) }
             return
         }
         photo?.let { started.upload(it.width, it.height, it.pixels) }
@@ -395,7 +396,7 @@ class Page(private var texts: Texts) {
         val showTime = {
             val seconds = ((Date.now() - start) / 1000).toInt()
             val time = "${seconds / 60}:" + (seconds % 60).toString().padStart(2, '0')
-            showNotice { it.get("recording", name, time) }
+            showNotice { it.get(Str.RECORDING, name, time) }
         }
         showTime()
         recordingClock = window.setInterval(showTime, 1000)
@@ -407,7 +408,7 @@ class Page(private var texts: Texts) {
         val stopped = recording ?: return
         val name = recordingName
         endRecording()
-        showNotice { it.get("finishing", name) }
+        showNotice { it.get(Str.FINISHING, name) }
         stopped.stop { video ->
             download(video, name)
             showNotice(null)
@@ -545,14 +546,7 @@ class Page(private var texts: Texts) {
     }
 
     /** What each image of the view shows, left to right or top to bottom, as the Android app's captions. */
-    private fun captionTexts(): List<String> {
-        val right = texts.speciesLabel(view.params.species)
-        if (!view.sideBySide) return listOf(right)
-        val left = view.compare?.let(texts::speciesLabel) ?: texts.get("original")
-        val share = share
-        if (!view.difference || share == null) return listOf(left, right)
-        return listOf(left, right, texts.get("difference_caption", percent(share, share, FactWording(texts))))
-    }
+    private fun captionTexts(): List<String> = texts.captions(view, share)
 }
 
 /** The photo in [image], scaled down to [PREVIEW_LONGEST_SIDE], its pixels read back as the browser decoded them. */

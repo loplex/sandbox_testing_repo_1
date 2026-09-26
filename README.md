@@ -16,9 +16,10 @@ browser.
   works the Android way.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
-- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `android`, `web`, the GPU
-  renderer.
-- [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:web:jsTest`,
+- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `android`, `web`,
+  the GPU renderer.
+- [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`,
+  `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
@@ -250,6 +251,17 @@ for IntelliJ IDEA's Android plugin.
     OpenGL ES 3.0 they need, which WebGL 2 has as well.
   - `Gl` names GL objects by integers, as OpenGL ES does; over WebGL 2, whose objects are
     JavaScript objects, a table holds them, as Emscripten's GL layer does.
+- **[`texts`](texts)** words what the web page says, in English and Czech, with no toolkit in it,
+  built alike for the JVM and JavaScript.
+  - Its strings are the app's string resources and those in its own [`strings`](texts/strings)
+    folder, in Android's `strings.xml` format, which the build compiles into Kotlin, each named by
+    an entry of the enum `Str` or `Plural`.
+  - [`Texts`](texts/src/commonMain/kotlin/cz/loplex/dogvision/texts/Texts.kt) gives them in one
+    language, with English for a string the language lacks, as Android does, and words a species,
+    the facts about it and the images' captions.
+  - The JVM has no public plural rules, so English and Czech have theirs in
+    [`Texts.jvm.kt`](texts/src/jvmMain/kotlin/cz/loplex/dogvision/texts/Texts.jvm.kt); JavaScript
+    takes them from `Intl`.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
 - **[`web`](web)** is a page for a browser, in Kotlin/JS: a photo, a video or the camera shown with
@@ -257,9 +269,9 @@ for IntelliJ IDEA's Android plugin.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with
     `gl`'s `ViewPasses` over [`WebGl`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/WebGl.kt),
     its `Gl` for WebGL 2.
-  - Its wording is the app's string resources, which the build compiles into the page, in the
-    language chosen at the end of its panel, which the browser remembers, or else in the browser's
-    language if the app speaks it and in English otherwise.
+  - Its wording is `texts`', in the language chosen at the end of its panel, which the browser
+    remembers, or else in the browser's language if there are strings for it and in English
+    otherwise.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -291,6 +303,10 @@ for IntelliJ IDEA's Android plugin.
 - `./gradlew :core:allTests` runs them, and in Node.js as well the tests in
   [`commonTest`](core/src/commonTest/kotlin/cz/loplex/dogvision/core), which hold the JVM and
   JavaScript to rounding a fact's number and naming a snapshot alike.
+- `./gradlew :texts:allTests` runs the tests of the wording on the JVM and in Node.js:
+  [`TextsTest`](texts/src/commonTest/kotlin/cz/loplex/dogvision/texts/TextsTest.kt) holds every
+  language to having every string, as Android Lint's `MissingTranslation` would, and a string, a
+  plural and a decimal separator to what Android gives.
 - `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
     WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's; the share
@@ -306,8 +322,6 @@ for IntelliJ IDEA's Android plugin.
     of an MP4's video track, with the movie box after the media as a phone writes it.
   - [`GlConstantsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/GlConstantsTest.kt) holds
     `gl`'s values of the GL enums to WebGL 2's.
-  - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's
-    wording: plurals, languages' names, decimal separators and strings a language lacks.
   - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a
     snapshot puts the images together.
   - [`PngTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PngTest.kt) holds the snapshot's
