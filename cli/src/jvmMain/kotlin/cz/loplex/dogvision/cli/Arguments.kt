@@ -21,6 +21,8 @@ data class Arguments(
     val difference: Boolean = false,
     /** Where a converted file goes, in place of next to its original. */
     val outputDir: File? = null,
+    /** How the window draws on Windows; null for ANGLE, and WGL where ANGLE cannot start. */
+    val windowsGl: WindowsGl? = null,
     val help: Boolean = false,
 ) {
     /** Whether this asks for [file] to be converted, rather than for the window. */
@@ -32,6 +34,15 @@ data class Arguments(
 
     /** The view the window starts with: side by side, as the Python window starts. */
     val windowView: View get() = View(params, sideBySide = true, compare = compare, difference = difference)
+}
+
+/** The two ways the window can draw on Windows, as --gl names them. */
+enum class WindowsGl(val id: String) {
+    /** OpenGL ES over Direct3D 11. */
+    ANGLE("angle"),
+
+    /** The graphics driver's own desktop OpenGL. */
+    WGL("wgl"),
 }
 
 /** A command line that cannot be read, with the string [key] and the [args] that say what is wrong with it. */
@@ -71,6 +82,7 @@ fun parseArguments(args: List<String>): Arguments {
             "--acuity" -> flag().also { params = params.copy(acuity = true) }
             "--camera" -> arguments = arguments.copy(camera = camera(name, value()))
             "--output-dir" -> arguments = arguments.copy(outputDir = File(value()))
+            "--gl" -> arguments = arguments.copy(windowsGl = windowsGl(name, value()))
             "--species" -> params = params.copy(species = species(name, value()))
             "--compare" -> arguments = arguments.copy(compare = species(name, value()))
             "--adaptation" -> params = params.copy(adaptation = share(name, value()))
@@ -103,6 +115,7 @@ fun usage(texts: Texts): String {
         "--window" to texts.get(Str.USAGE_OPTION_WINDOW),
         "--camera N" to texts.get(Str.USAGE_OPTION_CAMERA, Arguments().camera),
         "--output-dir DIR" to texts.get(Str.USAGE_OPTION_OUTPUT_DIR),
+        "--gl API" to texts.get(Str.USAGE_OPTION_GL),
         "-h, --help" to texts.get(Str.USAGE_OPTION_HELP),
     )
 
@@ -135,6 +148,9 @@ private fun share(option: String, value: String): Double =
 
 private fun fieldOfView(option: String, value: String): Double =
     number(option, value).takeIf { it > 0 && it < 360 } ?: throw UsageException(Str.USAGE_NOT_ANGLE, option, value)
+
+private fun windowsGl(option: String, value: String): WindowsGl =
+    WindowsGl.entries.firstOrNull { it.id == value } ?: throw UsageException(Str.USAGE_NOT_GL, option, value)
 
 private fun camera(option: String, value: String): Int =
     value.toIntOrNull()?.takeIf { it >= 0 } ?: throw UsageException(Str.USAGE_NOT_CAMERA, option, value)
