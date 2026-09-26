@@ -219,6 +219,8 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
   - **It stops when the page is hidden**, and the video recorded so far is saved.
   - **The images are rendered twice meanwhile**, once more in a WebGL context of the recording's
     own, since WebGL draws into its own canvas only.
+  - **Firefox 156 on Android records no video of a file**: in the recording's context the video's
+    frames come out magenta. The camera and a photo record there.
 - **A large photo is scaled down to 1280 pixels by the browser**, with a 2D canvas at its highest
   smoothing, where the app decodes it at a power of two of the size and scales the rest. Both end
   at the same size, so the acuity blur is as wide, but the pixels it blurs can differ slightly.
