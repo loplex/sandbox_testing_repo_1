@@ -227,6 +227,8 @@ It runs on Linux on x86-64.
   `--camera N` shows `/dev/videoN`.
 - **The view is rendered on the GPU**, by the passes the app and the web page run,
   in an OpenGL ES 3 context with no window of its own, which is read back and shown in the Compose window.
+  - **It is read back without waiting for the GPU**, through a pixel pack buffer and a fence,
+    two at a time, so that the next frame is uploaded and composed while the GPU reads the last.
   - **It needs EGL with Mesa's device platform** (`EGL_EXT_platform_device`),
     and takes the first device with a DRM render node;
     with none, it renders on the CPU and says so on its standard error.
