@@ -1,9 +1,5 @@
 package cz.loplex.dogvision.core
 
-import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
-
 /** What a row of [speciesFacts] tells; a window names and describes each in its own language. */
 enum class FactLabel { COLOUR_VISION, CONE_PEAKS, S_CONES, L_TO_M, NEUTRAL_POINT, RNL_SCALE, ACUITY }
 
@@ -54,14 +50,18 @@ interface FactTexts {
     fun note(note: Note): String
 }
 
-/** A number with [digits] significant digits, rounded as by C's printf %g, with no exponent: 420.7, 429, 3.66. */
-fun formatSignificant(value: Double, digits: Int, decimalSeparator: Char): String =
-    BigDecimal(value).round(MathContext(digits, RoundingMode.HALF_EVEN)).stripTrailingZeros().toPlainString()
-        .replace('.', decimalSeparator)
+/**
+ * A number with [digits] significant digits, as C's printf %g gives it: 420.7, 429, 3.66.
+ * As C's printf does, it rounds the double's exact value, and a tie to the even digit; unlike %g, it writes no exponent
+ * and no negative zero.
+ */
+expect fun formatSignificant(value: Double, digits: Int, decimalSeparator: Char): String
 
-/** A number with [decimals] digits after the point, rounded as by C's printf %f. */
-fun formatFixed(value: Double, decimals: Int, decimalSeparator: Char): String =
-    BigDecimal(value).setScale(decimals, RoundingMode.HALF_EVEN).toPlainString().replace('.', decimalSeparator)
+/**
+ * A number with [decimals] digits after the point, as C's printf %f of that precision, rounded as formatSignificant
+ * and, as it, without a negative zero.
+ */
+expect fun formatFixed(value: Double, decimals: Int, decimalSeparator: Char): String
 
 /** A share, or a range of shares when the two differ in whole percent. */
 fun percent(low: Double, high: Double, texts: FactTexts): String {
