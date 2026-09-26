@@ -1,23 +1,18 @@
 package cz.loplex.dogvision.desktop
 
-import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
-import cz.loplex.dogvision.core.blue
-import cz.loplex.dogvision.core.compose
-import cz.loplex.dogvision.core.composedSize
-import cz.loplex.dogvision.core.green
-import cz.loplex.dogvision.core.meanLinearRgb
-import cz.loplex.dogvision.core.red
 import cz.loplex.dogvision.core.rgb
+import cz.loplex.dogvision.testing.coreImages
+import cz.loplex.dogvision.testing.pattern
+import cz.loplex.dogvision.testing.worstChannelDifference
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -49,54 +44,14 @@ class PassesTest {
         context.close()
     }
 
-    /** Neighbouring pixels differ in every channel, as in core's reference pattern. */
-    private fun pattern(width: Int, height: Int) = Image(
-        width,
-        height,
-        IntArray(width * height) {
-            val x = it % width
-            val y = it / width
-            rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
-        },
-    )
-
-    /** What core renders of [image] for [view], cut into its images. */
-    private fun expected(image: Image, view: View): Pair<List<Image>, Double?> {
-        val row = view.copy(arrangement = Arrangement.ROW)
-        val (width, height) = composedSize(row, image.width, image.height)
-        val composed = Image(width, height)
-        val share = compose(image, row, composed, { meanLinearRgb(image) })
-        val images = List(view.images) { i ->
-            Image(
-                image.width,
-                image.height,
-                IntArray(image.width * image.height) {
-                    composed[i * image.width + it % image.width, it / image.width]
-                },
-            )
-        }
-        return images to share
-    }
-
-    private fun worst(expected: Image, actual: Image): Int {
-        assertEquals(expected.width to expected.height, actual.width to actual.height)
-        var worst = 0
-        for (i in expected.pixels.indices) {
-            for (channel in listOf(::red, ::green, ::blue)) {
-                worst = maxOf(worst, abs(channel(expected.pixels[i]) - channel(actual.pixels[i])))
-            }
-        }
-        return worst
-    }
-
     private fun check(view: View, image: Image = pattern(96, 64)) {
         val frame = frameOf(image)
         passes.upload(frame.width, frame.height, frame.pixels)
         val actualShare = passes.compose(view)
-        val (expected, share) = expected(image, view)
+        val (expected, share) = coreImages(image, view)
         val actual = passes.readImages(view.images)
         expected.zip(actual).take(2).forEachIndexed { i, (e, a) ->
-            val worst = worst(e, a)
+            val worst = worstChannelDifference(e, a)
             assertTrue(worst <= TOLERANCE, "$view image $i: a channel differs by $worst")
         }
         if (share == null) {
