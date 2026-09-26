@@ -11,3 +11,6 @@ import kotlin.system.exitProcess
 fun main(args: Array<String>) {
     exitProcess(runCommandLine(args.toList(), systemTexts(), System.out, System.err, ::showWindow))
 }
+
+/** Whether this runs on Windows, where the window draws through ANGLE or WGL and a camera comes through DirectShow. */
+internal val onWindows = System.getProperty("os.name").startsWith("Windows")

@@ -14,7 +14,7 @@ data class Arguments(
     val file: File? = null,
     /** Show [file] in the window instead of converting it. */
     val window: Boolean = false,
-    /** The camera the window shows when no file is given: /dev/video followed by it. */
+    /** The camera the window shows when no file is given, counted from 0: /dev/video followed by it on Linux. */
     val camera: Int = 0,
     val params: Params = Params(),
     val compare: Species? = null,
