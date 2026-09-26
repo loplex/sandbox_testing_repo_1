@@ -334,7 +334,16 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's j
   installing it.
 - **The deb and the rpm depend on libEGL and ffmpeg** as well as on the libraries the image links
   against, since LWJGL opens libEGL only once it runs.
-  - **The deb names packages**, which jpackage looks up in the build machine's dpkg database.
+  - **The deb names packages as Ubuntu 20.04 and Debian 11 name them**, which later releases keep
+    or provide (Ubuntu 24.04's `libasound2t64` provides `libasound2`), so that the deb is the same
+    wherever it is built. The task `debDepends` reads the libraries the image needs from its ELF
+    files and names each by the table `debianPackages` in
+    [`gui-compose/build.gradle.kts`](gui-compose/build.gradle.kts), failing on one the table lacks;
+    `packageDeb` then puts that Depends into jpackage's deb in place of the build machine's names
+    and packs it again with xz, which every dpkg reads.
+  - **The deb was tried on Ubuntu 20.04**, installed and its command line run, **and on Debian 11,
+    Debian 12, Ubuntu 22.04 and 24.04**, where `apt-get install --simulate` resolved every
+    dependency.
   - **The rpm names libraries and a file** (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
     `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently. rpm's
     `elfdeps` lists the libraries from the image, in the task `rpmLibraryRequires`, as jpackage
@@ -353,11 +362,11 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's j
   - **The Start menu and the desktop get `dog-vision-cli` as well**, which started from there only
     prints its usage: JDK 17's jpackage cannot leave one launcher out.
 
-### Caveat: the deb takes its package names from the build machine
+### Caveat: the deb does not install where the system has no desktop menu
 
-jpackage looks the deb's dependencies up in the build machine's dpkg database, so a deb built on
-Ubuntu 24.04 depends on that release's names, such as `libasound2t64` and `libpng16-16t64`, which
-older releases do not have. The rpm names libraries rather than packages and has no such tie.
+jpackage's script adds the window to the desktop's menu with `xdg-desktop-menu`, which fails where
+`/usr/share/applications` does not exist, as in a bare container, and dpkg then leaves the package
+unconfigured.
 
 ### Caveat: the Windows window is tried under Wine
 
