@@ -165,4 +165,42 @@
 
     <!-- What only the desktop window says -->
     <string name="draw_failed">Cannot draw the view: %1$s</string>
+
+    <!-- What only the command line says; option names, species ids and file names stay as they are typed -->
+    <string name="usage_synopsis">usage: dog-vision [options] [file]</string>
+    <string name="usage_about">Simulates how an animal sees colour, on a live camera or a photo.</string>
+    <string name="usage_camera">the live camera in the window</string>
+    <string name="usage_photo">converts a photo, writes photo.dog.png</string>
+    <string name="usage_window">shows a photo or a video in the window</string>
+    <string name="usage_options">options:</string>
+    <string name="usage_option_species">the animal to simulate (default %1$s)</string>
+    <string name="usage_option_compare">shows this species beside --species instead of the original</string>
+    <string name="usage_option_difference">adds a map of where the two images differ noticeably</string>
+    <string name="usage_option_adaptation">adaptation to the scene\'s mean, 0-1 (default %1$s)</string>
+    <string name="usage_option_strength">0 = the original, 1 = the full simulation (default %1$s)</string>
+    <string name="usage_option_chroma_scale">fixed or rnl (default %1$s)</string>
+    <string name="usage_option_acuity">blurs to the species\' visual acuity</string>
+    <string name="usage_option_fov">degrees the image spans across, for --acuity (default %1$s)</string>
+    <string name="usage_option_window">shows the file in the window instead of converting it</string>
+    <string name="usage_option_camera">the camera the window shows, /dev/videoN (default %1$s)</string>
+    <string name="usage_option_output_dir">writes a converted file there instead of next to its original</string>
+    <string name="usage_option_help">shows this and exits</string>
+    <string name="usage_species">species:</string>
+    <string name="usage_error">dog-vision: error: %1$s</string>
+    <string name="usage_one_file">Only one file can be given, not also %1$s</string>
+    <string name="usage_needs_value">%1$s needs a value</string>
+    <string name="usage_takes_no_value">%1$s takes no value</string>
+    <string name="usage_unknown_option">Unknown option %1$s</string>
+    <string name="usage_no_species">%1$s: no species %2$s</string>
+    <string name="usage_not_chroma_scale">%1$s: %2$s is neither fixed nor rnl</string>
+    <string name="usage_not_number">%1$s: %2$s is not a number</string>
+    <string name="usage_not_share">%1$s: %2$s is not between 0 and 1</string>
+    <string name="usage_not_angle">%1$s: %2$s is not an angle</string>
+    <string name="usage_not_camera">%1$s: %2$s is not a camera\'s number</string>
+    <string name="photo_unreadable">Cannot read %1$s: %2$s</string>
+    <string name="photo_not_photo">Cannot read %1$s as a photo; converting a video is not supported yet</string>
+    <string name="photo_unwritable">Cannot write %1$s: %2$s</string>
+    <string name="photo_written">Wrote %1$s</string>
+    <string name="pixels_differ">%1$s of pixels differ noticeably</string>
+    <string name="no_window">The window is the desktop app\'s; this command line only converts a photo</string>
 </resources>
