@@ -247,7 +247,7 @@ for IntelliJ IDEA's Android plugin.
     [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
     machine's GPU.
   - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's
-    wording: plurals.
+    wording: plurals, languages' names, decimal separators and strings a language lacks.
   - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a
     snapshot puts the images together.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or

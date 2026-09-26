@@ -27,7 +27,9 @@ class Texts(val language: String, private val strings: Map<String, String>) {
         return get(key, *args)
     }
 
-    val decimalSeparator: Char get() = if (language == "cs") ',' else '.'
+    /** The language's decimal separator, as the browser formats a number in it. */
+    val decimalSeparator: Char
+        get() = Intl.NumberFormat(language).formatToParts(1.5).first { it.type == "decimal" }.value.single()
 
     /** The species' name with its kind of colour vision, for lists and captions: "dog (dichromat)". */
     fun speciesLabel(species: Species): String =
@@ -40,9 +42,6 @@ class Texts(val language: String, private val strings: Map<String, String>) {
 
         /** The languages there are strings for, the first the one a string missing from another is taken from. */
         val LANGUAGES = listOf("en") + (ANDROID_STRINGS.keys - "en").sorted()
-
-        /** Each language the page speaks, named in itself, as the Android app's language choice names them. */
-        val LANGUAGE_NAMES = mapOf("en" to "English", "cs" to "Čeština")
 
         /** Where the browser remembers the language chosen. */
         private const val LANGUAGE_KEY = "language"
@@ -81,8 +80,13 @@ class Texts(val language: String, private val strings: Map<String, String>) {
         fun of(language: String): Texts {
             val strings = listOf(LANGUAGES.first(), language).distinct()
                 .fold(emptyMap<String, String>()) { all, it -> all + parseStrings(ANDROID_STRINGS.getValue(it)) }
-            return Texts(language, strings + WEB_TEXTS.getValue(language))
+            return Texts(language, strings + pageStrings(language))
         }
+
+        /** [language] named in itself, capitalised as the Android app's language choice names it: "Čeština". */
+        fun languageName(language: String): String =
+            Intl.DisplayNames(language, js("({ type: 'language' })")).of(language)
+                ?.replaceFirstChar { it.uppercase() } ?: language
     }
 }
 
@@ -91,6 +95,21 @@ private external object Intl {
     /** The plural rules of a language: which quantity, such as "one" or "few", a number takes. */
     class PluralRules(locales: String) {
         fun select(number: Int): String
+    }
+
+    /** The names of languages, regions and so on, in a language. */
+    class DisplayNames(locales: String, options: dynamic) {
+        fun of(code: String): String?
+    }
+
+    class NumberFormat(locales: String) {
+        fun formatToParts(number: Double): Array<Part>
+    }
+
+    /** A piece of a formatted number, such as its integer digits or its decimal separator. */
+    interface Part {
+        val type: String
+        val value: String
     }
 }
 
@@ -155,6 +174,10 @@ fun androidText(raw: String): String {
     }
     return text.toString()
 }
+
+/** What only the page says in [language], with English for anything it lacks, as the app's strings fall back. */
+internal fun pageStrings(language: String): Map<String, String> =
+    WEB_TEXTS.getValue(Texts.LANGUAGES.first()) + WEB_TEXTS[language].orEmpty()
 
 /** What only the page says, which the Android app has no string for. */
 private val WEB_TEXTS = mapOf(
