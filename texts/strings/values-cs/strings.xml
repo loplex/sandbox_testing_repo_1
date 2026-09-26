@@ -148,4 +148,42 @@
 
     <!-- What only the desktop window says -->
     <string name="draw_failed">Zobrazení nejde vykreslit: %1$s</string>
+
+    <!-- What only the command line says; option names, species ids and file names stay as they are typed -->
+    <string name="usage_synopsis">použití: dog-vision [volby] [soubor]</string>
+    <string name="usage_about">Simuluje, jak zvíře vidí barvy, na živé kameře nebo na fotce.</string>
+    <string name="usage_camera">živá kamera v okně</string>
+    <string name="usage_photo">převede fotku, zapíše photo.dog.png</string>
+    <string name="usage_window">ukáže fotku nebo video v okně</string>
+    <string name="usage_options">volby:</string>
+    <string name="usage_option_species">simulované zvíře (výchozí %1$s)</string>
+    <string name="usage_option_compare">ukáže tento druh vedle --species místo originálu</string>
+    <string name="usage_option_difference">přidá mapu míst, kde se oba obrázky znatelně liší</string>
+    <string name="usage_option_adaptation">adaptace na průměr scény, 0-1 (výchozí %1$s)</string>
+    <string name="usage_option_strength">0 = originál, 1 = plná simulace (výchozí %1$s)</string>
+    <string name="usage_option_chroma_scale">fixed nebo rnl (výchozí %1$s)</string>
+    <string name="usage_option_acuity">rozostří na zrakovou ostrost druhu</string>
+    <string name="usage_option_fov">kolik stupňů obrázek zabírá na šířku, pro --acuity (výchozí %1$s)</string>
+    <string name="usage_option_window">ukáže soubor v okně místo převodu</string>
+    <string name="usage_option_camera">kamera, kterou okno ukáže, /dev/videoN (výchozí %1$s)</string>
+    <string name="usage_option_output_dir">zapíše převedený soubor tam místo vedle originálu</string>
+    <string name="usage_option_help">ukáže tuto nápovědu a skončí</string>
+    <string name="usage_species">druhy:</string>
+    <string name="usage_error">dog-vision: chyba: %1$s</string>
+    <string name="usage_one_file">Zadat jde jen jeden soubor, ne ještě %1$s</string>
+    <string name="usage_needs_value">%1$s potřebuje hodnotu</string>
+    <string name="usage_takes_no_value">%1$s nebere žádnou hodnotu</string>
+    <string name="usage_unknown_option">Neznámá volba %1$s</string>
+    <string name="usage_no_species">%1$s: druh %2$s neexistuje</string>
+    <string name="usage_not_chroma_scale">%1$s: %2$s není fixed ani rnl</string>
+    <string name="usage_not_number">%1$s: %2$s není číslo</string>
+    <string name="usage_not_share">%1$s: %2$s není mezi 0 a 1</string>
+    <string name="usage_not_angle">%1$s: %2$s není úhel</string>
+    <string name="usage_not_camera">%1$s: %2$s není číslo kamery</string>
+    <string name="photo_unreadable">%1$s nejde přečíst: %2$s</string>
+    <string name="photo_not_photo">%1$s nejde přečíst jako fotku; převod videa zatím není podporovaný</string>
+    <string name="photo_unwritable">%1$s nejde zapsat: %2$s</string>
+    <string name="photo_written">Zapsáno %1$s</string>
+    <string name="pixels_differ">%1$s pixelů se znatelně liší</string>
+    <string name="no_window">Okno patří desktopové aplikaci; tento příkazový řádek jen převádí fotky</string>
 </resources>
