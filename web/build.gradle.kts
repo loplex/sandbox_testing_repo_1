@@ -44,11 +44,15 @@ kotlin {
             commonWebpackConfig {
                 outputFileName = "dog-vision.js"
             }
-            // In headless Chrome, told in karma.config.d to render WebGL 2 in software where there is no GPU.
+            // In headless Chrome, told in karma.config.d to render WebGL 2 in software, or with -PwebTestsOnGpu on the
+            // machine's GPU through Vulkan.
             testTask {
                 useKarma {
                     useChromeHeadless()
                 }
+                val onGpu = providers.gradleProperty("webTestsOnGpu").map { it != "false" }.orElse(false)
+                inputs.property("webTestsOnGpu", onGpu)
+                environment("DOG_VISION_TESTS_ON_GPU", onGpu.get().toString())
             }
         }
         binaries.executable()
