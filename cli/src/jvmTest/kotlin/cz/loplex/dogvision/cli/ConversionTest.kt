@@ -80,9 +80,10 @@ class ConversionTest {
         val (status, _, err) = run("$input")
         assertEquals(1, status)
         assertTrue("Cannot read $input as a photo" in err, err)
-        val (missing, _, missingErr) = run("${File(directory, "missing.jpg")}")
+        val absent = File(directory, "missing.jpg")
+        val (missing, _, missingErr) = run("$absent")
         assertEquals(1, missing)
-        assertTrue("Cannot read" in missingErr, missingErr)
+        assertTrue("Cannot read $absent: " in missingErr, missingErr)
     }
 
     @Test
