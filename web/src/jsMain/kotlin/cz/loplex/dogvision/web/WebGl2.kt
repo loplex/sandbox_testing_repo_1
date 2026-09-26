@@ -6,7 +6,7 @@ import org.khronos.webgl.WebGLRenderingContext
 
 /**
  * The part of WebGL 2 the passes use beyond WebGL 1, which is all Kotlin's standard library declares: vertex array
- * objects, fences, and reading pixels into a buffer on the GPU and that buffer back.
+ * objects, fences, reading pixels into a buffer on the GPU and that buffer back, and copying between framebuffers.
  */
 abstract external class WebGL2RenderingContext : WebGLRenderingContext {
     fun createVertexArray(): WebGLVertexArrayObject?
@@ -25,6 +25,19 @@ abstract external class WebGL2RenderingContext : WebGLRenderingContext {
     fun readPixels(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int)
 
     fun getBufferSubData(target: Int, srcByteOffset: Int, dstBuffer: ArrayBufferView)
+
+    fun blitFramebuffer(
+        srcX0: Int,
+        srcY0: Int,
+        srcX1: Int,
+        srcY1: Int,
+        dstX0: Int,
+        dstY0: Int,
+        dstX1: Int,
+        dstY1: Int,
+        mask: Int,
+        filter: Int,
+    )
 }
 
 external class WebGLVertexArrayObject : WebGLObject
@@ -36,4 +49,6 @@ internal object Gl2 {
     const val SYNC_GPU_COMMANDS_COMPLETE = 0x9117
     const val ALREADY_SIGNALED = 0x911A
     const val CONDITION_SATISFIED = 0x911C
+    const val READ_FRAMEBUFFER = 0x8CA8
+    const val DRAW_FRAMEBUFFER = 0x8CA9
 }
