@@ -53,10 +53,10 @@ import androidx.media3.transformer.CompositionPlayer
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
+import cz.loplex.dogvision.gl.Shaders
 import cz.loplex.dogvision.render.FrameExchange
 import cz.loplex.dogvision.render.OffscreenContext
 import cz.loplex.dogvision.render.Program
-import cz.loplex.dogvision.render.Shaders
 import cz.loplex.dogvision.render.Target
 import kotlin.math.ceil
 import kotlin.math.max
@@ -249,7 +249,7 @@ class VideoFeed(
     /** The GL objects of the feed's thread, with the SurfaceTexture attached to its context. */
     private inner class Gl {
         private val context = OffscreenContext()
-        private val program = Program(Shaders.FULL_VIEWPORT, Shaders.VIDEO_FRAME)
+        private val program = Program(Shaders.FULL_VIEWPORT, VIDEO_FRAME)
         private val target = Target()
         private val external: Int
         private val vertexArray: Int
@@ -349,3 +349,28 @@ private fun toneMappingPlayer(
     }
     return player
 }
+
+/**
+ * A video's frame, from the external texture of a SurfaceTexture, scaled to the target: each
+ * pixel is the mean of uTaps x uTaps samples spread over the part of the frame it covers, so
+ * that a frame scaled down to a third of its size does not alias. The frame's first row is
+ * written to the target's first row, as a Frame holds it.
+ */
+private const val VIDEO_FRAME = """#version 300 es
+#extension GL_OES_EGL_image_external_essl3 : require
+precision highp float;
+uniform samplerExternalOES uVideo;
+uniform mat4 uTransform; // the SurfaceTexture's, from the frame upright to its buffer
+uniform vec2 uSize; // of the target
+uniform int uTaps;
+out vec4 outColour;
+
+void main() {
+    vec4 sum = vec4(0.0);
+    for (int j = 0; j < uTaps; j++) for (int i = 0; i < uTaps; i++) {
+        vec2 at = (floor(gl_FragCoord.xy) + (vec2(i, j) + 0.5) / float(uTaps)) / uSize;
+        sum += texture(uVideo, (uTransform * vec4(at.x, 1.0 - at.y, 0.0, 1.0)).xy);
+    }
+    outColour = vec4(sum.rgb / float(uTaps * uTaps), 1.0);
+}
+"""
