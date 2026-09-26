@@ -214,6 +214,23 @@ class PassesTest {
         }
     }
 
+    /** A video's frame larger than a photo is shown, as a large video's or a camera's may be, is scaled down as one. */
+    @Test
+    fun aLargeVideoFrameIsScaledDownAsAPhotoIs(): Promise<Unit> {
+        val source = document.createElement("canvas") as HTMLCanvasElement
+        source.width = 1600
+        source.height = 800
+        val context = source.getContext("2d").unsafeCast<CanvasRenderingContext2D>()
+        fun paint() {
+            context.fillStyle = "rgb(200, 10, 10)"
+            context.fillRect(0.0, 0.0, 1600.0, 800.0)
+        }
+        return atAFrame(source, ::paint) { video ->
+            assertTrue(passes.upload(video, mirrored = false))
+            assertEquals(PREVIEW_LONGEST_SIDE to 640, passes.frameWidth to passes.frameHeight)
+        }
+    }
+
     /**
      * Plays a video of [source], which [paint] paints again for each frame, and hands it to [check] at a frame; a frame
      * [check] fails on is followed by the next, up to [FRAMES_TRIED], and the last failure fails the test. The first

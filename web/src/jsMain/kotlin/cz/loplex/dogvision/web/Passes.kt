@@ -9,20 +9,27 @@ import cz.loplex.dogvision.gl.GL_TEXTURE_2D
 import cz.loplex.dogvision.gl.GL_UNSIGNED_BYTE
 import cz.loplex.dogvision.gl.ViewPasses
 import cz.loplex.dogvision.gl.texture
+import kotlinx.browser.document
 import org.khronos.webgl.Int8Array
 import org.khronos.webgl.Uint8Array
 import org.khronos.webgl.WebGLRenderingContext.Companion.COLOR_BUFFER_BIT
 import org.khronos.webgl.WebGLRenderingContext.Companion.FRAMEBUFFER
+import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLVideoElement
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
- * The page's rendering of a photo or a camera's frames: gl's [ViewPasses], as the Android app runs them, over WebGL 2.
- * The passes compile when this is made, and throw IllegalStateException if the GPU's driver cannot compile or link one.
+ * The page's rendering of a photo or of a video's or a camera's frames: gl's [ViewPasses], as the Android app runs
+ * them, over WebGL 2. The passes compile when this is made, and throw IllegalStateException if the GPU's driver cannot
+ * compile or link one.
  *
  * A photo comes upright, as the browser decodes it, and is turned upright once all the same, as the app turns every
  * frame. It does not change while it is shown, so the share of pixels its map of differences marks is counted at once.
- * A camera's frame comes upright too, the browser having turned it as the display is, and is mirrored if need be; its
- * share is counted without waiting for the GPU, and handed over a frame or two later, as in the app.
+ * A camera's or a video's frame comes upright too, the browser having turned it as the display is or as the video's
+ * rotation says, and is mirrored if need be; its share is counted without waiting for the GPU, and handed over a frame
+ * or two later, as in the app.
  */
 internal class Passes(private val gl: WebGL2RenderingContext) {
     private val webGl = WebGl(gl)
@@ -39,16 +46,40 @@ internal class Passes(private val gl: WebGL2RenderingContext) {
         passes.turnUpright(raw, width, height, rotation = 0, mirrored = false)
     }
 
+    /** Where a frame is drawn before it is uploaded, when it is larger than [PREVIEW_LONGEST_SIDE] or turned. */
+    private val scaled by lazy {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas to canvas.getContext("2d").unsafeCast<CanvasRenderingContext2D>()
+    }
+
     /**
-     * Makes the frame [video] shows the one to render, mirrored if [mirrored]; false, with nothing changed, while the
-     * video has no frame yet.
+     * Makes the frame [video] shows the one to render, scaled down to [PREVIEW_LONGEST_SIDE] as a photo is and
+     * mirrored if [mirrored]; false, with nothing changed, while the video has no frame yet.
+     *
+     * A video whose file says to turn it, as a phone held upright records it, is drawn into a 2D canvas first if
+     * [turned] says it may be one: Firefox 156 turns such a frame there, but uploads it to WebGL as it is stored, at
+     * the size it gives as the turned one's.
      */
-    fun upload(video: HTMLVideoElement, mirrored: Boolean): Boolean {
-        val width = video.videoWidth
-        val height = video.videoHeight
-        if (width == 0 || height == 0) return false
+    fun upload(video: HTMLVideoElement, mirrored: Boolean, turned: Boolean = false): Boolean {
+        val longest = max(video.videoWidth, video.videoHeight)
+        if (longest == 0) return false
+        val scale = minOf(1.0, PREVIEW_LONGEST_SIDE.toDouble() / longest)
+        val width = max(1, (video.videoWidth * scale).roundToInt())
+        val height = max(1, (video.videoHeight * scale).roundToInt())
         webGl.bindTexture(GL_TEXTURE_2D, raw)
-        gl.texImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, video)
+        if (scale < 1 || turned) {
+            val (canvas, context) = scaled
+            if (canvas.width != width || canvas.height != height) {
+                canvas.width = width
+                canvas.height = height
+            }
+            context.imageSmoothingEnabled = true
+            context.asDynamic().imageSmoothingQuality = "high"
+            context.drawImage(video, 0.0, 0.0, width.toDouble(), height.toDouble())
+            gl.texImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, canvas)
+        } else {
+            gl.texImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, video)
+        }
         passes.turnUpright(raw, width, height, rotation = 0, mirrored = mirrored)
         return true
     }
