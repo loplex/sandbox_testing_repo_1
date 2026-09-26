@@ -53,11 +53,12 @@ import androidx.media3.transformer.CompositionPlayer
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
+import cz.loplex.dogvision.gl.Program
 import cz.loplex.dogvision.gl.Shaders
+import cz.loplex.dogvision.gl.Target
 import cz.loplex.dogvision.render.FrameExchange
+import cz.loplex.dogvision.render.Gles
 import cz.loplex.dogvision.render.OffscreenContext
-import cz.loplex.dogvision.render.Program
-import cz.loplex.dogvision.render.Target
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -249,8 +250,8 @@ class VideoFeed(
     /** The GL objects of the feed's thread, with the SurfaceTexture attached to its context. */
     private inner class Gl {
         private val context = OffscreenContext()
-        private val program = Program(Shaders.FULL_VIEWPORT, VIDEO_FRAME)
-        private val target = Target()
+        private val program = Program(Gles, Shaders.FULL_VIEWPORT, VIDEO_FRAME)
+        private val target = Target(Gles)
         private val external: Int
         private val vertexArray: Int
         private val transform = FloatArray(16)

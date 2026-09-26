@@ -13,6 +13,7 @@ import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.composedSize
+import cz.loplex.dogvision.gl.ViewPasses
 import cz.loplex.dogvision.video.RECORDING_FPS
 import cz.loplex.dogvision.video.Recorder
 import java.io.IOException
