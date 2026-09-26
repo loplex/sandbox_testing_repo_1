@@ -106,13 +106,37 @@ class PassesTest {
         passes.upload(frame.width, frame.height, frame.pixels)
         passes.compose(View(Params(Species.HUMAN), sideBySide = false))
         val (areaWidth, areaHeight) = 100 to 80
-        val pixels = ByteArray(areaWidth * areaHeight * 4)
-        passes.draw(listOf(Box(0, 0, width, height)), areaWidth, areaHeight, pixels)
+        passes.draw(listOf(Box(0, 0, width, height)), areaWidth, areaHeight)
+        val pixels = assertNotNull(passes.takeArea(wait = true))
+        assertEquals(areaWidth * areaHeight * 4, pixels.size)
 
         fun at(x: Int, y: Int): List<Int> = (0 until 4).map { pixels[(y * areaWidth + x) * 4 + it].toInt() and 0xFF }
         assertEquals(listOf(255, 0, 0, 255), at(1, 1), "top left")
         assertEquals(listOf(0, 0, 255, 255), at(1, height - 2), "bottom left of the box")
         assertEquals(listOf(0, 0, 0, 0), at(areaWidth - 1, areaHeight - 1), "outside the box")
+    }
+
+    /**
+     * Areas are read back without waiting, and handed over in the order they were drawn: two areas of different sizes
+     * come in that order, and then nothing more.
+     */
+    @Test
+    fun areasComeInTheOrderDrawnWithoutWaiting() {
+        val image = pattern(40, 30)
+        val frame = frameOf(image)
+        passes.upload(frame.width, frame.height, frame.pixels)
+        passes.compose(View(Params(Species.HUMAN), sideBySide = false))
+        val box = listOf(Box(0, 0, image.width, image.height))
+        passes.draw(box, 100, 80)
+        passes.draw(box, 60, 40)
+        assertEquals(2, passes.reading)
+        val sizes = mutableListOf<Int>()
+        repeat(1000) {
+            if (sizes.size < 2) passes.takeArea()?.let { sizes += it.size } ?: Thread.sleep(1)
+        }
+        assertEquals(listOf(100 * 80 * 4, 60 * 40 * 4), sizes, "areas handed over within a second")
+        assertEquals(0, passes.reading)
+        assertNull(passes.takeArea())
     }
 
     private companion object {

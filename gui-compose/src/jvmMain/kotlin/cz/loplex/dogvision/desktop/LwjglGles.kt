@@ -194,13 +194,23 @@ class LwjglGles : Gl {
 
     override fun bufferData(target: Int, size: Int, usage: Int) = glBufferData(target, size.toLong(), usage)
 
-    override fun bufferSubData(target: Int, size: Int): ByteArray {
+    override fun bufferSubData(target: Int, size: Int): ByteArray = readMapped(target, size) {
+        ByteArray(size).also(it::get)
+    }
+
+    /**
+     * What [read] makes of the first [size] bytes of the buffer bound to [target], mapped for reading while it runs;
+     * mapping it waits for the GPU to finish writing it.
+     */
+    fun <T> readMapped(target: Int, size: Int, read: (ByteBuffer) -> T): T {
         val mapped = checkNotNull(glMapBufferRange(target, 0, size.toLong(), GL_MAP_READ_BIT)) {
             "Cannot map a buffer to read it"
         }
-        val bytes = ByteArray(size).also { mapped.get(it) }
-        glUnmapBuffer(target)
-        return bytes
+        try {
+            return read(mapped)
+        } finally {
+            glUnmapBuffer(target)
+        }
     }
 
     override fun viewport(x: Int, y: Int, width: Int, height: Int) = glViewport(x, y, width, height)
