@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The language, named in itself, as a language choice lists it -->
+    <string name="language_name">English</string>
+
+    <!-- What only the web page says -->
+    <string name="choose_media">Open a photo or a video, or drop one here, to see it as the chosen animal sees it.</string>
+    <string name="no_webgl2">This browser cannot draw the view: it has no WebGL 2.</string>
+    <string name="gl_failed">This browser cannot draw the view: %1$s</string>
+    <string name="snapshot_not_encoded">the browser cannot encode it as PNG</string>
+    <string name="browser_language">As the browser</string>
+    <string name="switch_camera_short">Switch camera</string>
+    <string name="camera_refused">The camera shows the scene as the chosen animal sees it. To see the live view, allow the page to use it in the browser, and the browser to use it in the device\'s settings.</string>
+    <string name="camera_none">the browser finds no camera</string>
+    <string name="camera_busy">another app may be using it, or the system does not let the browser start it</string>
+</resources>
