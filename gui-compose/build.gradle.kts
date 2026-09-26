@@ -1,3 +1,5 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // The desktop window in Compose Multiplatform, for Linux and Windows: a photo, a video or the camera through ffmpeg,
@@ -82,16 +84,57 @@ dependencies {
     windowsRuntime(libs.nucleus.angle.natives)
 }
 
+/** The icons, the second launcher's properties and what else the packages take. */
+val packaging = layout.projectDirectory.dir("packaging")
+
 // packageUberJarForCurrentOS writes build/compose/jars/dog-vision-linux-x64-<version>.jar, which runs alone on a JDK
-// 17 or newer, with this machine's natives in it.
+// 17 or newer, with this machine's natives in it. packageDeb and packageRpm write jpackage's packages for Linux, with a
+// runtime of their own, under build/compose/binaries/main/{deb,rpm}.
 compose.desktop {
     application {
         mainClass = mainClassName
         nativeDistributions {
+            targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "dog-vision"
             packageVersion = "0.1.0" // the Android app's versionName
+            description = "How a dog or another animal sees a photo, a video or the camera"
+            vendor = "Martin Lopatář"
+            licenseFile = rootProject.file("LICENSE")
+            // Beyond the modules Compose always takes: what suggestRuntimeModules finds the classes using.
+            modules("java.instrument", "jdk.unsupported")
+            linux {
+                iconFile = packaging.file("dog-vision.png")
+                shortcut = true
+                menuGroup = "Graphics"
+                appCategory = "graphics"
+                debMaintainer = "lopin.git@loplex.cz"
+                rpmLicenseType = "GPL-3.0-or-later"
+            }
         }
     }
+}
+
+// dog-vision-cli beside dog-vision, in the app image and in each package: Compose runs jpackage for each of them from
+// the JARs, not the packages from the app image.
+tasks.withType<AbstractJPackageTask>().configureEach {
+    val launcher = packaging.file("dog-vision-cli.properties")
+    freeArgs.addAll("--add-launcher", "dog-vision-cli=${launcher.asFile}")
+    // freeArgs holds only its path, so that the packages are made again when the file changes.
+    inputs.file(launcher)
+}
+
+// The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
+tasks.register<Tar>("packageTarGz") {
+    description = "Packs the app image into build/compose/binaries/main/tar/dog-vision-<version>-linux-x64.tar.gz."
+    group = "compose desktop"
+    val version = compose.desktop.application.nativeDistributions.packageVersion
+    archiveFileName = "dog-vision-$version-linux-x64.tar.gz"
+    destinationDirectory = layout.buildDirectory.dir("compose/binaries/main/tar")
+    compression = Compression.GZIP
+    // The launchers and the runtime's jspawnhelper, which starts ffmpeg, stay executable: Gradle's archives otherwise
+    // give every file the same mode.
+    eachFile { permissions { unix(if (file.canExecute()) "755" else "644") } }
+    from(tasks.named<AbstractJPackageTask>("createDistributable").flatMap { it.destinationDir })
 }
 
 // Built on any machine, as jpackage's installers are not: Windows's natives and ANGLE in place of this machine's.
