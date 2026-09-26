@@ -1,6 +1,7 @@
 package cz.loplex.dogvision.cli
 
 import cz.loplex.dogvision.core.Image
+import cz.loplex.dogvision.core.exifTurn
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.File

@@ -66,29 +66,6 @@ private fun tiffOrientation(bytes: ByteArray, start: Int, end: Int): Int {
     return 1
 }
 
-/** The rotation clockwise and the mirroring after it that an EXIF [orientation] asks for, as the Android app has it. */
-fun exifTurn(orientation: Int): Pair<Int, Boolean> = when (orientation) {
-    // flipped horizontally
-    2 -> 0 to true
-
-    3 -> 180 to false
-
-    // flipped vertically
-    4 -> 180 to true
-
-    // transposed
-    5 -> 90 to true
-
-    6 -> 90 to false
-
-    // transversed
-    7 -> 270 to true
-
-    8 -> 270 to false
-
-    else -> 0 to false
-}
-
 private fun ByteArray.u8(at: Int): Int = if (at in indices) this[at].toInt() and 0xFF else -1
 
 private fun ByteArray.u16(at: Int, bigEndian: Boolean): Int {
