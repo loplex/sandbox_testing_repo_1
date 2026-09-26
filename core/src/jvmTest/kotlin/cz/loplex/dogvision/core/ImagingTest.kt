@@ -1,5 +1,7 @@
 package cz.loplex.dogvision.core
 
+import cz.loplex.dogvision.testing.coreMap
+import cz.loplex.dogvision.testing.pattern
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
@@ -17,17 +19,6 @@ import kotlin.test.fail
 /** An image of one grey. */
 fun solid(value: Int, width: Int = 128, height: Int = 96) =
     Image(width, height, IntArray(width * height) { rgb(value, value, value) })
-
-/** The image drawn by the reference script's pattern(): neighbouring pixels differ in every channel. */
-fun pattern(width: Int = 40, height: Int = 30) = Image(
-    width,
-    height,
-    IntArray(width * height) {
-        val x = it % width
-        val y = it / width
-        rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
-    },
-)
 
 fun render(source: Image, view: View): Pair<Image, Double?> {
     val (width, height) = composedSize(view, source.width, source.height)
@@ -139,44 +130,29 @@ class ImagingTest {
         assertAllClose(doubleArrayOf(53.24, 80.09, 67.20), lab(255, 0, 0), atol = 0.05)
     }
 
-    private fun difference(left: Image, right: Image): Pair<Image, Double> {
-        val out = Image(right.width, right.height)
-        val a = IntArray(right.width)
-        val b = IntArray(right.width)
-        val row = IntArray(right.width)
-        var noticeable = 0
-        for (y in 0 until right.height) {
-            left.readRow(y, a)
-            right.readRow(y, b)
-            noticeable += differenceRow(a, b, row)
-            out.writeRow(y, 0, row, 0, row.size)
-        }
-        return out to noticeable.toDouble() / (right.width * right.height)
-    }
-
     @Test
     fun `identical images do not differ`() {
-        val (image, share) = difference(photo, photo)
+        val (image, share) = coreMap(photo, photo)
         assertEquals(0.0, share)
         assertTrue(image.pixels.all { red(it) == blue(it) }) // grey, no red anywhere
     }
 
     @Test
     fun `a large difference is fully red`() {
-        val (image, share) = difference(solid(0), solid(255))
+        val (image, share) = coreMap(solid(0), solid(255))
         assertEquals(1.0, share)
         assertEquals(rgb(255, 40, 40), image[0, 0])
     }
 
     @Test
     fun `a difference below one JND is not marked`() {
-        assertEquals(0.0, difference(solid(100), solid(101)).second)
+        assertEquals(0.0, coreMap(solid(100), solid(101)).second)
     }
 
     @Test
     fun `the difference map reddens with the difference`() {
-        val (slightImage, slight) = difference(solid(128), solid(135))
-        val (moreImage, _) = difference(solid(128), solid(150))
+        val (slightImage, slight) = coreMap(solid(128), solid(135))
+        val (moreImage, _) = coreMap(solid(128), solid(150))
         assertEquals(1.0, slight)
         assertTrue(red(slightImage[0, 0]) < red(moreImage[0, 0]))
     }
@@ -218,7 +194,7 @@ class ImagingTest {
     fun `compose adds the map of differences`() {
         val (image, share) = render(photo, View(difference = true))
         assertEquals(192 to 48, image.width to image.height)
-        val (expected, expectedShare) = difference(photo, simulate(photo, Params()))
+        val (expected, expectedShare) = coreMap(photo, simulate(photo, Params()))
         assertContentEquals(expected.pixels, image.crop(128, 0, 64, 48).pixels)
         assertEquals(expectedShare, share)
         assertTrue(expectedShare > 0)

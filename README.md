@@ -11,7 +11,8 @@ and a [desktop window](#the-desktop-window) for Linux, a first version, shows a 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording, the language.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
-- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`, `web`, `cli`, `gui-compose`, the GPU renderer.
+- [How the code is laid out](#how-the-code-is-laid-out) —
+  `core`, `gl`, `texts`, `ui`, `android`, `web`, `cli`, `gui-compose`, `testing`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`, `:cli:jvmTest`,
   `:gui-compose:jvmTest`, `:web:jsTest`, `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
@@ -295,6 +296,9 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   - [`Renderer`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/Renderer.kt) runs `gl`'s `ViewPasses` on a thread of its own,
     through [`LwjglGles`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/LwjglGles.kt), its `Gl` over LWJGL's OpenGL ES bindings, in the context [`EglContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/EglContext.kt) makes.
   - [`FfmpegFeed`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/FfmpegFeed.kt) reads a video's or the camera's frames from `ffmpeg`.
+- **[`testing`](testing)** is what the renderers' tests hold them to,
+  for `core`'s tests, the app's instrumented ones, the web page's and the desktop window's alike:
+  [`References`](testing/src/commonMain/kotlin/cz/loplex/dogvision/testing/References.kt) draws the reference script's pattern, renders it with `core`, and says how far apart two images are.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
