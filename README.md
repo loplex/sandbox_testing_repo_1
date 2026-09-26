@@ -8,8 +8,9 @@ Python, as an Android app.
 It simulates the same species with the same model, and the desktop program's README explains that
 model and the science behind it.
 A [web page](#the-web-page) shows a photo, a video or a camera's live image the same way in a
-browser, and a [command line](#the-command-line) on the JVM converts a photo as the desktop
-program's does.
+browser, a [command line](#the-command-line) on the JVM converts a photo as the desktop program's
+does, and a [desktop window](#the-desktop-window) for Linux, a first version, shows a photo, a video
+or a camera.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording,
   the language.
@@ -18,9 +19,9 @@ program's does.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`,
-  `web`, `cli`, the GPU renderer.
+  `web`, `cli`, `gui-compose`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`,
-  `:cli:jvmTest`, `:web:jsTest`,
+  `:cli:jvmTest`, `:gui-compose:jvmTest`, `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
@@ -247,6 +248,36 @@ cli/build/install/dog-vision-cli-jvm/bin/dog-vision-cli --species cat --compare 
   itself.
 - **Its messages are in English**, as the desktop program's command line is.
 
+### The desktop window
+
+```sh
+./gradlew :gui-compose:run                                   # the camera, /dev/video0
+./gradlew :gui-compose:run --args="--window photo.jpg"       # a photo, or a video played over and over
+./gradlew :gui-compose:run --args="--species cat photo.jpg"  # converts it, as the command line does
+```
+
+It is a first version, for Linux on x86-64, of a window to replace the desktop program's.
+
+- **It takes the command line's options**, and converts a photo given without `--window` as the
+  command line does; `--camera N` shows `/dev/videoN`.
+- **The view is rendered on the GPU**, by the passes the app and the web page run, in an OpenGL ES 3
+  context with no window of its own, which is read back and shown in the Compose window.
+  - **It needs EGL with Mesa's device platform** (`EGL_EXT_platform_device`), and takes the first
+    device with a DRM render node; with none, it renders on the CPU and says so on its standard
+    error.
+- **A video or the camera comes through the system's `ffmpeg`**, which must be on the `PATH` with
+  `ffprobe`: it decodes the frames, turns a video as its file says and scales it down to 1280
+  pixels, and hands them over as raw RGBA through a pipe.
+  - **The camera is asked for Motion-JPEG at 1280 x 720**, which a USB webcam gives at 30 frames a
+    second, and for whatever it gives where it has none. It is not mirrored, as the desktop
+    program's is not.
+  - **A video plays at its own speed**, without its sound; an HDR video is not tone mapped.
+- **A photo is scaled down to 1280 pixels** for the view, halved bilinearly and then scaled, as the
+  app decodes it at a power of two of its size.
+- **q or Escape closes it**, as it closes the desktop program's window.
+- **It has no menus, no settings, no snapshots and no recording yet**, and a photo or a video is
+  opened only from the command line.
+
 ### Caveat: the libraries wait for a stable SDK 37
 
 The Compose BOM stays at 2026.06.01, `androidx.core` at 1.18 and `lifecycle` at 2.10, and the app
@@ -309,6 +340,15 @@ for IntelliJ IDEA's Android plugin.
   - [`runCommandLine`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
     a command line it cannot read itself, converts a photo, and hands anything else to a window
     given to it, so that a desktop window can take the same command line.
+- **[`gui-compose`](gui-compose)** is the desktop window, in Compose Multiplatform for the JVM, around
+  `ui`'s controls; its `main` is `cli`'s, with the window for what `cli` does not answer itself.
+  - [`Renderer`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/Renderer.kt) runs `gl`'s
+    `ViewPasses` on a thread of its own, through
+    [`LwjglGles`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/LwjglGles.kt), its `Gl`
+    over LWJGL's OpenGL ES bindings, in the context
+    [`EglContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/EglContext.kt) makes.
+  - [`FfmpegFeed`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/FfmpegFeed.kt) reads a
+    video's or the camera's frames from `ffmpeg`.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -346,6 +386,13 @@ for IntelliJ IDEA's Android plugin.
   plural and a decimal separator to what Android gives.
 - `./gradlew :cli:jvmTest` runs the command line's tests: its options, the EXIF orientation in
   either byte order and each turn it asks for, and a photo converted exactly as `core` composes it.
+- `./gradlew :gui-compose:jvmTest` runs the window's tests, on the machine's GPU through EGL and
+  with its `ffmpeg`:
+  [`PassesTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/PassesTest.kt) holds the
+  passes to `core`'s CPU pipeline, as the page's and the app's tests do, and the area read back to
+  its top row first;
+  [`FfmpegFeedTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/FfmpegFeedTest.kt)
+  plays a video it makes, turned by its file, upright and over and over.
 - `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
     WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's; the share
