@@ -12,10 +12,13 @@
 <body>
 <header class="bar">
     <h1 id="title">Dog vision</h1>
-    <label class="button">
-        <input id="open" type="file" accept="image/*">
-        <span id="open-text">Open a photo</span>
-    </label>
+    <div class="actions">
+        <button id="save" class="button" type="button" disabled>Save snapshot</button>
+        <label class="button">
+            <input id="open" type="file" accept="image/*">
+            <span id="open-text">Open a photo</span>
+        </label>
+    </div>
 </header>
 <main class="page">
     <section id="stage" class="stage">

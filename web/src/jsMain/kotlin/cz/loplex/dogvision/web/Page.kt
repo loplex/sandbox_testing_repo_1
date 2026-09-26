@@ -1,12 +1,15 @@
 package cz.loplex.dogvision.web
 
+import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
 import cz.loplex.dogvision.core.percent
+import cz.loplex.dogvision.core.snapshotName
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.khronos.webgl.Uint8Array
 import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLImageElement
@@ -40,6 +43,7 @@ class Page(private val texts: Texts) {
     private val captions = element<HTMLElement>("captions")
     private val prompt = element<HTMLElement>("prompt")
     private val open = element<HTMLInputElement>("open")
+    private val save = element<HTMLButtonElement>("save")
 
     private val gl: WebGL2RenderingContext? = canvas.getContext(
         "webgl2",
@@ -65,6 +69,7 @@ class Page(private val texts: Texts) {
         document.title = texts.get("app_name")
         element<HTMLElement>("title").textContent = texts.get("app_name")
         element<HTMLElement>("open-text").textContent = texts.get("open_photo")
+        save.textContent = texts.get("save_snapshot")
         prompt.textContent = texts.get("choose_photo")
         controls.show(view)
         val gl = gl
@@ -95,6 +100,7 @@ class Page(private val texts: Texts) {
             open.files?.get(0)?.let(::openFile)
             open.value = ""
         })
+        save.addEventListener("click", { saveSnapshot() })
         stage.addEventListener("dragover", Event::preventDefault)
         stage.addEventListener("drop", { event ->
             event.preventDefault()
@@ -127,6 +133,20 @@ class Page(private val texts: Texts) {
         invalidate()
     }
 
+    /**
+     * Saves the view as shown, at the size the images are composed: the photo's scaled-down view, as the Android app's
+     * snapshot of a photo.
+     */
+    private fun saveSnapshot() {
+        val passes = passes ?: return
+        val photo = photo ?: return
+        composeIfChanged(passes)
+        val arrangement = layout(canvas.width, canvas.height, photo).arrangement
+        download(stitch(passes.readImages(view.images), arrangement), snapshotName(view, now())) {
+            say(texts.get("snapshot_failed", texts.get("snapshot_not_encoded")))
+        }
+    }
+
     private fun say(message: String) {
         prompt.textContent = message
         invalidate()
@@ -154,23 +174,13 @@ class Page(private val texts: Texts) {
         val passes = passes
         val photo = photo
         prompt.hidden = photo != null && prompt.textContent.isNullOrEmpty()
+        save.disabled = passes == null || photo == null
         if (passes == null || photo == null) {
             captions.innerHTML = ""
             return
         }
-        val layout = layOut(
-            width,
-            height,
-            photo.width,
-            photo.height,
-            view.images,
-            (CAPTION_HEIGHT * scale).roundToInt(),
-            (GAP * scale).roundToInt(),
-        )
-        if (view != composed) {
-            share = passes.compose(view)
-            composed = view
-        }
+        val layout = layout(width, height, photo)
+        composeIfChanged(passes)
         passes.draw(layout.images, width, height)
         captions.innerHTML = ""
         captionTexts().zip(layout.captions) { text, box ->
@@ -183,6 +193,26 @@ class Page(private val texts: Texts) {
             caption.style.height = "${box.height / scale}px"
             captions.appendChild(caption)
         }
+    }
+
+    /** Where the view's images of [photo] and their captions go on a canvas of [width] x [height] device pixels. */
+    private fun layout(width: Int, height: Int, photo: Photo): ScreenLayout {
+        val scale = window.devicePixelRatio
+        return layOut(
+            width,
+            height,
+            photo.width,
+            photo.height,
+            view.images,
+            (CAPTION_HEIGHT * scale).roundToInt(),
+            (GAP * scale).roundToInt(),
+        )
+    }
+
+    private fun composeIfChanged(passes: Passes) {
+        if (view == composed) return
+        share = passes.compose(view)
+        composed = view
     }
 
     /** What each image of the view shows, left to right or top to bottom, as the Android app's captions. */

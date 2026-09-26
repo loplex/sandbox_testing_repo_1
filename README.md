@@ -178,6 +178,8 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **The built `index.html` opens as it is**, from the folder or from any static server: the page
   fetches nothing, and its wording is compiled into `dog-vision.js`.
 - **The browser needs WebGL 2**; without it the page says so.
+- **Save snapshot downloads the view as shown**, as a PNG named as the app names it, at the size
+  the photo is shown at; the photo at full size is only the app's.
 
 ### Caveat: the libraries wait for a stable SDK 37
 
@@ -202,7 +204,7 @@ for IntelliJ IDEA's Android plugin.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
 - **[`web`](web)** is a page for a browser, in Kotlin/JS: a photo shown with the app's controls and
-  the selected species' facts, and no camera, video or saving.
+  the selected species' facts, and no camera or video.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s
     shaders in WebGL 2, as `ViewPasses` does on Android.
   - Its wording is the app's string resources, which the build compiles into the page, in the
@@ -245,6 +247,8 @@ for IntelliJ IDEA's Android plugin.
     machine's GPU.
   - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's
     wording: plurals.
+  - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a
+    snapshot puts the images together.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or
   emulator, on that device's GPU and codecs:
   - [`ViewRendererTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/ViewRendererTest.kt)

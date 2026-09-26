@@ -60,6 +60,13 @@ body {
     font-weight: 600;
 }
 
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .button, .controls button {
     display: inline-flex;
     align-items: center;
@@ -74,7 +81,12 @@ body {
     cursor: pointer;
 }
 
-.button:focus-within, .controls button:focus-visible {
+.button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+label.button:focus-within, button.button:focus-visible, .controls button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
