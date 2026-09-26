@@ -239,9 +239,11 @@ It runs on Linux on x86-64.
   - **A video plays at its own speed**, without its sound; an HDR video is not tone mapped.
 - **A photo is scaled down to 1280 pixels** for the view, halved bilinearly and then scaled,
   as the app decodes it at a power of two of its size.
+- **Open a photo or a video opens another one** from the system's dialog, which starts in the folder of the file shown;
+  the o key opens the dialog too, and a file dropped anywhere on the window opens as well.\
+  **Camera goes back to the camera** the command line names.
 - **q or Escape closes it.**
-- **It has no menus, no settings, no snapshots and no recording yet**,
-  and a photo or a video is opened only from the command line.
+- **It has no menus, no settings, no snapshots and no recording yet.**
 
 ### Caveat: the libraries wait for a stable SDK 37
 
