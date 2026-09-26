@@ -17,7 +17,7 @@ ktlint_function_naming_ignore_when_annotated_with = Composable
 ktlint_standard_no-unused-imports = enabled
 
 # The species are a table: a species' name, its cones and their source stay on one line.
-[core/src/main/kotlin/cz/loplex/dogvision/core/Species.kt]
+[core/src/commonMain/kotlin/cz/loplex/dogvision/core/Species.kt]
 ktlint_standard_argument-list-wrapping = disabled
 
 [*.{xml,toml,yml,yaml}]

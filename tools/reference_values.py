@@ -2,7 +2,7 @@
 
 The desktop dog-vision is https://github.com/loplex/dog-vision. From a checkout of it, run
 
-    uv run --project <checkout> python tools/reference_values.py core/src/test/resources
+    uv run --project <checkout> python tools/reference_values.py core/src/jvmTest/resources
 
 It writes three files there, each line tab-separated:
 

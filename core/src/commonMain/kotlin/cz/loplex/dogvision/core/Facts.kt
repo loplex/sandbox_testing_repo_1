@@ -1,9 +1,5 @@
 package cz.loplex.dogvision.core
 
-import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
-
 /** What a row of [speciesFacts] tells; a window names and describes each in its own language. */
 enum class FactLabel { COLOUR_VISION, CONE_PEAKS, S_CONES, L_TO_M, NEUTRAL_POINT, RNL_SCALE, ACUITY }
 
@@ -54,14 +50,14 @@ interface FactTexts {
     fun note(note: Note): String
 }
 
-/** A number as Python's format(value, "g") gives it with [digits] significant digits: 420.7, 429, 3.66. */
-fun formatSignificant(value: Double, digits: Int, decimalSeparator: Char): String =
-    BigDecimal(value).round(MathContext(digits, RoundingMode.HALF_EVEN)).stripTrailingZeros().toPlainString()
-        .replace('.', decimalSeparator)
+/**
+ * A number as Python's format(value, "g") gives it with [digits] significant digits: 420.7, 429, 3.66.
+ * As Python does, it rounds the double's exact value, and a tie to the even digit.
+ */
+expect fun formatSignificant(value: Double, digits: Int, decimalSeparator: Char): String
 
-/** A number with [decimals] digits after the point, as Python's format(value, ".2f"). */
-fun formatFixed(value: Double, decimals: Int, decimalSeparator: Char): String =
-    BigDecimal(value).setScale(decimals, RoundingMode.HALF_EVEN).toPlainString().replace('.', decimalSeparator)
+/** A number with [decimals] digits after the point, as Python's format(value, ".2f"), rounded as formatSignificant. */
+expect fun formatFixed(value: Double, decimals: Int, decimalSeparator: Char): String
 
 /** A share, or a range of shares when the two differ in whole percent. */
 fun percent(low: Double, high: Double, texts: FactTexts): String {
