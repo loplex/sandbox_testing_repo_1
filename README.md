@@ -231,8 +231,9 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ### The command line
 
 ```sh
-./gradlew :cli:installJvmDist    # cli/build/install/dog-vision-cli-jvm/bin/dog-vision-cli
-cli/build/install/dog-vision-cli-jvm/bin/dog-vision-cli --species cat --compare dog photo.jpg
+./gradlew :cli:uberJar           # cli/build/jars/dog-vision-cli.jar, with everything it needs
+java -jar cli/build/jars/dog-vision-cli.jar --species cat --compare dog photo.jpg
+./gradlew :cli:installJvmDist    # or a start script and its JARs, in cli/build/install/dog-vision-cli-jvm
 ```
 
 - **It converts a photo at full size** through `core`, as the desktop program's
@@ -254,7 +255,11 @@ cli/build/install/dog-vision-cli-jvm/bin/dog-vision-cli --species cat --compare 
 ./gradlew :gui-compose:run                                   # the camera, /dev/video0
 ./gradlew :gui-compose:run --args="--window photo.jpg"       # a photo, or a video played over and over
 ./gradlew :gui-compose:run --args="--species cat photo.jpg"  # converts it, as the command line does
+./gradlew :gui-compose:packageUberJarForCurrentOS            # gui-compose/build/compose/jars/dog-vision-linux-x64-0.1.0.jar
 ```
+
+The JAR holds everything the window needs, the natives for Linux on x86-64 included, and runs as
+`java -jar dog-vision-linux-x64-0.1.0.jar` with the same options.
 
 It is a first version, for Linux on x86-64, of a window to replace the desktop program's.
 

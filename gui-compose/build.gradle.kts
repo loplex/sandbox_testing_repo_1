@@ -42,9 +42,15 @@ kotlin {
     }
 }
 
+// packageUberJarForCurrentOS writes build/compose/jars/dog-vision-linux-x64-<version>.jar, which runs alone on a JDK
+// 17 or newer, with this machine's natives in it.
 compose.desktop {
     application {
         mainClass = "cz.loplex.dogvision.desktop.MainKt"
+        nativeDistributions {
+            packageName = "dog-vision"
+            packageVersion = "0.1.0" // the Android app's versionName
+        }
     }
 }
 
