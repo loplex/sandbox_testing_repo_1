@@ -247,7 +247,9 @@ java -jar cli/build/jars/dog-vision-cli.jar --species cat --compare dog photo.jp
 - **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program;
   the JDK's ImageIO, which decodes it, reads no EXIF, so the command line reads the orientation
   itself.
-- **Its messages are in English**, as the desktop program's command line is.
+- **It speaks the system's language**, English or Czech, in `texts`' strings: the JVM takes it
+  from `LC_ALL`, `LC_MESSAGES` or `LANG`, and not from `LANGUAGE`. The desktop program's command
+  line speaks English only.
 
 ### The desktop window
 
@@ -313,7 +315,8 @@ for IntelliJ IDEA's Android plugin.
     OpenGL ES 3.0 they need, which WebGL 2 has as well.
   - `Gl` names GL objects by integers, as OpenGL ES does; over WebGL 2, whose objects are
     JavaScript objects, a table holds them, as Emscripten's GL layer does.
-- **[`texts`](texts)** words what the app and the web page say, in English and Czech, with no
+- **[`texts`](texts)** words what the app, the web page, the desktop window and the command line
+  say, in English and Czech, with no
   toolkit in it, built alike for the JVM and JavaScript.
   - Its strings are in its [`strings`](texts/strings) folder, in Android's `strings.xml` format,
     which the build compiles into Kotlin, each named by an entry of the enum `Str` or `Plural`.
@@ -343,7 +346,8 @@ for IntelliJ IDEA's Android plugin.
   - Its wording is `texts`', in the language chosen at the end of its panel, which the browser
     remembers, or else in the browser's language if there are strings for it and in English
     otherwise.
-- **[`cli`](cli)** is the command line on the JVM, with nothing but `core` and the JDK under it:
+- **[`cli`](cli)** is the command line on the JVM, with nothing but `core`, `texts` and the JDK
+  under it:
   [`Arguments`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Arguments.kt) reads the desktop
   program's options, and
   [`Conversion`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Conversion.kt) converts a photo.

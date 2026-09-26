@@ -4,6 +4,8 @@ import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
 import java.io.File
 
 /** The command line's options, as the Python program's `dog-vision` takes them. */
@@ -32,8 +34,11 @@ data class Arguments(
     val windowView: View get() = View(params, sideBySide = true, compare = compare, difference = difference)
 }
 
-/** A command line that cannot be read, with what is wrong with it. */
-class UsageException(message: String) : Exception(message)
+/** A command line that cannot be read, with the string [key] and the [args] that say what is wrong with it. */
+class UsageException(val key: Str, vararg val args: Any?) : Exception(Texts.of("en").get(key, *args)) {
+    /** What is wrong, worded by [texts]. */
+    fun message(texts: Texts): String = texts.get(key, *args)
+}
 
 /**
  * Reads [args] as `dog-vision [options] [file]` does: an option's value follows it or an equals sign. Throws
@@ -46,78 +51,90 @@ fun parseArguments(args: List<String>): Arguments {
     while (remaining.isNotEmpty()) {
         val arg = remaining.removeFirst()
         if (!arg.startsWith("-") || arg == "-") {
-            if (arguments.file != null) throw UsageException("Only one file can be given, not also $arg")
+            if (arguments.file != null) throw UsageException(Str.USAGE_ONE_FILE, arg)
             arguments = arguments.copy(file = File(arg))
             continue
         }
         val name = arg.substringBefore('=')
         val inline = if ('=' in arg) arg.substringAfter('=') else null
 
-        fun value(): String = inline ?: remaining.removeFirstOrNull() ?: throw UsageException("$name needs a value")
+        fun value(): String =
+            inline ?: remaining.removeFirstOrNull() ?: throw UsageException(Str.USAGE_NEEDS_VALUE, name)
 
         fun flag() {
-            if (inline != null) throw UsageException("$name takes no value")
+            if (inline != null) throw UsageException(Str.USAGE_TAKES_NO_VALUE, name)
         }
         when (name) {
             "-h", "--help" -> flag().also { arguments = arguments.copy(help = true) }
             "--window" -> flag().also { arguments = arguments.copy(window = true) }
             "--difference" -> flag().also { arguments = arguments.copy(difference = true) }
             "--acuity" -> flag().also { params = params.copy(acuity = true) }
-            "--camera" -> arguments = arguments.copy(camera = camera(value()))
+            "--camera" -> arguments = arguments.copy(camera = camera(name, value()))
             "--output-dir" -> arguments = arguments.copy(outputDir = File(value()))
             "--species" -> params = params.copy(species = species(name, value()))
             "--compare" -> arguments = arguments.copy(compare = species(name, value()))
             "--adaptation" -> params = params.copy(adaptation = share(name, value()))
             "--strength" -> params = params.copy(strength = share(name, value()))
-            "--chroma-scale" -> params = params.copy(chromaScale = chromaScale(value()))
-            "--fov" -> params = params.copy(fieldOfView = fieldOfView(value()))
-            else -> throw UsageException("Unknown option $name")
+            "--chroma-scale" -> params = params.copy(chromaScale = chromaScale(name, value()))
+            "--fov" -> params = params.copy(fieldOfView = fieldOfView(name, value()))
+            else -> throw UsageException(Str.USAGE_UNKNOWN_OPTION, name)
         }
     }
     return arguments.copy(params = params)
 }
 
-/** How to call it, for --help and after a mistake. */
-val USAGE = """
-    |usage: dog-vision [options] [file]
-    |
-    |Simulates how an animal sees colour, on a live camera or a photo.
-    |
-    |  dog-vision                      the live camera in the window
-    |  dog-vision photo.jpg            converts a photo, writes photo.dog.png
-    |  dog-vision --window clip.mp4    shows a photo or a video in the window
-    |
-    |options:
-    |  --species ID       the animal to simulate (default ${Params().species.id})
-    |  --compare ID       shows this species beside --species instead of the original
-    |  --difference       adds a map of where the two images differ noticeably
-    |  --adaptation X     adaptation to the scene's mean, 0-1 (default ${Params().adaptation})
-    |  --strength X       0 = the original, 1 = the full simulation (default ${Params().strength})
-    |  --chroma-scale S   fixed or rnl (default ${Params().chromaScale.name.lowercase()})
-    |  --acuity           blurs to the species' visual acuity
-    |  --fov DEGREES      degrees the image spans across, for --acuity (default ${Params().fieldOfView})
-    |  --window           shows the file in the window instead of converting it
-    |  --camera N         the camera the window shows, /dev/videoN (default 0)
-    |  --output-dir DIR   writes a converted file there instead of next to its original
-    |  -h, --help         shows this and exits
-    |
-    |species: ${Species.entries.joinToString(" ") { it.id }}
-""".trimMargin()
+/** How to call it, for --help, worded by [texts]; its first line is repeated after a mistake. */
+fun usage(texts: Texts): String {
+    val defaults = Params()
+    val examples = listOf(
+        "dog-vision" to texts.get(Str.USAGE_CAMERA),
+        "dog-vision photo.jpg" to texts.get(Str.USAGE_PHOTO),
+        "dog-vision --window clip.mp4" to texts.get(Str.USAGE_WINDOW),
+    )
+    val options = listOf(
+        "--species ID" to texts.get(Str.USAGE_OPTION_SPECIES, defaults.species.id),
+        "--compare ID" to texts.get(Str.USAGE_OPTION_COMPARE),
+        "--difference" to texts.get(Str.USAGE_OPTION_DIFFERENCE),
+        "--adaptation X" to texts.get(Str.USAGE_OPTION_ADAPTATION, defaults.adaptation),
+        "--strength X" to texts.get(Str.USAGE_OPTION_STRENGTH, defaults.strength),
+        "--chroma-scale S" to texts.get(Str.USAGE_OPTION_CHROMA_SCALE, defaults.chromaScale.name.lowercase()),
+        "--acuity" to texts.get(Str.USAGE_OPTION_ACUITY),
+        "--fov DEGREES" to texts.get(Str.USAGE_OPTION_FOV, defaults.fieldOfView),
+        "--window" to texts.get(Str.USAGE_OPTION_WINDOW),
+        "--camera N" to texts.get(Str.USAGE_OPTION_CAMERA, Arguments().camera),
+        "--output-dir DIR" to texts.get(Str.USAGE_OPTION_OUTPUT_DIR),
+        "-h, --help" to texts.get(Str.USAGE_OPTION_HELP),
+    )
+
+    // Each list in two columns, the second as far in as its longest first column needs, as argparse aligns them.
+    fun columns(rows: List<Pair<String, String>>): String {
+        val width = rows.maxOf { it.first.length } + 3
+        return rows.joinToString("\n") { (left, right) -> "  ${left.padEnd(width)}$right" }
+    }
+    return listOf(
+        texts.get(Str.USAGE_SYNOPSIS),
+        texts.get(Str.USAGE_ABOUT),
+        columns(examples),
+        texts.get(Str.USAGE_OPTIONS) + "\n" + columns(options),
+        texts.get(Str.USAGE_SPECIES) + " " + Species.entries.joinToString(" ") { it.id },
+    ).joinToString("\n\n")
+}
 
 private fun species(option: String, id: String): Species =
-    Species.entries.firstOrNull { it.id == id } ?: throw UsageException("$option: no species $id")
+    Species.entries.firstOrNull { it.id == id } ?: throw UsageException(Str.USAGE_NO_SPECIES, option, id)
 
-private fun chromaScale(value: String): ChromaScale = ChromaScale.entries.firstOrNull { it.name.lowercase() == value }
-    ?: throw UsageException("--chroma-scale: $value is neither fixed nor rnl")
+private fun chromaScale(option: String, value: String): ChromaScale =
+    ChromaScale.entries.firstOrNull { it.name.lowercase() == value }
+        ?: throw UsageException(Str.USAGE_NOT_CHROMA_SCALE, option, value)
 
 private fun number(option: String, value: String): Double =
-    value.toDoubleOrNull()?.takeIf { it.isFinite() } ?: throw UsageException("$option: $value is not a number")
+    value.toDoubleOrNull()?.takeIf { it.isFinite() } ?: throw UsageException(Str.USAGE_NOT_NUMBER, option, value)
 
 private fun share(option: String, value: String): Double =
-    number(option, value).takeIf { it in 0.0..1.0 } ?: throw UsageException("$option: $value is not between 0 and 1")
+    number(option, value).takeIf { it in 0.0..1.0 } ?: throw UsageException(Str.USAGE_NOT_SHARE, option, value)
 
-private fun fieldOfView(value: String): Double =
-    number("--fov", value).takeIf { it > 0 && it < 360 } ?: throw UsageException("--fov: $value is not an angle")
+private fun fieldOfView(option: String, value: String): Double =
+    number(option, value).takeIf { it > 0 && it < 360 } ?: throw UsageException(Str.USAGE_NOT_ANGLE, option, value)
 
-private fun camera(value: String): Int =
-    value.toIntOrNull()?.takeIf { it >= 0 } ?: throw UsageException("--camera: $value is not a camera's number")
+private fun camera(option: String, value: String): Int =
+    value.toIntOrNull()?.takeIf { it >= 0 } ?: throw UsageException(Str.USAGE_NOT_CAMERA, option, value)
