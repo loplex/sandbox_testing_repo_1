@@ -161,7 +161,7 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
 - **[`android`](android)** is the Android app:
   the camera, the photos and videos, the GPU renderer, saving, recording, and the Compose screens.
 - **[`web`](web)** is a page for a browser, in Kotlin/JS:
-  a photo shown with the app's controls, and no camera, video, saving or species' facts.
+  a photo shown with the app's controls and the selected species' facts, and no camera, video or saving.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s shaders in WebGL 2, as `ViewPasses` does on Android.
   - Its wording is the app's string resources, which the build compiles into the page,
     in the browser's language if the app speaks it and in English otherwise.
