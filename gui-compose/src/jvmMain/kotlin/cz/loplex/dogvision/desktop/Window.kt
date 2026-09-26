@@ -161,6 +161,7 @@ private fun Screen(
     var drawFailure by remember { mutableStateOf<Failure?>(null) }
     val renderer = remember {
         Renderer(
+            arguments.windowsGl,
             onPicture = { EventQueue.invokeLater { picture = it } },
             onFailure = { message -> EventQueue.invokeLater { drawFailure = { it.get(Str.DRAW_FAILED, message) } } },
         )

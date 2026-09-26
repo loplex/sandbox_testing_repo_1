@@ -17,8 +17,8 @@ import java.nio.ByteBuffer
 
 /**
  * The window's rendering of a photo or a video's or a camera's frames: gl's [ViewPasses], as the Android app and the
- * web page run them, over OpenGL ES 3 in the context current on this thread, drawn into a framebuffer of the window's
- * area and read back to be shown. The passes compile when this is made, and throw IllegalStateException if the GPU's
+ * web page run them, over [gl] in the context current on this thread, drawn into a framebuffer of the window's area and
+ * read back to be shown. The passes compile when this is made, and throw IllegalStateException if the GPU's
  * driver cannot compile or link one.
  *
  * A frame comes upright, as ffmpeg turns a video and as a photo is turned when it is read, so it is turned upright as

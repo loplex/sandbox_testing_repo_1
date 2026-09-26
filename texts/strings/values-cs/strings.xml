@@ -167,6 +167,7 @@
     <string name="usage_option_window">ukáže soubor v okně místo převodu</string>
     <string name="usage_option_camera">kamera, kterou okno ukáže, /dev/videoN (výchozí %1$s)</string>
     <string name="usage_option_output_dir">zapíše převedený soubor tam místo vedle originálu</string>
+    <string name="usage_option_gl">jak okno kreslí na Windows: angle, nebo wgl (výchozí angle, a kde nejde spustit, wgl)</string>
     <string name="usage_option_help">ukáže tuto nápovědu a skončí</string>
     <string name="usage_species">druhy:</string>
     <string name="usage_error">dog-vision: chyba: %1$s</string>
@@ -180,6 +181,7 @@
     <string name="usage_not_share">%1$s: %2$s není mezi 0 a 1</string>
     <string name="usage_not_angle">%1$s: %2$s není úhel</string>
     <string name="usage_not_camera">%1$s: %2$s není číslo kamery</string>
+    <string name="usage_not_gl">%1$s: %2$s není angle ani wgl</string>
     <string name="photo_unreadable">%1$s nejde přečíst: %2$s</string>
     <string name="photo_not_photo">%1$s nejde přečíst jako fotku; převod videa zatím není podporovaný</string>
     <string name="photo_unwritable">%1$s nejde zapsat: %2$s</string>
