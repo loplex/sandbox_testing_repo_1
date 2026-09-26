@@ -2,7 +2,7 @@ package cz.loplex.dogvision.gl
 
 /**
  * The part of OpenGL ES 3.0 the passes call, which WebGL 2 has as well,
- * so that one copy of them serves the Android app and the web page.
+ * so that one copy of them serves the Android app, the web page and the desktop window.
  *
  * GL objects are named by integers, as in OpenGL ES, with 0 for none;
  * an implementation over WebGL 2, whose objects are JavaScript objects, keeps a table of them,
