@@ -192,6 +192,9 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
     plain `http:` from elsewhere, the page shows no Camera button.
 - **Save snapshot downloads the view as shown**, as a PNG named as the app names it, at the size
   the photo or the camera's frame is shown at; the photo at full size is only the app's.
+- **A large photo is scaled down to 1280 pixels by the browser**, with a 2D canvas at its highest
+  smoothing, where the app decodes it at a power of two of the size and scales the rest. Both end
+  at the same size, so the acuity blur is as wide, but the pixels it blurs can differ slightly.
 
 ### Caveat: the libraries wait for a stable SDK 37
 
