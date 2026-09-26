@@ -114,6 +114,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.transformer)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    androidTestImplementation(project(":testing"))
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
