@@ -1,0 +1,168 @@
+package cz.loplex.dogvision.desktop
+
+import cz.loplex.dogvision.core.Arrangement
+import cz.loplex.dogvision.core.Box
+import cz.loplex.dogvision.core.ChromaScale
+import cz.loplex.dogvision.core.Image
+import cz.loplex.dogvision.core.Params
+import cz.loplex.dogvision.core.Species
+import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.core.blue
+import cz.loplex.dogvision.core.compose
+import cz.loplex.dogvision.core.composedSize
+import cz.loplex.dogvision.core.green
+import cz.loplex.dogvision.core.meanLinearRgb
+import cz.loplex.dogvision.core.red
+import cz.loplex.dogvision.core.rgb
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
+import kotlin.math.abs
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * OpenGL ES in the surfaceless EGL context renders what core's CPU pipeline renders, within [TOLERANCE] of 8 bits, as
+ * the web page's PassesTest holds WebGL 2 to it; the map of differences, whose pixels near the threshold may cross it
+ * for images a step apart, is held to the share core counts.
+ *
+ * Every test runs on the one thread JUnit runs this class on, where the context is current.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class PassesTest {
+    private lateinit var context: EglContext
+    private lateinit var passes: Passes
+
+    @BeforeAll
+    fun makeContext() {
+        context = EglContext()
+        println("OpenGL ES: ${context.renderer}, ${context.version}")
+        passes = Passes(LwjglGles())
+    }
+
+    @AfterAll
+    fun releaseContext() {
+        passes.release()
+        context.close()
+    }
+
+    /** Neighbouring pixels differ in every channel, as in core's reference pattern. */
+    private fun pattern(width: Int, height: Int) = Image(
+        width,
+        height,
+        IntArray(width * height) {
+            val x = it % width
+            val y = it / width
+            rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
+        },
+    )
+
+    /** What core renders of [image] for [view], cut into its images. */
+    private fun expected(image: Image, view: View): Pair<List<Image>, Double?> {
+        val row = view.copy(arrangement = Arrangement.ROW)
+        val (width, height) = composedSize(row, image.width, image.height)
+        val composed = Image(width, height)
+        val share = compose(image, row, composed, { meanLinearRgb(image) })
+        val images = List(view.images) { i ->
+            Image(
+                image.width,
+                image.height,
+                IntArray(image.width * image.height) {
+                    composed[i * image.width + it % image.width, it / image.width]
+                },
+            )
+        }
+        return images to share
+    }
+
+    private fun worst(expected: Image, actual: Image): Int {
+        assertEquals(expected.width to expected.height, actual.width to actual.height)
+        var worst = 0
+        for (i in expected.pixels.indices) {
+            for (channel in listOf(::red, ::green, ::blue)) {
+                worst = maxOf(worst, abs(channel(expected.pixels[i]) - channel(actual.pixels[i])))
+            }
+        }
+        return worst
+    }
+
+    private fun check(view: View, image: Image = pattern(96, 64)) {
+        val frame = frameOf(image)
+        passes.upload(frame.width, frame.height, frame.pixels)
+        val actualShare = passes.compose(view)
+        val (expected, share) = expected(image, view)
+        val actual = passes.readImages(view.images)
+        expected.zip(actual).take(2).forEachIndexed { i, (e, a) ->
+            val worst = worst(e, a)
+            assertTrue(worst <= TOLERANCE, "$view image $i: a channel differs by $worst")
+        }
+        if (share == null) {
+            assertNull(actualShare)
+        } else {
+            assertEquals(share, assertNotNull(actualShare), 0.02)
+        }
+    }
+
+    @Test
+    fun theSimulationAlone() = check(View(sideBySide = false))
+
+    @Test
+    fun anotherSpeciesOnTheLeft() = check(View(Params(Species.DOG), compare = Species.CAT))
+
+    @Test
+    fun rnlAdaptationAndStrength() = check(
+        View(Params(Species.CAT, adaptation = 0.7, strength = 0.6, chromaScale = ChromaScale.RNL), sideBySide = false),
+    )
+
+    @Test
+    fun theAcuityBlur() = check(View(Params(acuity = true, fieldOfView = 2.0), sideBySide = false))
+
+    @Test
+    fun theMapOfDifferences() = check(View(compare = Species.DEUTERANOPE, difference = true))
+
+    /** The share counted without waiting for the GPU, as a camera's is, is the share counted at once. */
+    @Test
+    fun theShareCountedLaterIsTheShareCountedAtOnce() {
+        val frame = frameOf(pattern(96, 64))
+        passes.upload(frame.width, frame.height, frame.pixels)
+        val view = View(compare = Species.DEUTERANOPE, difference = true)
+        val atOnce = assertNotNull(passes.compose(view))
+        passes.composeLive(view)
+        var later: Double? = null
+        repeat(1000) {
+            if (later == null) later = passes.takeDifferenceShare() else return@repeat
+            Thread.sleep(1)
+        }
+        assertEquals(atOnce, assertNotNull(later, "no share after a second"), 1e-9)
+    }
+
+    /**
+     * The area read back has its top row first: an image red at the top and blue at the bottom, drawn into a box at
+     * the area's top left, is red at the top left and transparent outside the box.
+     */
+    @Test
+    fun theAreaIsReadBackTopRowFirst() {
+        val (width, height) = 40 to 30
+        val image = Image(width, height, IntArray(width * height) { if (it / width < height / 2) RED else BLUE })
+        val frame = frameOf(image)
+        passes.upload(frame.width, frame.height, frame.pixels)
+        passes.compose(View(Params(Species.HUMAN), sideBySide = false))
+        val (areaWidth, areaHeight) = 100 to 80
+        val pixels = ByteArray(areaWidth * areaHeight * 4)
+        passes.draw(listOf(Box(0, 0, width, height)), areaWidth, areaHeight, pixels)
+
+        fun at(x: Int, y: Int): List<Int> = (0 until 4).map { pixels[(y * areaWidth + x) * 4 + it].toInt() and 0xFF }
+        assertEquals(listOf(255, 0, 0, 255), at(1, 1), "top left")
+        assertEquals(listOf(0, 0, 255, 255), at(1, height - 2), "bottom left of the box")
+        assertEquals(listOf(0, 0, 0, 0), at(areaWidth - 1, areaHeight - 1), "outside the box")
+    }
+
+    private companion object {
+        const val TOLERANCE = 2
+        val RED = rgb(255, 0, 0)
+        val BLUE = rgb(0, 0, 255)
+    }
+}

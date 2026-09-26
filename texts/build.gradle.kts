@@ -2,8 +2,9 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.w3c.dom.Element
 import javax.xml.parsers.DocumentBuilderFactory
 
-// Everything the Android app and the web page say, in each language, with no toolkit: the strings.xml files in
-// Android's format, compiled into Kotlin at build time, and what words a species, a fact or a caption from them.
+// Everything the Android app, the web page and the desktop window say, in each language, with no toolkit: the
+// strings.xml files in Android's format, compiled into Kotlin at build time, and what words a species, a fact or a
+// caption from them.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
