@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // The desktop window in Compose Multiplatform, for Linux and Windows: a photo, a video or the camera through ffmpeg,
-// rendered by gl's passes over OpenGL ES 3 in an offscreen EGL context, with ui's controls beside it. Its main is the
-// command line's as well, so that a photo given alone is converted as cli converts it.
+// rendered by gl's passes in an offscreen GL context, with ui's controls beside it. Its main is the command line's as
+// well, so that a photo given alone is converted as cli converts it.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.multiplatform)
@@ -15,8 +15,11 @@ val mainClassName = "cz.loplex.dogvision.desktop.MainKt"
 /** LWJGL's native part for this machine: Linux on x86-64's. */
 val lwjglNatives = "natives-linux"
 
-/** The LWJGL modules with a native part. */
-val lwjglWithNatives = listOf(libs.lwjgl.asProvider(), libs.lwjgl.opengles)
+/** The LWJGL modules with a native part on this machine: desktop GL's is for the tests of LwjglGl through EGL. */
+val lwjglWithNatives = listOf(libs.lwjgl.asProvider(), libs.lwjgl.opengles, libs.lwjgl.opengl)
+
+/** The LWJGL modules with a native part on Windows, where GLFW makes the WGL context. */
+val lwjglWithWindowsNatives = lwjglWithNatives + libs.lwjgl.glfw
 
 kotlin {
     jvm {
@@ -34,6 +37,8 @@ kotlin {
             implementation(libs.compose.multiplatform.material3)
             implementation(libs.lwjgl.asProvider())
             implementation(libs.lwjgl.egl)
+            implementation(libs.lwjgl.glfw)
+            implementation(libs.lwjgl.opengl)
             implementation(libs.lwjgl.opengles)
             // This machine's natives, which the run, the tests and packageUberJarForCurrentOS take.
             runtimeOnly(compose.desktop.currentOs)
@@ -71,7 +76,7 @@ fun <T : Any> AttributeContainer.copyAttribute(key: Attribute<T>, from: Attribut
 
 dependencies {
     windowsRuntime(libs.compose.multiplatform.desktop.windows.x64)
-    for (library in lwjglWithNatives) {
+    for (library in lwjglWithWindowsNatives) {
         windowsRuntime("${library.get().module}:${libs.versions.lwjgl.get()}:natives-windows")
     }
     windowsRuntime(libs.nucleus.angle.natives)
@@ -106,4 +111,6 @@ tasks.register<Jar>("windowsUberJar") {
 
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
+    // A JVM for each test class, as LWJGL takes either OpenGL ES's functions or desktop GL's in one, not both.
+    forkEvery = 1
 }

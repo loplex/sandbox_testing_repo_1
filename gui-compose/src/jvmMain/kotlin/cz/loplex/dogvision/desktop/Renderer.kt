@@ -2,6 +2,7 @@ package cz.loplex.dogvision.desktop
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import cz.loplex.dogvision.cli.WindowsGl
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
@@ -23,16 +24,20 @@ class Picture(val bitmap: ImageBitmap, val layout: ScreenLayout, val view: View,
 data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap: Int)
 
 /**
- * Renders the view of the frame shown last on a thread of its own, which holds a [GlContext] and [Passes], and hands
- * each picture to [onPicture] on that thread. [onFailure] is told, once, why nothing can be drawn, if GL cannot be set
- * up.
+ * Renders the view of the frame shown last on a thread of its own, which holds a [GlContext], opened as [windowsGl]
+ * asks on Windows, and [Passes], and hands each picture to [onPicture] on that thread. [onFailure] is told, once, why
+ * nothing can be drawn, if GL cannot be set up.
  *
  * It renders when something has changed: a frame, the view or the area; a live frame's share of differing pixels,
  * counted without waiting for the GPU as the Android app counts it, comes with a later picture. The area drawn is read
  * back without waiting for the GPU either, [READS] at a time: its picture comes once the GPU has read it, and the
  * frames after it are uploaded and composed meanwhile.
  */
-class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: (String) -> Unit) : AutoCloseable {
+class Renderer(
+    private val windowsGl: WindowsGl?,
+    private val onPicture: (Picture) -> Unit,
+    private val onFailure: (String) -> Unit,
+) : AutoCloseable {
     private val lock = ReentrantLock()
 
     /** Signalled whenever [changed] or [closed] is set. */
@@ -87,7 +92,7 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
 
     private fun run() {
         val context = try {
-            GlContext.open()
+            GlContext.open(windowsGl)
         } catch (error: IllegalStateException) {
             onFailure(error.message.orEmpty())
             return

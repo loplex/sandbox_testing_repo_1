@@ -33,11 +33,12 @@ class ArgumentsTest {
         val arguments = parseArguments(
             listOf(
                 "--species", "cat", "--compare=dog", "--difference", "--adaptation", "0.25", "--strength=0.5",
-                "--chroma-scale", "rnl", "--acuity", "--fov", "90", "--camera", "2", "--output-dir", "out", "a.png",
+                "--chroma-scale", "rnl", "--acuity", "--fov", "90", "--camera", "2", "--output-dir", "out", "--gl=wgl",
+                "a.png",
             ),
         )
         val params = Params(Species.CAT, 0.25, 0.5, ChromaScale.RNL, acuity = true, fieldOfView = 90.0)
-        val expected = Arguments(File("a.png"), false, 2, params, Species.DOG, true, File("out"))
+        val expected = Arguments(File("a.png"), false, 2, params, Species.DOG, true, File("out"), WindowsGl.WGL)
         assertEquals(expected, arguments)
     }
 
@@ -60,6 +61,7 @@ class ArgumentsTest {
             listOf("--fov", "0"),
             listOf("--camera", "1.5"),
             listOf("--camera", "-1"),
+            listOf("--gl", "vulkan"),
             listOf("--acuity=yes"),
             listOf("--info"),
             listOf("a.png", "b.png"),
@@ -80,7 +82,7 @@ class ArgumentsTest {
     fun theUsageNamesEverySpeciesAndOptionInEachLanguage() {
         val options = listOf(
             "--species", "--compare", "--difference", "--adaptation", "--strength", "--chroma-scale", "--acuity",
-            "--fov", "--window", "--camera", "--output-dir", "--help",
+            "--fov", "--window", "--camera", "--output-dir", "--gl", "--help",
         )
         for (language in Texts.LANGUAGES) {
             val usage = usage(Texts.of(language))
