@@ -1,11 +1,12 @@
 package cz.loplex.dogvision.web
 
+import org.khronos.webgl.ArrayBufferView
 import org.khronos.webgl.WebGLObject
 import org.khronos.webgl.WebGLRenderingContext
 
 /**
  * The part of WebGL 2 the passes use beyond WebGL 1, which is all Kotlin's standard library declares: vertex array
- * objects, and the sized formats of textures with one channel.
+ * objects, fences, and reading pixels into a buffer on the GPU and that buffer back.
  */
 abstract external class WebGL2RenderingContext : WebGLRenderingContext {
     fun createVertexArray(): WebGLVertexArrayObject?
@@ -13,14 +14,26 @@ abstract external class WebGL2RenderingContext : WebGLRenderingContext {
     fun bindVertexArray(array: WebGLVertexArrayObject?)
 
     fun deleteVertexArray(array: WebGLVertexArrayObject?)
+
+    fun fenceSync(condition: Int, flags: Int): WebGLSync?
+
+    fun clientWaitSync(sync: WebGLSync?, flags: Int, timeout: Int): Int
+
+    fun deleteSync(sync: WebGLSync?)
+
+    /** Reads pixels into the pixel pack buffer bound, from [offset] bytes into it. */
+    fun readPixels(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int)
+
+    fun getBufferSubData(target: Int, srcByteOffset: Int, dstBuffer: ArrayBufferView)
 }
 
 external class WebGLVertexArrayObject : WebGLObject
 
+external class WebGLSync : WebGLObject
+
 /** WebGL 2's values of the GL enums of the same names. */
 internal object Gl2 {
-    const val RED = 0x1903
-    const val R8 = 0x8229
-    const val R32F = 0x822E
-    const val RGBA8 = 0x8058
+    const val SYNC_GPU_COMMANDS_COMPLETE = 0x9117
+    const val ALREADY_SIGNALED = 0x911A
+    const val CONDITION_SATISFIED = 0x911C
 }
