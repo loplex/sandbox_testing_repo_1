@@ -8,6 +8,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -275,7 +277,15 @@ private fun WithControls(model: MainViewModel, buttons: @Composable () -> Unit, 
         val controlsHeight = maxHeight * CONTROLS_SHARE
         val controls = @Composable { panelModifier: Modifier ->
             Surface(panelModifier, color = MaterialTheme.colorScheme.surface) {
-                Controls(view, recorder != null, model::update, model::reset)
+                Controls(
+                    view,
+                    recorder != null,
+                    model::update,
+                    model::reset,
+                    language = AppCompatDelegate.getApplicationLocales().toLanguageTags(),
+                    // Android remembers the choice, and recreates the activity in the language chosen.
+                    onLanguage = { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(it)) },
+                )
             }
         }
         if (wide) {

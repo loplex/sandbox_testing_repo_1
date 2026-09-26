@@ -21,7 +21,6 @@ import cz.loplex.dogvision.render.Capture
 import cz.loplex.dogvision.render.Drawn
 import cz.loplex.dogvision.render.FrameExchange
 import cz.loplex.dogvision.texts.Str
-import cz.loplex.dogvision.ui.texts
 import cz.loplex.dogvision.video.Recorder
 import cz.loplex.dogvision.video.Written
 import cz.loplex.dogvision.video.convertVideo

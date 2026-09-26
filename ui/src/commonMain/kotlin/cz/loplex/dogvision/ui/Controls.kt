@@ -1,6 +1,5 @@
 package cz.loplex.dogvision.ui
 
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,13 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import androidx.core.os.LocaleListCompat
-import cz.loplex.dogvision.R
 import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
@@ -64,6 +60,9 @@ import kotlin.math.roundToInt
  * The simulation's controls, in sections that open and close, as the desktop window has them. While
  * [recording], the controls that change how many images the view has are locked, as the desktop
  * locks them: a video cannot change its size.
+ *
+ * The language choice at the end shows [language], a language tag or "" for the system's, and hands a choice to
+ * [onLanguage].
  */
 @Composable
 fun Controls(
@@ -71,6 +70,8 @@ fun Controls(
     recording: Boolean,
     onChange: ((View) -> View) -> Unit,
     onReset: () -> Unit,
+    language: String,
+    onLanguage: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val params = view.params
@@ -146,20 +147,16 @@ fun Controls(
             }
             InfoButton(text(Str.RESET), Str.ABOUT_RESET)
         }
-        LanguageChoice()
+        LanguageChoice(language, onLanguage)
     }
 }
 
-/**
- * The app's language: the system's, or one the app speaks, each named in itself as the desktop
- * window's Language menu names them. Android remembers the choice.
- */
+/** The language: the system's, or one there are texts for, each named in itself. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LanguageChoice() {
+private fun LanguageChoice(current: String, onChoose: (String) -> Unit) {
     val languages = listOf("" to text(Str.SYSTEM_LANGUAGE)) +
         Texts.LANGUAGES.map { it to Texts.of(it).get(Str.LANGUAGE_NAME) }
-    val current = AppCompatDelegate.getApplicationLocales().toLanguageTags()
     var expanded by rememberSaveable { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
@@ -180,7 +177,7 @@ private fun LanguageChoice() {
                     text = { Text(name) },
                     onClick = {
                         expanded = false
-                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+                        onChoose(tag)
                     },
                 )
             }
@@ -199,7 +196,7 @@ private fun Section(title: Str, startsOpen: Boolean, content: @Composable () -> 
         ) {
             Text(text(title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Icon(
-                painterResource(R.drawable.ic_expand),
+                EXPAND_ICON,
                 contentDescription = null,
                 modifier = Modifier.rotate(if (open) 180f else 0f),
             )
@@ -339,7 +336,7 @@ private fun Toggle(text: String, about: Str, checked: Boolean, enabled: Boolean 
 fun InfoButton(title: String, about: Str) {
     var shown by rememberSaveable { mutableStateOf(false) }
     IconButton(onClick = { shown = true }) {
-        Icon(painterResource(R.drawable.ic_info), contentDescription = text(Str.ABOUT))
+        Icon(INFO_ICON, contentDescription = text(Str.ABOUT))
     }
     if (shown) {
         AlertDialog(
