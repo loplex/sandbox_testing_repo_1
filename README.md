@@ -8,7 +8,8 @@ Python, as an Android app.
 It simulates the same species with the same model, and the desktop program's README explains that
 model and the science behind it.
 A [web page](#the-web-page) shows a photo, a video or a camera's live image the same way in a
-browser.
+browser, and a [command line](#the-command-line) on the JVM converts a photo as the desktop
+program's does.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording,
   the language.
@@ -17,9 +18,9 @@ browser.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`,
-  `web`, the GPU renderer.
+  `web`, `cli`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`,
-  `:web:jsTest`,
+  `:cli:jvmTest`, `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
@@ -226,6 +227,26 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
   smoothing, where the app decodes it at a power of two of the size and scales the rest. Both end
   at the same size, so the acuity blur is as wide, but the pixels it blurs can differ slightly.
 
+### The command line
+
+```sh
+./gradlew :cli:installJvmDist    # cli/build/install/dog-vision-cli-jvm/bin/dog-vision-cli
+cli/build/install/dog-vision-cli-jvm/bin/dog-vision-cli --species cat --compare dog photo.jpg
+```
+
+- **It converts a photo at full size** through `core`, as the desktop program's
+  `dog-vision photo.jpg` does: it writes a PNG next to the photo, or into `--output-dir`, and says
+  what share of the pixels differ when `--difference` asks for the map.
+- **The PNG is named after the photo and the species it shows**: `photo.dog.png`,
+  `photo.cat.png` with `--species cat`, and `photo.horse-vs-cat.png` with `--compare horse` too.
+- **It takes the desktop program's options** for the view: `--species`, `--compare`,
+  `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`;
+  `--help` lists them. `--info`, a video and the window are not in it.
+- **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program;
+  the JDK's ImageIO, which decodes it, reads no EXIF, so the command line reads the orientation
+  itself.
+- **Its messages are in English**, as the desktop program's command line is.
+
 ### Caveat: the libraries wait for a stable SDK 37
 
 The Compose BOM stays at 2026.06.01, `androidx.core` at 1.18 and `lifecycle` at 2.10, and the app
@@ -281,6 +302,13 @@ for IntelliJ IDEA's Android plugin.
   - Its wording is `texts`', in the language chosen at the end of its panel, which the browser
     remembers, or else in the browser's language if there are strings for it and in English
     otherwise.
+- **[`cli`](cli)** is the command line on the JVM, with nothing but `core` and the JDK under it:
+  [`Arguments`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Arguments.kt) reads the desktop
+  program's options, and
+  [`Conversion`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Conversion.kt) converts a photo.
+  - [`runCommandLine`](cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
+    a command line it cannot read itself, converts a photo, and hands anything else to a window
+    given to it, so that a desktop window can take the same command line.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -316,6 +344,8 @@ for IntelliJ IDEA's Android plugin.
   [`TextsTest`](texts/src/commonTest/kotlin/cz/loplex/dogvision/texts/TextsTest.kt) holds every
   language to having every string, as Android Lint's `MissingTranslation` would, and a string, a
   plural and a decimal separator to what Android gives.
+- `./gradlew :cli:jvmTest` runs the command line's tests: its options, the EXIF orientation in
+  either byte order and each turn it asks for, and a photo converted exactly as `core` composes it.
 - `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
     WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's; the share
