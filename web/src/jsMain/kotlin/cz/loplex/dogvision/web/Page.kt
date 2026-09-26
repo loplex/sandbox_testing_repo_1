@@ -234,6 +234,8 @@ class Page(private var texts: Texts) {
                     photo = null
                     showSource()
                 }
+                // A failure to start it, before a switch or a return to the page, no longer holds.
+                showNotice(null)
                 invalidate()
             },
             onFailed = { name, message ->
