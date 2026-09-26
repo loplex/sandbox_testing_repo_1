@@ -157,7 +157,7 @@ class Matrix(val rows: Int, val cols: Int, private val values: DoubleArray = Dou
     }
 
     override fun toString(): String =
-        (0 until rows).joinToString("\n") { r -> row(r).joinToString(" ") { "%.6g".format(it) } }
+        (0 until rows).joinToString("\n") { r -> row(r).joinToString(" ") { formatSignificant(it, 6, '.') } }
 
     companion object {
         fun build(rows: Int, cols: Int, value: (Int, Int) -> Double): Matrix {

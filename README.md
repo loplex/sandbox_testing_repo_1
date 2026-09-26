@@ -15,9 +15,9 @@ model and the science behind it.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `android`, the GPU renderer.
-- [Checking it](#checking-it) — `check`, `:core:test`, `:android:connectedDebugAndroidTest`,
-  `:android:lintDebug`, `ktlintFormat`, `tools/check_links.py`, `tools/reference_values.py`,
-  `tools/make_test_videos.sh`.
+- [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`,
+  `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
+  `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
 - [License](#license)
 
 ## Using the app
@@ -152,7 +152,8 @@ README explains it:
 
 The build needs:
 
-- **a JDK 17 or newer**; Gradle itself is fetched by the wrapper;
+- **a JDK 17 or newer**; Gradle itself is fetched by the wrapper, and Node.js, which runs `core`'s
+  tests in JavaScript, by the Kotlin Gradle plugin;
 - **the Android SDK with platform 36**, found through `ANDROID_HOME` or `sdk.dir` in
   `local.properties`, which Android Studio and IntelliJ IDEA write when they open the project.
 
@@ -172,9 +173,15 @@ for IntelliJ IDEA's Android plugin.
 
 ## How the code is laid out
 
-- **[`core`](core)** is plain Kotlin on the JVM, with no Android in it: the species, the model, the
-  image pipeline, the facts and the layout of the images.
+- **[`core`](core)** is plain Kotlin with no platform in it: the species, the model, the image
+  pipeline, the facts and the layout of the images.
   They are what the desktop program's `dog_vision.core` holds, less video and the window's session.
+  - It is built by Kotlin Multiplatform for the JVM, which the Android app runs it on, and for
+    JavaScript.
+  - The one part written for each of them is how a fact's number is rounded, in
+    [`Facts.jvm.kt`](core/src/jvmMain/kotlin/cz/loplex/dogvision/core/Facts.jvm.kt) and
+    [`Facts.js.kt`](core/src/jsMain/kotlin/cz/loplex/dogvision/core/Facts.js.kt), since JavaScript
+    has no `BigDecimal`.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
 
@@ -201,8 +208,11 @@ for IntelliJ IDEA's Android plugin.
 
 - `./gradlew check` runs every test task below that needs no phone, Android Lint and the Kotlin
   style; it does not run `tools/check_links.py`.
-- `./gradlew :core:test` runs the model's tests on the JVM: the desktop program's invariants, ported
-  from its pytest suite, and a comparison with what the desktop program computes.
+- `./gradlew :core:jvmTest` runs the model's tests on the JVM: the desktop program's invariants,
+  ported from its pytest suite, and a comparison with what the desktop program computes.
+- `./gradlew :core:allTests` runs them, and in Node.js as well the tests in
+  [`commonTest`](core/src/commonTest/kotlin/cz/loplex/dogvision/core), which hold the JVM and
+  JavaScript to rounding a fact's number alike.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or
   emulator, on that device's GPU and codecs:
   - [`ViewRendererTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/ViewRendererTest.kt)
@@ -248,7 +258,7 @@ With the same ffmpeg, it writes the same bytes each time it runs.
 ### The reference values come from the desktop program
 
 [`tools/reference_values.py`](tools/reference_values.py) writes the files in
-[`core/src/test/resources`](core/src/test/resources) from a checkout of the desktop program:
+[`core/src/jvmTest/resources`](core/src/jvmTest/resources) from a checkout of the desktop program:
 its matrices, RNL factors and neutral points, images it renders from a test pattern, and the facts
 of every species.
 Its docstring says how to run it; the tests fail when `core` stops matching them.
