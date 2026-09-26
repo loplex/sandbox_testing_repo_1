@@ -1,0 +1,104 @@
+package cz.loplex.dogvision.desktop
+
+import cz.loplex.dogvision.core.Box
+import cz.loplex.dogvision.core.Image
+import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.gl.GL_FRAMEBUFFER
+import cz.loplex.dogvision.gl.GL_RGBA
+import cz.loplex.dogvision.gl.GL_RGBA8
+import cz.loplex.dogvision.gl.GL_TEXTURE_2D
+import cz.loplex.dogvision.gl.GL_UNSIGNED_BYTE
+import cz.loplex.dogvision.gl.Target
+import cz.loplex.dogvision.gl.ViewPasses
+import cz.loplex.dogvision.gl.texture
+import org.lwjgl.opengles.GLES30.GL_COLOR_BUFFER_BIT
+import org.lwjgl.opengles.GLES30.glClear
+import org.lwjgl.opengles.GLES30.glClearColor
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+/**
+ * The window's rendering of a photo or a video's or a camera's frames: gl's [ViewPasses], as the Android app and the
+ * web page run them, over OpenGL ES 3 in the context current on this thread, drawn into a framebuffer of the window's
+ * area and read back to be shown. The passes compile when this is made, and throw IllegalStateException if the GPU's
+ * driver cannot compile or link one.
+ *
+ * A frame comes upright, as ffmpeg turns a video and as a photo is turned when it is read, so it is turned upright as
+ * it is, as the app turns every frame.
+ */
+internal class Passes(private val gl: LwjglGles) {
+    private val passes = ViewPasses(gl).apply { create() }
+
+    /** The frame as uploaded, before it is turned upright. */
+    private val raw = texture(gl)
+
+    /** The window's area, which the images are drawn into. */
+    private val area = Target(gl)
+    private var areaPixels: ByteBuffer = ByteBuffer.allocateDirect(0)
+
+    /** Makes [pixels], tightly packed RGBA of [width] x [height] with the top row first, the frame to render. */
+    fun upload(width: Int, height: Int, pixels: ByteBuffer) {
+        gl.bindTexture(GL_TEXTURE_2D, raw)
+        gl.texImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
+        passes.turnUpright(raw, width, height, rotation = 0, mirrored = false)
+    }
+
+    /** The size of the frame uploaded last. */
+    val frameWidth: Int get() = passes.frame.width
+    val frameHeight: Int get() = passes.frame.height
+
+    /**
+     * Renders every image of [view] of a photo, and returns the share of pixels its map of differences marks if it
+     * shows one, counted at once as a photo that does not change can wait for.
+     */
+    fun compose(view: View): Double? {
+        passes.compose(view)
+        return if (view.sideBySide && view.difference) passes.differenceShare() else null
+    }
+
+    /**
+     * Renders every image of [view] of a video's or a camera's frame, and asks for the share of pixels its map of
+     * differences marks if it shows one, which [takeDifferenceShare] hands over.
+     */
+    fun composeLive(view: View) {
+        passes.compose(view)
+        if (view.sideBySide && view.difference) passes.countDifferences()
+    }
+
+    /** Whether a share asked for by [composeLive] has not been handed over yet. */
+    val counting: Boolean get() = passes.counting
+
+    /** The share asked for by [composeLive] once the GPU has counted it, else null; call it once a frame. */
+    fun takeDifferenceShare(): Double? = passes.takeDifferenceShare()
+
+    /** The first [count] images composed, read back from the GPU, left to right or top to bottom. */
+    fun readImages(count: Int): List<Image> = passes.readImages(count)
+
+    /**
+     * Draws the first images composed into [boxes] of an area of [width] x [height], transparent elsewhere, and reads
+     * it back into [into], RGBA with the top row first as Skia takes it: GL reads the bottom row first.
+     */
+    fun draw(boxes: List<Box>, width: Int, height: Int, into: ByteArray) {
+        val stride = width * 4
+        require(into.size == stride * height) { "$width x $height needs ${stride * height} bytes" }
+        area.ensure(width, height)
+        gl.bindFramebuffer(GL_FRAMEBUFFER, area.framebuffer)
+        gl.viewport(0, 0, width, height)
+        glClearColor(0f, 0f, 0f, 0f)
+        glClear(GL_COLOR_BUFFER_BIT)
+        passes.draw(boxes, width, height)
+        if (areaPixels.capacity() < into.size) {
+            areaPixels = ByteBuffer.allocateDirect(into.size).order(ByteOrder.nativeOrder())
+        }
+        val read = areaPixels.clear().limit(into.size)
+        gl.readPixels(0, 0, width, height, read)
+        for (row in 0 until height) read.get((height - 1 - row) * stride, into, row * stride, stride)
+    }
+
+    /** Deletes the GL objects, in the context they were made in. */
+    fun release() {
+        passes.release()
+        area.release()
+        gl.deleteTexture(raw)
+    }
+}
