@@ -145,4 +145,7 @@
     <string name="camera_refused">Kamera ukazuje scénu tak, jak ji vidí vybraný živočich. Aby se zobrazil živý obraz, povolte ji stránce v prohlížeči a prohlížeči v nastavení zařízení.</string>
     <string name="camera_none">prohlížeč žádnou kameru nenašel</string>
     <string name="camera_busy">možná ji používá jiná aplikace, nebo ji systém prohlížeči nedovolil spustit</string>
+
+    <!-- What only the desktop window says -->
+    <string name="draw_failed">Zobrazení nejde vykreslit: %1$s</string>
 </resources>
