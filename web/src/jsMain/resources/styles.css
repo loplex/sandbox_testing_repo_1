@@ -86,6 +86,12 @@ body {
     display: none;
 }
 
+/* Stopping a recording, in the red the Android app's stop button has in either theme. */
+.button.stop {
+    color: #ffffff;
+    background: #d32f2f;
+}
+
 .button:disabled {
     opacity: 0.5;
     cursor: default;

@@ -199,6 +199,17 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **Save snapshot downloads the view as shown**, as a PNG named as the app names it, at the size
   the photo, the video's or the camera's frame is shown at; the photo and the video at full size are
   only the app's.
+- **Record video records the view as shown** until Stop recording, as the app records it: the
+  images at the size they are composed, in the arrangement they had at the start, without captions
+  or sound, at up to 30 frames a second.
+  - **The browser saves it as `dog-<species>-<time>.mp4`**, or as `.webm` where it records no MP4:
+    Chrome 154 records H.264 in MP4, Firefox 156 VP8 in WebM. A WebM a browser records states no
+    duration, so a player may not seek in it.
+  - **While it records, whatever would change the video's size is locked**: the source, the camera,
+    *Side by side* and *Map of differences*.
+  - **It stops when the page is hidden**, and the video recorded so far is saved.
+  - **The images are rendered twice meanwhile**, once more in a WebGL context of the recording's
+    own, since WebGL draws into its own canvas only.
 - **A large photo is scaled down to 1280 pixels by the browser**, with a 2D canvas at its highest
   smoothing, where the app decodes it at a power of two of the size and scales the rest. Both end
   at the same size, so the acuity blur is as wide, but the pixels it blurs can differ slightly.
@@ -284,6 +295,8 @@ for IntelliJ IDEA's Android plugin.
     wording: plurals, languages' names, decimal separators and strings a language lacks.
   - [`SavingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/SavingTest.kt) holds how a
     snapshot puts the images together.
+  - [`RecordingTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/RecordingTest.kt) records a
+    photo's view and plays the video back, at the size of its images side by side.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or
   emulator, on that device's GPU and codecs:
   - [`ViewRendererTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/ViewRendererTest.kt)

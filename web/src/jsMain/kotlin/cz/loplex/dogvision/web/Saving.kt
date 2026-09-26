@@ -14,6 +14,7 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.url.URL
+import org.w3c.files.Blob
 import kotlin.js.Date
 
 /**
@@ -53,16 +54,15 @@ fun stitch(images: List<Image>, arrangement: Arrangement): HTMLCanvasElement {
 
 /** Hands [canvas] to the browser to save as a PNG called [name]; calls [onFailure] if it cannot be encoded. */
 fun download(canvas: HTMLCanvasElement, name: String, onFailure: () -> Unit) {
-    canvas.toBlob({ blob ->
-        if (blob == null) {
-            onFailure()
-        } else {
-            val url = URL.createObjectURL(blob)
-            val link = document.createElement("a") as HTMLAnchorElement
-            link.href = url
-            link.download = name
-            link.click()
-            window.setTimeout({ URL.revokeObjectURL(url) }, DOWNLOAD_URL_LIFETIME_MS)
-        }
-    }, "image/png")
+    canvas.toBlob({ blob -> if (blob == null) onFailure() else download(blob, name) }, "image/png")
+}
+
+/** Hands [blob] to the browser to save as a file called [name]. */
+fun download(blob: Blob, name: String) {
+    val url = URL.createObjectURL(blob)
+    val link = document.createElement("a") as HTMLAnchorElement
+    link.href = url
+    link.download = name
+    link.click()
+    window.setTimeout({ URL.revokeObjectURL(url) }, DOWNLOAD_URL_LIFETIME_MS)
 }
