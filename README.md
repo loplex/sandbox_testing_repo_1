@@ -176,7 +176,7 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
 - **The view is drawn by OpenGL ES 3.0 shaders**, `gl`'s [`Shaders`](gl/src/commonMain/kotlin/cz/loplex/dogvision/gl/Shaders.kt),
-  in [`ViewPasses`](android/src/main/kotlin/cz/loplex/dogvision/render/ViewPasses.kt), which apply `core`'s matrix and blur.\
+  in `gl`'s [`ViewPasses`](gl/src/commonMain/kotlin/cz/loplex/dogvision/gl/ViewPasses.kt), which apply `core`'s matrix and blur, through the app's [`Gles`](android/src/main/kotlin/cz/loplex/dogvision/render/Gles.kt).\
   They decode and encode sRGB through `core`'s own lookup tables, so that they agree with it to the rounding of a float.
 - **The same passes draw every view there is**:
   - the screen, through [`ViewRenderer`](android/src/main/kotlin/cz/loplex/dogvision/render/ViewRenderer.kt);
