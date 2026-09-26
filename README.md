@@ -7,7 +7,7 @@ This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision), a d
 Python, as an Android app.
 It simulates the same species with the same model, and the desktop program's README explains that
 model and the science behind it.
-A [web page](#the-web-page) shows a photo the same way in a browser.
+A [web page](#the-web-page) shows a photo or a camera's live image the same way in a browser.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording,
   the language.
@@ -178,8 +178,20 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **The built `index.html` opens as it is**, from the folder or from any static server: the page
   fetches nothing, and its wording is compiled into `dog-vision.js`.
 - **The browser needs WebGL 2**; without it the page says so.
+- **Camera starts the camera** when clicked, and the browser asks first whether the page may use
+  it; it shows the back camera first, where the device tells them apart, asked for at 1280 x 720 as
+  the app's frames are.
+  - **Switch camera goes to the front camera**, and back; it shows only where the browser knows of
+    two cameras or more.
+  - **Every camera's image is mirrored** but one that says it faces away from the viewer: a laptop's
+    webcam often says nothing of where it faces.
+  - **The camera stops while the page is hidden**, and starts again when it is shown; opening a
+    photo stops it.
+  - **The browser offers a camera only in a secure context**: a page served over `https:` or from
+    `localhost`, or opened as a file, which Chrome 154 and Firefox 156 count as one. Served over
+    plain `http:` from elsewhere, the page shows no Camera button.
 - **Save snapshot downloads the view as shown**, as a PNG named as the app names it, at the size
-  the photo is shown at; the photo at full size is only the app's.
+  the photo or the camera's frame is shown at; the photo at full size is only the app's.
 
 ### Caveat: the libraries wait for a stable SDK 37
 
@@ -208,8 +220,8 @@ for IntelliJ IDEA's Android plugin.
     JavaScript objects, a table holds them, as Emscripten's GL layer does.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
-- **[`web`](web)** is a page for a browser, in Kotlin/JS: a photo shown with the app's controls and
-  the selected species' facts, and no camera or video.
+- **[`web`](web)** is a page for a browser, in Kotlin/JS: a photo or the camera shown with the app's
+  controls and the selected species' facts, and no video.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with
     `gl`'s `ViewPasses` over [`WebGl`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/WebGl.kt),
     its `Gl` for WebGL 2.
@@ -249,7 +261,9 @@ for IntelliJ IDEA's Android plugin.
   JavaScript to rounding a fact's number and naming a snapshot alike.
 - `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
-    WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's.
+    WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's; the share
+    of differing pixels counted without waiting, as the camera's is, to the share counted at once;
+    and a video's frame, as the camera's are, to its canvas, as it is and mirrored.
     Chrome renders WebGL 2 there in software, with SwiftShader, as
     [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
     machine's GPU.

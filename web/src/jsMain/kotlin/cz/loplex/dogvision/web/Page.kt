@@ -1,5 +1,6 @@
 package cz.loplex.dogvision.web
 
+import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
@@ -14,6 +15,7 @@ import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLVideoElement
 import org.w3c.dom.events.Event
 import org.w3c.dom.url.URL
 import org.w3c.files.File
@@ -32,10 +34,14 @@ private const val GAP = 6
 private class Photo(val width: Int, val height: Int, val pixels: Uint8Array)
 
 /**
- * The page: a photo shown as the chosen species sees it, and the controls of the view.
+ * The page: a photo or the camera's live image shown as the chosen species sees it, and the controls of the view.
  *
- * The images are composed on the GPU once for each view and photo, and drawn again into the canvas whenever its size
- * changes; the captions are text over the canvas, under the boxes [layOut] gives the images.
+ * The images of a photo are composed on the GPU once for each view, and drawn again into the canvas whenever its size
+ * changes; a camera's are composed for each of its frames, and drawn at once. The captions are text over the canvas,
+ * under the boxes [layOut] gives the images.
+ *
+ * The camera starts only when asked for, as the browser asks the viewer whether the page may use it. It stops while
+ * the page is hidden, as the Android app's does in the background, and starts again when it is shown.
  */
 class Page(private var texts: Texts) {
     private val stage = element<HTMLElement>("stage")
@@ -45,6 +51,8 @@ class Page(private var texts: Texts) {
     private val notice = element<HTMLElement>("notice")
     private val open = element<HTMLInputElement>("open")
     private val save = element<HTMLButtonElement>("save")
+    private val cameraButton = element<HTMLButtonElement>("camera")
+    private val switchButton = element<HTMLButtonElement>("switch")
     private val panel = element<HTMLElement>("controls")
 
     private val gl: WebGL2RenderingContext? = canvas.getContext(
@@ -54,6 +62,20 @@ class Page(private var texts: Texts) {
     private var passes: Passes? = null
     private var photo: Photo? = null
 
+    /**
+     * The camera, where the browser offers one; [onCamera] once it has started, as the source shown instead of a photo,
+     * whether it runs or has stopped since, and [cameras] how many the browser knew of then.
+     */
+    private val camera = if (Camera.available) Camera(::showFrame, onEnded = ::invalidate) else null
+    private var onCamera = false
+    private var cameras = 0
+
+    /** Whether a frame of the camera has been uploaded since the images were composed. */
+    private var newFrame = false
+
+    /** Whether the camera ran when the page was hidden, to start it again when it is shown. */
+    private var resumeCamera = false
+
     private var view = View()
 
     /** The view the images were composed for last, and the share of pixels its map marks. */
@@ -61,9 +83,12 @@ class Page(private var texts: Texts) {
     private var share: Double? = null
     private var drawScheduled = false
 
+    /** The captions shown, with the device pixel ratio they were placed at, to place them anew only on a change. */
+    private var captionsShown: Pair<Double, List<Pair<String, Box>>>? = null
+
     /**
      * What the page says in place of the images, worded anew when the language changes: what to do first, or why it
-     * cannot draw; null once a photo is shown.
+     * cannot draw; null once a photo or the camera is shown.
      */
     private var message: ((Texts) -> String)? = { it.get("choose_photo") }
 
@@ -97,6 +122,7 @@ class Page(private var texts: Texts) {
             passes = null
         })
         canvas.addEventListener("webglcontextrestored", {
+            // The camera's next frame is uploaded as it comes.
             passes = Passes(gl).also { passes -> photo?.let { passes.upload(it.width, it.height, it.pixels) } }
             composed = null
             invalidate()
@@ -106,6 +132,19 @@ class Page(private var texts: Texts) {
             open.value = ""
         })
         save.addEventListener("click", { saveSnapshot() })
+        cameraButton.hidden = camera == null
+        cameraButton.addEventListener("click", { startCamera(camera?.front ?: false) })
+        switchButton.addEventListener("click", { startCamera(!(camera?.front ?: false)) })
+        document.addEventListener("visibilitychange", {
+            val camera = camera ?: return@addEventListener
+            if (document.asDynamic().hidden as Boolean) {
+                resumeCamera = onCamera && camera.running
+                camera.stop()
+            } else if (resumeCamera) {
+                resumeCamera = false
+                if (onCamera) startCamera(camera.front)
+            }
+        })
         notice.addEventListener("click", { showNotice(null) })
         stage.addEventListener("dragover", Event::preventDefault)
         stage.addEventListener("drop", { event ->
@@ -134,6 +173,9 @@ class Page(private var texts: Texts) {
         element<HTMLElement>("title").textContent = texts.get("app_name")
         element<HTMLElement>("open-text").textContent = texts.get("open_photo")
         save.textContent = texts.get("save_snapshot")
+        cameraButton.textContent = texts.get("show_camera")
+        switchButton.textContent = texts.get("switch_camera_short")
+        switchButton.title = texts.get("switch_camera")
         prompt.textContent = message?.invoke(texts).orEmpty()
         notice.title = texts.get("close")
         showNotice(noticeText)
@@ -170,24 +212,67 @@ class Page(private var texts: Texts) {
     }
 
     private fun show(photo: Photo) {
+        camera?.stop()
+        onCamera = false
         this.photo = photo
         passes?.upload(photo.width, photo.height, photo.pixels)
+        showSource()
+    }
+
+    /**
+     * Starts the front camera if [front], else the back one, which is shown in place of the photo once it runs; the
+     * photo stays until then, and if the camera cannot start.
+     */
+    private fun startCamera(front: Boolean) {
+        val camera = camera ?: return
+        camera.start(
+            front,
+            onStarted = { cameras ->
+                this.cameras = cameras
+                if (!onCamera) {
+                    onCamera = true
+                    photo = null
+                    showSource()
+                }
+                invalidate()
+            },
+            onFailed = { name, message ->
+                showNotice {
+                    // Refused by the viewer, or by the browser's settings for the page.
+                    if (name == "NotAllowedError") it.get("camera_refused") else it.get("camera_failed", message)
+                }
+                invalidate()
+            },
+        )
+    }
+
+    /** Shows the source just opened, a photo or the camera, in place of what was shown before. */
+    private fun showSource() {
         composed = null
+        share = null
         message = null
         prompt.textContent = ""
         showNotice(null)
         invalidate()
     }
 
+    /** Uploads the camera's frame in [video] and draws it at once, in the browser's rendering of this frame. */
+    private fun showFrame(video: HTMLVideoElement, mirrored: Boolean) {
+        val passes = passes ?: return
+        if (!onCamera || !passes.upload(video, mirrored)) return
+        newFrame = true
+        draw()
+    }
+
     /**
-     * Saves the view as shown, at the size the images are composed: the photo's scaled-down view, as the Android app's
-     * snapshot of a photo.
+     * Saves the view as shown, at the size the images are composed: the photo's scaled-down view, or the camera's frame
+     * shown last, as the Android app's snapshot.
      */
     private fun saveSnapshot() {
         val passes = passes ?: return
-        val photo = photo ?: return
+        if (!shown(passes)) return
         composeIfChanged(passes)
-        val arrangement = layout(canvas.width, canvas.height, photo).arrangement
+        val arrangement = layout(canvas.width, canvas.height, passes).arrangement
         download(stitch(passes.readImages(view.images), arrangement), snapshotName(view, now())) {
             showNotice { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
         }
@@ -211,12 +296,16 @@ class Page(private var texts: Texts) {
         drawScheduled = true
         window.requestAnimationFrame {
             drawScheduled = false
+            controls.show(view)
             draw()
         }
     }
 
+    /** Whether there is a photo or a frame of the camera to show. */
+    private fun shown(passes: Passes) = (photo != null || onCamera) && passes.frameWidth > 0
+
+    /** Draws the images and their captions, and shows the buttons that apply. */
     private fun draw() {
-        controls.show(view)
         val scale = window.devicePixelRatio
         val width = (stage.clientWidth * scale).roundToInt()
         val height = (stage.clientHeight * scale).roundToInt()
@@ -225,18 +314,30 @@ class Page(private var texts: Texts) {
             canvas.height = height
         }
         val passes = passes
-        val photo = photo
-        prompt.hidden = photo != null && prompt.textContent.isNullOrEmpty()
-        save.disabled = passes == null || photo == null
-        if (passes == null || photo == null) {
-            captions.innerHTML = ""
+        val live = onCamera && camera?.running == true
+        prompt.hidden = (photo != null || onCamera) && prompt.textContent.isNullOrEmpty()
+        cameraButton.hidden = camera == null || live
+        switchButton.hidden = !live || cameras < 2
+        if (passes == null || !shown(passes)) {
+            save.disabled = true
+            showCaptions(scale, emptyList())
             return
         }
-        val layout = layout(width, height, photo)
+        save.disabled = false
+        val layout = layout(width, height, passes)
         composeIfChanged(passes)
         passes.draw(layout.images, width, height)
+        showCaptions(scale, captionTexts().zip(layout.captions))
+        // A count is handed over only while the page is drawn, which a camera stopped would not otherwise be.
+        if (onCamera && passes.counting && !live) invalidate()
+    }
+
+    /** Places [shown], each caption's text in its box, over the canvas, unless they are there already. */
+    private fun showCaptions(scale: Double, shown: List<Pair<String, Box>>) {
+        if (captionsShown == scale to shown) return
+        captionsShown = scale to shown
         captions.innerHTML = ""
-        captionTexts().zip(layout.captions) { text, box ->
+        shown.forEach { (text, box) ->
             val caption = document.createElement("div") as HTMLElement
             caption.className = "caption"
             caption.textContent = text
@@ -248,24 +349,44 @@ class Page(private var texts: Texts) {
         }
     }
 
-    /** Where the view's images of [photo] and their captions go on a canvas of [width] x [height] device pixels. */
-    private fun layout(width: Int, height: Int, photo: Photo): ScreenLayout {
+    /**
+     * Where the view's images of the frame [passes] have and their captions go on a canvas of [width] x [height] device
+     * pixels.
+     */
+    private fun layout(width: Int, height: Int, passes: Passes): ScreenLayout {
         val scale = window.devicePixelRatio
         return layOut(
             width,
             height,
-            photo.width,
-            photo.height,
+            passes.frameWidth,
+            passes.frameHeight,
             view.images,
             (CAPTION_HEIGHT * scale).roundToInt(),
             (GAP * scale).roundToInt(),
         )
     }
 
+    /**
+     * Composes the images anew if the view or the camera's frame changed since. A photo's share of differing pixels is
+     * counted at once; a camera's is taken once the GPU has counted it, and the share shown until then is the last.
+     */
     private fun composeIfChanged(passes: Passes) {
-        if (view == composed) return
-        share = passes.compose(view)
-        composed = view
+        if (!onCamera) {
+            if (view == composed) return
+            share = passes.compose(view)
+            composed = view
+            return
+        }
+        if (newFrame || view != composed) {
+            passes.composeLive(view)
+            composed = view
+            newFrame = false
+        }
+        if (!view.sideBySide || !view.difference) {
+            share = null
+        } else if (passes.counting) {
+            passes.takeDifferenceShare()?.let { share = it }
+        }
     }
 
     /** What each image of the view shows, left to right or top to bottom, as the Android app's captions. */
