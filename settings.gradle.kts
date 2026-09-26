@@ -12,6 +12,11 @@ pluginManagement {
     }
 }
 
+plugins {
+    // Downloads a JDK a toolchain asks for that this machine lacks: the desktop packages' Temurin.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
