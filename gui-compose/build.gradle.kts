@@ -121,6 +121,13 @@ tasks.withType<AbstractJPackageTask>().configureEach {
     freeArgs.addAll("--add-launcher", "dog-vision-cli=${launcher.asFile}")
     // freeArgs holds only its path, so that the packages are made again when the file changes.
     inputs.file(launcher)
+    // What jpackage cannot find through ldd: LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video or the
+    // camera. The rpm names what it needs rather than a package, as Fedora's and openSUSE's names differ, and Fedora
+    // has two ffmpeg packages. No spaces: Compose writes freeArgs into jpackage's argument file unquoted.
+    when {
+        name.endsWith("Deb") -> freeArgs.addAll("--linux-package-deps", "libegl1,ffmpeg")
+        name.endsWith("Rpm") -> freeArgs.addAll("--linux-package-deps", "libEGL.so.1()(64bit),/usr/bin/ffmpeg")
+    }
 }
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
