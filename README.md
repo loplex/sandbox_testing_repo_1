@@ -237,13 +237,14 @@ for IntelliJ IDEA's Android plugin.
 - `./gradlew :core:allTests` runs them, and in Node.js as well the tests in
   [`commonTest`](core/src/commonTest/kotlin/cz/loplex/dogvision/core), which hold the JVM and
   JavaScript to rounding a fact's number alike.
-- `./gradlew :web:jsTest` runs
-  [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) in headless Chrome,
-  which holds the page's WebGL 2 passes to `core`'s CPU pipeline as `ViewRendererTest` below holds
-  the app's.
-  Chrome renders WebGL 2 there in software, with SwiftShader, as
-  [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
-  machine's GPU.
+- `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
+  - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
+    WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's.
+    Chrome renders WebGL 2 there in software, with SwiftShader, as
+    [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
+    machine's GPU.
+  - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's
+    wording: plurals.
 - `./gradlew :android:connectedDebugAndroidTest` runs the instrumented tests on a connected phone or
   emulator, on that device's GPU and codecs:
   - [`ViewRendererTest`](android/src/androidTest/kotlin/cz/loplex/dogvision/render/ViewRendererTest.kt)

@@ -23,9 +23,7 @@ class Texts(val language: String, private val strings: Map<String, String>) {
 
     /** The plural [name] for [count], its quantity as the language's plural rules choose it, as getQuantityString. */
     fun plural(name: String, count: Int, vararg args: Any): String {
-        val locale = language
-        val quantity: String = js("new Intl.PluralRules(locale).select(count)").unsafeCast<String>()
-        val key = "$name#$quantity".takeIf { it in strings } ?: "$name#other"
+        val key = "$name#${Intl.PluralRules(language).select(count)}".takeIf { it in strings } ?: "$name#other"
         return get(key, *args)
     }
 
@@ -54,6 +52,14 @@ class Texts(val language: String, private val strings: Map<String, String>) {
                 .fold(emptyMap<String, String>()) { all, it -> all + parseStrings(ANDROID_STRINGS.getValue(it)) }
             return Texts(language, strings + WEB_TEXTS.getValue(language))
         }
+    }
+}
+
+/** The browser's internationalisation API, as much of it as the page uses. */
+private external object Intl {
+    /** The plural rules of a language: which quantity, such as "one" or "few", a number takes. */
+    class PluralRules(locales: String) {
+        fun select(number: Int): String
     }
 }
 
