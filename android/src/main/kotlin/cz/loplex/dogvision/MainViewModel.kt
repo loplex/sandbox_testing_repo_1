@@ -16,6 +16,7 @@ import cz.loplex.dogvision.core.compose
 import cz.loplex.dogvision.core.composedSize
 import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.percent
+import cz.loplex.dogvision.core.snapshotName
 import cz.loplex.dogvision.render.Capture
 import cz.loplex.dogvision.render.Drawn
 import cz.loplex.dogvision.render.FrameExchange
@@ -183,7 +184,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
      */
     fun saveSnapshot() {
         val context = getApplication<Application>()
-        val name = snapshotName(view.value)
+        val name = snapshotName(view.value, now())
         val capture = capture ?: return
         capture { images, layout ->
             viewModelScope.launch(Dispatchers.IO) {
@@ -233,7 +234,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
         val context = getApplication<Application>()
         val texts = AndroidTexts(context)
         val view = viewToConvert()
-        val name = snapshotName(view, suffix = "-full")
+        val name = snapshotName(view, now(), suffix = "-full")
         startConversion(Dispatchers.Default) {
             _message.value = context.getString(R.string.converting, percent(0.0, 0.0, texts))
             _message.value = try {
@@ -266,7 +267,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
         val context = getApplication<Application>()
         val texts = AndroidTexts(context)
         val view = viewToConvert()
-        val name = snapshotName(view, suffix = "-full", extension = "mp4")
+        val name = snapshotName(view, now(), suffix = "-full", extension = "mp4")
         startConversion(Dispatchers.Main) {
             _message.value = context.getString(R.string.converting, percent(0.0, 0.0, texts))
             // Transformer writes to a path, which the gallery does not give out; the video is copied there after.
@@ -303,7 +304,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
     fun startRecording() {
         if (_recorder.value != null) return
         val context = getApplication<Application>()
-        val name = snapshotName(view.value, extension = "mp4")
+        val name = snapshotName(view.value, now(), extension = "mp4")
         val file = File(context.cacheDir, name)
         lateinit var recorder: Recorder
         recorder = Recorder(file) { result -> finishRecording(recorder, name, file, result) }
