@@ -8,6 +8,7 @@ import cz.loplex.dogvision.core.compose
 import cz.loplex.dogvision.core.composedSize
 import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.rgb
+import cz.loplex.dogvision.texts.Texts
 import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -23,10 +24,11 @@ class ConversionTest {
 
     private val photo = Image(16, 12, IntArray(16 * 12) { rgb(it % 16 * 16, it / 16 * 20, 255 - it) })
 
-    private fun run(vararg args: String): Triple<Int, String, String> {
+    private fun run(vararg args: String, language: String = "en"): Triple<Int, String, String> {
         val out = ByteArrayOutputStream()
         val err = ByteArrayOutputStream()
-        val status = runCommandLine(args.toList(), PrintStream(out, true), PrintStream(err, true)) { 99 }
+        val status =
+            runCommandLine(args.toList(), Texts.of(language), PrintStream(out, true), PrintStream(err, true)) { 99 }
         return Triple(status, out.toString(), err.toString())
     }
 
@@ -96,5 +98,17 @@ class ConversionTest {
         val (wrong, _, err) = run("--species", "unicorn")
         assertEquals(2, wrong)
         assertTrue("error: --species: no species unicorn" in err, err)
+    }
+
+    @Test
+    fun theCommandLineSpeaksTheLanguageItIsGiven() {
+        val (_, help, _) = run("--help", language = "cs")
+        assertTrue(help.startsWith("použití: dog-vision [volby] [soubor]"), help)
+        val (_, _, wrong) = run("--species", "unicorn", language = "cs")
+        assertTrue("dog-vision: chyba: --species: druh unicorn neexistuje" in wrong, wrong)
+        val input = File(directory, "photo.png").apply { writeBytes(PhotosTest.pngBytes(photo)) }
+        val (_, out, _) = run("--difference", "$input", language = "cs")
+        assertTrue(out.lines().first().endsWith(" % pixelů se znatelně liší"), out)
+        assertTrue("Zapsáno ${File(directory, "photo.dog.png")}" in out, out)
     }
 }

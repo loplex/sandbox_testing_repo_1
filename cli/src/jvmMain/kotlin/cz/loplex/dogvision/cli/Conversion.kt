@@ -6,6 +6,8 @@ import cz.loplex.dogvision.core.compose
 import cz.loplex.dogvision.core.composedSize
 import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.shownName
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 import java.io.File
@@ -25,18 +27,18 @@ fun convertedFile(file: File, view: View, outputDir: File?): File {
 
 /**
  * Converts the photo [Arguments.file] at full size to the view the arguments ask for, as the Python program does, and
- * reports on [out] what it wrote, or on [err] why it could not; returns the exit status.
+ * reports on [out] what it wrote, or on [err] why it could not, worded by [texts]; returns the exit status.
  */
-fun convertPhoto(arguments: Arguments, out: PrintStream, err: PrintStream): Int {
+fun convertPhoto(arguments: Arguments, texts: Texts, out: PrintStream, err: PrintStream): Int {
     val file = checkNotNull(arguments.file) { "No file to convert" }
     val photo = try {
         readPhoto(file)
     } catch (error: IOException) {
-        err.println("Cannot read $file: ${error.message}")
+        err.println(texts.get(Str.PHOTO_UNREADABLE, file, error.message))
         return 1
     }
     if (photo == null) {
-        err.println("Cannot read $file as a photo; converting a video is not supported yet")
+        err.println(texts.get(Str.PHOTO_NOT_PHOTO, file))
         return 1
     }
     val view = arguments.conversionView
@@ -46,14 +48,16 @@ fun convertPhoto(arguments: Arguments, out: PrintStream, err: PrintStream): Int 
     val composed = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
     val pixels = (composed.raster.dataBuffer as DataBufferInt).data
     val share = compose(photo, view, Image(width, height, pixels), { meanLinearRgb(photo) })
-    if (share != null) out.println("${(share * 100).roundToInt()}% of pixels differ noticeably")
+    if (share != null) {
+        out.println(texts.get(Str.PIXELS_DIFFER, texts.get(Str.PERCENT, (share * 100).roundToInt())))
+    }
     try {
         output.parentFile?.mkdirs()
         if (!ImageIO.write(composed, "png", output)) throw IOException("no PNG writer")
     } catch (error: IOException) {
-        err.println("Cannot write $output: ${error.message}")
+        err.println(texts.get(Str.PHOTO_UNWRITABLE, output, error.message))
         return 1
     }
-    out.println("Wrote $output")
+    out.println(texts.get(Str.PHOTO_WRITTEN, output))
     return 0
 }
