@@ -1,19 +1,17 @@
 package cz.loplex.dogvision.web
 
-import cz.loplex.dogvision.core.Arrangement
 import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.blue
-import cz.loplex.dogvision.core.compose
-import cz.loplex.dogvision.core.composedSize
-import cz.loplex.dogvision.core.differenceRow
 import cz.loplex.dogvision.core.green
-import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.red
-import cz.loplex.dogvision.core.rgb
+import cz.loplex.dogvision.testing.coreImages
+import cz.loplex.dogvision.testing.coreMap
+import cz.loplex.dogvision.testing.pattern
+import cz.loplex.dogvision.testing.worstChannelDifference
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.khronos.webgl.Uint8Array
@@ -35,17 +33,6 @@ import kotlin.test.assertTrue
  * holds its OpenGL ES renderer to it.
  */
 class PassesTest {
-    /** Neighbouring pixels differ in every channel, as in core's reference pattern. */
-    private fun pattern(width: Int, height: Int) = Image(
-        width,
-        height,
-        IntArray(width * height) {
-            val x = it % width
-            val y = it / width
-            rgb((x * 37 + y * 11) % 256, (x * 13 + y * 71) % 256, (x * 101 + y * 29) % 256)
-        },
-    )
-
     private fun upload(image: Image) {
         val pixels = Uint8Array(image.width * image.height * 4)
         image.pixels.forEachIndexed { i, pixel ->
@@ -57,33 +44,8 @@ class PassesTest {
         passes.upload(image.width, image.height, pixels)
     }
 
-    /** What core renders of [image] for [view], cut into its images. */
-    private fun expected(image: Image, view: View): Pair<List<Image>, Double?> {
-        val row = view.copy(arrangement = Arrangement.ROW)
-        val (width, height) = composedSize(row, image.width, image.height)
-        val composed = Image(width, height)
-        val share = compose(image, row, composed, { meanLinearRgb(image) })
-        val images = List(view.images) { i ->
-            Image(
-                image.width,
-                image.height,
-                IntArray(image.width * image.height) {
-                    composed[i * image.width + it % image.width, it / image.width]
-                },
-            )
-        }
-        return images to share
-    }
-
     private fun assertClose(expected: Image, actual: Image, what: String) {
-        assertEquals(expected.width, actual.width, "$what: width")
-        assertEquals(expected.height, actual.height, "$what: height")
-        var worst = 0
-        for (i in expected.pixels.indices) {
-            for (channel in listOf(::red, ::green, ::blue)) {
-                worst = maxOf(worst, abs(channel(expected.pixels[i]) - channel(actual.pixels[i])))
-            }
-        }
+        val worst = worstChannelDifference(expected, actual)
         assertTrue(worst <= TOLERANCE, "$what: a channel differs by $worst")
     }
 
@@ -95,7 +57,7 @@ class PassesTest {
     private fun check(view: View, image: Image = pattern(96, 64)) {
         upload(image)
         val actualShare = passes.compose(view)
-        val (expected, share) = expected(image, view)
+        val (expected, share) = coreImages(image, view)
         val actual = passes.readImages(view.images)
         assertEquals(expected.size, actual.size)
         expected.zip(actual).take(2).forEachIndexed { i, (e, a) -> assertClose(e, a, "$view image $i") }
@@ -105,19 +67,9 @@ class PassesTest {
         }
         assertNotNull(actualShare)
         val (left, right, map) = actual
-        val expectedMap = Image(map.width, map.height)
-        var noticeable = 0
-        val a = IntArray(map.width)
-        val b = IntArray(map.width)
-        val row = IntArray(map.width)
-        for (y in 0 until map.height) {
-            left.readRow(y, a)
-            right.readRow(y, b)
-            noticeable += differenceRow(a, b, row)
-            expectedMap.writeRow(y, 0, row, 0, row.size)
-        }
+        val (expectedMap, expectedShare) = coreMap(left, right)
         assertClose(expectedMap, map, "$view map")
-        assertEquals(noticeable.toDouble() / (map.width * map.height), actualShare, 1e-9)
+        assertEquals(expectedShare, actualShare, 1e-9)
         assertEquals(share, actualShare, 0.02)
     }
 
