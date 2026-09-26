@@ -237,13 +237,22 @@ class Page(private var texts: Texts) {
                 invalidate()
             },
             onFailed = { name, message ->
-                showNotice {
-                    // Refused by the viewer, or by the browser's settings for the page.
-                    if (name == "NotAllowedError") it.get("camera_refused") else it.get("camera_failed", message)
-                }
+                showNotice { cameraFailure(it, name, message) }
                 invalidate()
             },
         )
+    }
+
+    /**
+     * Why the camera could not start, from the [name] of the DOMException getUserMedia rejected with, in the page's own
+     * words where it has them: the browser's [message] is in the browser's language. A refusal names both places that
+     * may have refused, the browser and the device's settings for the browser, which the page cannot tell apart.
+     */
+    private fun cameraFailure(texts: Texts, name: String, message: String): String = when (name) {
+        "NotAllowedError" -> texts.get("camera_refused")
+        "NotFoundError", "OverconstrainedError" -> texts.get("camera_failed", texts.get("camera_none"))
+        "NotReadableError", "AbortError" -> texts.get("camera_failed", texts.get("camera_busy"))
+        else -> texts.get("camera_failed", message)
     }
 
     /** Shows the source just opened, a photo or the camera, in place of what was shown before. */
