@@ -7,9 +7,10 @@ import org.w3c.files.File
 
 /**
  * A video file played over and over without its sound, as the Android app plays one, into a video element of its own
- * that the page never shows; the browser turns it as its rotation says. [onReady] is called once its first frame can
- * be shown, and [onFailed] with what the browser says if it cannot be played, before that or after. While it plays,
- * [onFrame] is handed the video for each new frame, as the browser renders the page.
+ * that the page never shows; [rotation] is what its file says to turn it by, read before it starts to play. [onReady]
+ * is called once its first frame can be shown, and [onFailed] with what the browser says if it cannot be played,
+ * before that or after. While it plays, [onFrame] is handed the video for each new frame, as the browser renders the
+ * page.
  */
 internal class VideoFeed(
     file: File,
@@ -17,6 +18,9 @@ internal class VideoFeed(
     onReady: () -> Unit,
     onFailed: (message: String) -> Unit,
 ) {
+    /** The degrees clockwise the file says to turn its frames by to stand upright. */
+    var rotation = 0
+        private set
     private val url = URL.createObjectURL(file)
     private val video = (document.createElement("video") as HTMLVideoElement).apply {
         muted = true
@@ -33,8 +37,13 @@ internal class VideoFeed(
         video.addEventListener("error", {
             if (!closed) onFailed(video.error?.asDynamic()?.message as String? ?: "")
         })
-        video.src = url
-        play()
+        readRotation(file) {
+            rotation = it
+            if (!closed) {
+                video.src = url
+                play()
+            }
+        }
     }
 
     /** Plays it on from where it is, or from its start. */

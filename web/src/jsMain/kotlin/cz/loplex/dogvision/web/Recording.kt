@@ -61,7 +61,7 @@ internal class Recording private constructor(
     fun upload(width: Int, height: Int, pixels: Uint8Array) = passes.upload(width, height, pixels)
 
     /** Makes the frame [video] shows the one to record, as [Passes.upload] takes it. */
-    fun upload(video: HTMLVideoElement, mirrored: Boolean, turned: Boolean) = passes.upload(video, mirrored, turned)
+    fun upload(video: HTMLVideoElement, mirrored: Boolean, rotation: Int) = passes.upload(video, mirrored, rotation)
 
     /**
      * Renders the images of [view] of the frame uploaded last, which are recorded from then on; nothing before a frame
