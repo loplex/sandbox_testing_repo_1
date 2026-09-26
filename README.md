@@ -166,7 +166,8 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   a photo shown with the app's controls and the selected species' facts, and no camera or video.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s shaders in WebGL 2, as `ViewPasses` does on Android.
   - Its wording is the app's string resources, which the build compiles into the page,
-    in the browser's language if the app speaks it and in English otherwise.
+    in the language chosen at the end of its panel, which the browser remembers,
+    or else in the browser's language if the app speaks it and in English otherwise.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
