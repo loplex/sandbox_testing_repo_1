@@ -37,13 +37,14 @@ private class Photo(val width: Int, val height: Int, val pixels: Uint8Array)
  * The images are composed on the GPU once for each view and photo, and drawn again into the canvas whenever its size
  * changes; the captions are text over the canvas, under the boxes [layOut] gives the images.
  */
-class Page(private val texts: Texts) {
+class Page(private var texts: Texts) {
     private val stage = element<HTMLElement>("stage")
     private val canvas = element<HTMLCanvasElement>("view")
     private val captions = element<HTMLElement>("captions")
     private val prompt = element<HTMLElement>("prompt")
     private val open = element<HTMLInputElement>("open")
     private val save = element<HTMLButtonElement>("save")
+    private val panel = element<HTMLElement>("controls")
 
     private val gl: WebGL2RenderingContext? = canvas.getContext(
         "webgl2",
@@ -59,22 +60,19 @@ class Page(private val texts: Texts) {
     private var share: Double? = null
     private var drawScheduled = false
 
-    private val controls = Controls(element("controls"), texts) { change ->
-        view = change(view)
-        invalidate()
-    }
+    /** What the page says over the images, worded anew when the language changes; null once a photo is shown. */
+    private var message: ((Texts) -> String)? = { it.get("choose_photo") }
+
+    /** The language the viewer chose, or null for the browser's, kept here as well where storage is blocked. */
+    private var language = Texts.chosenLanguage
+
+    private var controls = controls()
 
     fun start() {
-        document.documentElement?.setAttribute("lang", texts.language)
-        document.title = texts.get("app_name")
-        element<HTMLElement>("title").textContent = texts.get("app_name")
-        element<HTMLElement>("open-text").textContent = texts.get("open_photo")
-        save.textContent = texts.get("save_snapshot")
-        prompt.textContent = texts.get("choose_photo")
-        controls.show(view)
+        showTexts()
         val gl = gl
         if (gl == null) {
-            prompt.textContent = texts.get("no_webgl2")
+            say { it.get("no_webgl2") }
             open.disabled = true
             return
         }
@@ -82,7 +80,7 @@ class Page(private val texts: Texts) {
             Passes(gl)
         } catch (error: IllegalStateException) {
             // A shader the GPU's driver cannot compile or link.
-            prompt.textContent = texts.get("gl_failed", error.message.orEmpty())
+            say { it.get("gl_failed", error.message.orEmpty()) }
             open.disabled = true
             return
         }
@@ -110,6 +108,42 @@ class Page(private val texts: Texts) {
         invalidate()
     }
 
+    private fun controls() = Controls(
+        panel,
+        texts,
+        language,
+        onChange = { change ->
+            view = change(view)
+            invalidate()
+        },
+        onLanguage = ::switchLanguage,
+    )
+
+    /** Words the page in the language of [texts]. */
+    private fun showTexts() {
+        document.documentElement?.setAttribute("lang", texts.language)
+        document.title = texts.get("app_name")
+        element<HTMLElement>("title").textContent = texts.get("app_name")
+        element<HTMLElement>("open-text").textContent = texts.get("open_photo")
+        save.textContent = texts.get("save_snapshot")
+        prompt.textContent = message?.invoke(texts).orEmpty()
+        controls.show(view)
+    }
+
+    /**
+     * Speaks [language], or the browser's if null, from now on and the next time the page opens; the photo and the view
+     * stay as they are, as in the Android app.
+     */
+    private fun switchLanguage(language: String?) {
+        this.language = language
+        Texts.chosenLanguage = language
+        texts = Texts.of(language ?: Texts.browserLanguage())
+        panel.innerHTML = ""
+        controls = controls()
+        showTexts()
+        invalidate()
+    }
+
     /** Decodes [file], turned as its EXIF orientation says, as the browser draws an image. */
     private fun openFile(file: File) {
         val url = URL.createObjectURL(file)
@@ -120,7 +154,7 @@ class Page(private val texts: Texts) {
         }
         image.onerror = { _, _, _, _, _ ->
             URL.revokeObjectURL(url)
-            say(texts.get("photo_failed", file.name))
+            say { it.get("photo_failed", file.name) }
         }
         image.src = url
     }
@@ -129,6 +163,7 @@ class Page(private val texts: Texts) {
         this.photo = photo
         passes?.upload(photo.width, photo.height, photo.pixels)
         composed = null
+        message = null
         prompt.textContent = ""
         invalidate()
     }
@@ -143,12 +178,13 @@ class Page(private val texts: Texts) {
         composeIfChanged(passes)
         val arrangement = layout(canvas.width, canvas.height, photo).arrangement
         download(stitch(passes.readImages(view.images), arrangement), snapshotName(view, now())) {
-            say(texts.get("snapshot_failed", texts.get("snapshot_not_encoded")))
+            say { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
         }
     }
 
-    private fun say(message: String) {
-        prompt.textContent = message
+    private fun say(message: (Texts) -> String) {
+        this.message = message
+        prompt.textContent = message(texts)
         invalidate()
     }
 
