@@ -19,7 +19,7 @@ or a camera.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`,
-  `web`, `cli`, `gui-compose`, the GPU renderer.
+  `web`, `cli`, `gui-compose`, `testing`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`,
   `:cli:jvmTest`, `:gui-compose:jvmTest`, `:web:jsTest`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
@@ -354,6 +354,10 @@ for IntelliJ IDEA's Android plugin.
     [`EglContext`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/EglContext.kt) makes.
   - [`FfmpegFeed`](gui-compose/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/FfmpegFeed.kt) reads a
     video's or the camera's frames from `ffmpeg`.
+- **[`testing`](testing)** is what the renderers' tests hold them to, for `core`'s tests, the app's
+  instrumented ones, the web page's and the desktop window's alike:
+  [`References`](testing/src/commonMain/kotlin/cz/loplex/dogvision/testing/References.kt) draws the
+  reference script's pattern, renders it with `core`, and says how far apart two images are.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
