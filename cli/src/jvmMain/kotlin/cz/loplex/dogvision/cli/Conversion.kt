@@ -1,0 +1,59 @@
+package cz.loplex.dogvision.cli
+
+import cz.loplex.dogvision.core.Image
+import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.core.compose
+import cz.loplex.dogvision.core.composedSize
+import cz.loplex.dogvision.core.meanLinearRgb
+import cz.loplex.dogvision.core.shownName
+import java.awt.image.BufferedImage
+import java.awt.image.DataBufferInt
+import java.io.File
+import java.io.IOException
+import java.io.PrintStream
+import javax.imageio.ImageIO
+import kotlin.math.roundToInt
+
+/**
+ * Where [file] converted to [view] goes, named after it and the species [view] shows: photo.jpg as photo.cat.png, or
+ * photo.horse-vs-cat.png where it shows a horse beside a cat, next to it or in [outputDir].
+ */
+fun convertedFile(file: File, view: View, outputDir: File?): File {
+    val name = file.name.substringBeforeLast('.').ifEmpty { file.name } + ".${shownName(view)}.png"
+    return File(outputDir ?: file.parentFile, name)
+}
+
+/**
+ * Converts the photo [Arguments.file] at full size to the view the arguments ask for, as the Python program does, and
+ * reports on [out] what it wrote, or on [err] why it could not; returns the exit status.
+ */
+fun convertPhoto(arguments: Arguments, out: PrintStream, err: PrintStream): Int {
+    val file = checkNotNull(arguments.file) { "No file to convert" }
+    val photo = try {
+        readPhoto(file)
+    } catch (error: IOException) {
+        err.println("Cannot read $file: ${error.message}")
+        return 1
+    }
+    if (photo == null) {
+        err.println("Cannot read $file as a photo; converting a video is not supported yet")
+        return 1
+    }
+    val view = arguments.conversionView
+    val output = convertedFile(file, view, arguments.outputDir)
+    val (width, height) = composedSize(view, photo.width, photo.height)
+    // core writes into the image's own pixels, which ImageIO then encodes without a copy.
+    val composed = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+    val pixels = (composed.raster.dataBuffer as DataBufferInt).data
+    val share = compose(photo, view, Image(width, height, pixels), { meanLinearRgb(photo) })
+    if (share != null) out.println("${(share * 100).roundToInt()}% of pixels differ noticeably")
+    try {
+        output.parentFile?.mkdirs()
+        if (!ImageIO.write(composed, "png", output)) throw IOException("no PNG writer")
+    } catch (error: IOException) {
+        err.println("Cannot write $output: ${error.message}")
+        return 1
+    }
+    out.println("Wrote $output")
+    return 0
+}
