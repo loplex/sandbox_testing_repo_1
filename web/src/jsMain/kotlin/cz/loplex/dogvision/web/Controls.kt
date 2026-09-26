@@ -118,8 +118,11 @@ class Controls(
         container.appendChild(choice)
     }
 
-    /** Sets every control to what [view] holds, and enables those that apply to it. */
-    fun show(view: View) {
+    /**
+     * Sets every control to what [view] holds, and enables those that apply to it; while [recording], not those that
+     * change how many images the view has, as in the Android app.
+     */
+    fun show(view: View, recording: Boolean = false) {
         val params = view.params
         species.value = params.species.name
         if (params.species != factsOf) showFacts(params.species)
@@ -130,10 +133,11 @@ class Controls(
         setSlider(fieldOfView, params.fieldOfView.roundToInt())
         fieldOfView.disabled = !params.acuity
         sideBySide.checked = view.sideBySide
+        sideBySide.disabled = recording
         compare.value = view.compare?.name.orEmpty()
         compare.disabled = !view.sideBySide
         difference.checked = view.difference
-        difference.disabled = !view.sideBySide
+        difference.disabled = !view.sideBySide || recording
     }
 
     /**
