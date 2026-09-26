@@ -1,28 +1,34 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// The colour model and everything else that needs no Android, so that it is tested on the JVM.
+// The colour model and everything else that needs no platform, built for the JVM, which the Android app runs it on, and
+// for JavaScript.
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    alias(libs.plugins.kotlin.multiplatform)
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_17
+    jvm {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_17
+        }
+    }
+    // A library the web page bundles; its tests run in Node.js, which needs no browser installed.
+    js {
+        nodejs()
+    }
+
+    sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+        jvmTest.dependencies {
+            implementation(project.dependencies.platform(libs.junit.bom))
+            implementation(libs.junit.jupiter)
+            runtimeOnly(libs.junit.platform.launcher)
+        }
     }
 }
 
-dependencies {
-    testImplementation(kotlin("test"))
-    testImplementation(platform(libs.junit.bom))
-    testImplementation(libs.junit.jupiter)
-    testRuntimeOnly(libs.junit.platform.launcher)
-}
-
-tasks.test {
+tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }

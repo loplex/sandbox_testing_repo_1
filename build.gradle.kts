@@ -2,8 +2,16 @@
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.compose) apply false
-    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.ktlint) apply false
+}
+
+// The Kotlin/JS modules download Node.js from the repository declared in settings.gradle.kts, which is where the build
+// declares every repository, instead of adding one of their own; the root project sets it up for them.
+allprojects {
+    plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin> {
+        the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec>().downloadBaseUrl = null
+    }
 }
 
 // Every module's Kotlin, the build scripts' included, is held to .editorconfig by ktlint in `check`.
