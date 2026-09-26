@@ -25,6 +25,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":core"))
+            api(project(":texts"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
