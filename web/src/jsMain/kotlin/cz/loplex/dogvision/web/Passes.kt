@@ -106,6 +106,9 @@ internal class Passes(private val gl: WebGL2RenderingContext) {
         if (view.sideBySide && view.difference) passes.countDifferences()
     }
 
+    /** Renders every image of [view] of the frame, counting nothing, as a recording of them needs. */
+    fun composeImages(view: View) = passes.compose(view)
+
     /** Whether a share asked for by [composeLive] has not been handed over yet. */
     val counting: Boolean get() = passes.counting
 

@@ -20,6 +20,7 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.url.URL
 import org.w3c.files.File
 import org.w3c.files.get
+import kotlin.js.Date
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -55,6 +56,8 @@ class Page(private var texts: Texts) {
     private val save = element<HTMLButtonElement>("save")
     private val cameraButton = element<HTMLButtonElement>("camera")
     private val switchButton = element<HTMLButtonElement>("switch")
+    private val recordButton = element<HTMLButtonElement>("record")
+    private val stopButton = element<HTMLButtonElement>("stop")
     private val panel = element<HTMLElement>("controls")
 
     private val gl: WebGL2RenderingContext? = canvas.getContext(
@@ -77,6 +80,11 @@ class Page(private var texts: Texts) {
 
     /** Whether the source hands over frame after frame, the camera or a video, rather than one photo. */
     private val live: Boolean get() = onCamera || feed != null
+
+    /** The recording under way, its file's name, and the timer that shows how long it has run. */
+    private var recording: Recording? = null
+    private var recordingName = ""
+    private var recordingClock = 0
 
     /** Whether a frame of the camera or the video has been uploaded since the images were composed. */
     private var newFrame = false
@@ -137,6 +145,8 @@ class Page(private var texts: Texts) {
             open.value = ""
         })
         save.addEventListener("click", { saveSnapshot() })
+        recordButton.addEventListener("click", { startRecording() })
+        stopButton.addEventListener("click", { stopRecording() })
         cameraButton.hidden = camera == null
         cameraButton.addEventListener("click", { startCamera(camera?.front ?: false) })
         switchButton.addEventListener("click", { startCamera(!(camera?.front ?: false)) })
@@ -145,6 +155,8 @@ class Page(private var texts: Texts) {
             // Started again whatever stopped it meanwhile: this page, or the system, which may end a hidden browser's
             // camera itself before the page is told it is hidden.
             if (document.asDynamic().hidden as Boolean) {
+                // As the Android app's recording stops when the app leaves the screen, and the video is saved.
+                stopRecording()
                 camera.stop()
             } else if (onCamera && !camera.running) {
                 startCamera(camera.front)
@@ -158,6 +170,8 @@ class Page(private var texts: Texts) {
         stage.addEventListener("dragover", Event::preventDefault)
         stage.addEventListener("drop", { event ->
             event.preventDefault()
+            // The source cannot change while recording, as its size would change the video's, as in the Android app.
+            if (recording != null) return@addEventListener
             event.asDynamic().dataTransfer?.files?.item(0)?.unsafeCast<File>()?.let(::openFile)
         })
         ResizeObserver { _, _ -> invalidate() }.observe(stage)
@@ -169,7 +183,13 @@ class Page(private var texts: Texts) {
         texts,
         language,
         onChange = { change ->
-            view = change(view)
+            // Reset too keeps how many images there are while recording, as in the Android app.
+            val changed = change(view)
+            view = if (recording == null) {
+                changed
+            } else {
+                changed.copy(sideBySide = view.sideBySide, difference = view.difference)
+            }
             invalidate()
         },
         onLanguage = ::switchLanguage,
@@ -182,13 +202,15 @@ class Page(private var texts: Texts) {
         element<HTMLElement>("title").textContent = texts.get("app_name")
         element<HTMLElement>("open-text").textContent = texts.get("open_media")
         save.textContent = texts.get("save_snapshot")
+        recordButton.textContent = texts.get("record")
+        stopButton.textContent = texts.get("stop_recording")
         cameraButton.textContent = texts.get("show_camera")
         switchButton.textContent = texts.get("switch_camera_short")
         switchButton.title = texts.get("switch_camera")
         prompt.textContent = message?.invoke(texts).orEmpty()
         notice.title = texts.get("close")
         showNotice(noticeText)
-        controls.show(view)
+        controls.show(view, recording != null)
     }
 
     /**
@@ -327,6 +349,7 @@ class Page(private var texts: Texts) {
     private fun showFrame(video: HTMLVideoElement, mirrored: Boolean, turned: Boolean = false) {
         val passes = passes ?: return
         if (!live || !passes.upload(video, mirrored, turned)) return
+        recording?.upload(video, mirrored, turned)
         newFrame = true
         draw()
     }
@@ -343,6 +366,58 @@ class Page(private var texts: Texts) {
         download(stitch(passes.readImages(view.images), arrangement), snapshotName(view, now())) {
             showNotice { it.get("snapshot_failed", it.get("snapshot_not_encoded")) }
         }
+    }
+
+    /**
+     * Records the view as shown from now on, until [stopRecording]: its images at the size they are composed, in the
+     * arrangement they have now, as the Android app records them.
+     */
+    private fun startRecording() {
+        val passes = passes ?: return
+        if (recording != null || !shown(passes)) return
+        val arrangement = layout(canvas.width, canvas.height, passes).arrangement
+        val started = try {
+            Recording.start(view.images, passes.frameWidth, passes.frameHeight, arrangement) { message ->
+                endRecording()
+                showNotice { it.get("recording_failed", message) }
+            }
+        } catch (error: IllegalStateException) {
+            showNotice { it.get("recording_failed", error.message.orEmpty()) }
+            return
+        }
+        photo?.let { started.upload(it.width, it.height, it.pixels) }
+        started.compose(view)
+        recording = started
+        val name = snapshotName(view, now(), extension = started.extension)
+        recordingName = name
+        val start = Date.now()
+        val showTime = {
+            val seconds = ((Date.now() - start) / 1000).toInt()
+            val time = "${seconds / 60}:" + (seconds % 60).toString().padStart(2, '0')
+            showNotice { it.get("recording", name, time) }
+        }
+        showTime()
+        recordingClock = window.setInterval(showTime, 1000)
+        invalidate()
+    }
+
+    /** Stops the recording, if one is under way, and hands the video to the browser to save once it is encoded. */
+    private fun stopRecording() {
+        val stopped = recording ?: return
+        val name = recordingName
+        endRecording()
+        showNotice { it.get("finishing", name) }
+        stopped.stop { video ->
+            download(video, name)
+            showNotice(null)
+        }
+    }
+
+    /** Forgets the recording, and unlocks what it locked. */
+    private fun endRecording() {
+        recording = null
+        window.clearInterval(recordingClock)
+        invalidate()
     }
 
     private fun showNotice(text: ((Texts) -> String)?) {
@@ -363,7 +438,7 @@ class Page(private var texts: Texts) {
         drawScheduled = true
         window.requestAnimationFrame {
             drawScheduled = false
-            controls.show(view)
+            controls.show(view, recording != null)
             draw()
         }
     }
@@ -385,12 +460,21 @@ class Page(private var texts: Texts) {
         prompt.hidden = (photo != null || live) && prompt.textContent.isNullOrEmpty()
         cameraButton.hidden = camera == null || cameraRunning
         switchButton.hidden = !cameraRunning || cameras < 2
+        // The source cannot change while recording, as its size would change the video's, as in the Android app.
+        val recording = recording != null
+        open.disabled = recording
+        cameraButton.disabled = recording
+        switchButton.disabled = recording
+        recordButton.hidden = recording || !Recording.supported
+        stopButton.hidden = !recording
         if (passes == null || !shown(passes)) {
             save.disabled = true
+            recordButton.disabled = true
             showCaptions(scale, emptyList())
             return
         }
         save.disabled = false
+        recordButton.disabled = false
         val layout = layout(width, height, passes)
         composeIfChanged(passes)
         passes.draw(layout.images, width, height)
@@ -442,11 +526,13 @@ class Page(private var texts: Texts) {
         if (!live) {
             if (view == composed) return
             share = passes.compose(view)
+            recording?.compose(view)
             composed = view
             return
         }
         if (newFrame || view != composed) {
             passes.composeLive(view)
+            recording?.compose(view)
             composed = view
             newFrame = false
         }
