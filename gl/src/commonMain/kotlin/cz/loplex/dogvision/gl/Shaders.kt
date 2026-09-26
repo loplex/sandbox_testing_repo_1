@@ -1,14 +1,15 @@
-package cz.loplex.dogvision.render
+package cz.loplex.dogvision.gl
 
 /**
- * The GLSL ES 3.00 programs of [ViewPasses].
+ * The GLSL ES 3.00 programs that render a view on the GPU, the same on every platform: OpenGL ES 3.0 on Android, and
+ * WebGL 2, which runs GLSL ES 3.00 as it is, in a browser.
  *
  * Every offscreen texture holds 8-bit sRGB, with an image's first row at t = 0, and is read with
  * texelFetch at whole pixels. A pass draws one triangle over the whole of its target, so that
  * gl_FragCoord is the pixel it writes. sRGB is decoded and encoded through the same lookup
  * tables as core's CPU pipeline, so that the two agree to the rounding of a float.
  */
-internal object Shaders {
+object Shaders {
     /** One triangle that covers the viewport; it needs no vertex data. */
     const val FULL_VIEWPORT = """#version 300 es
 void main() {
@@ -192,31 +193,6 @@ uniform sampler2D uSource;
 
 void main() {
     outColour = texelFetch(uSource, pixel() * 8, 0);
-}
-"""
-
-    /**
-     * A video's frame, from the external texture of a SurfaceTexture, scaled to the target: each
-     * pixel is the mean of uTaps x uTaps samples spread over the part of the frame it covers, so
-     * that a frame scaled down to a third of its size does not alias. The frame's first row is
-     * written to the target's first row, as a Frame holds it.
-     */
-    const val VIDEO_FRAME = """#version 300 es
-#extension GL_OES_EGL_image_external_essl3 : require
-precision highp float;
-uniform samplerExternalOES uVideo;
-uniform mat4 uTransform; // the SurfaceTexture's, from the frame upright to its buffer
-uniform vec2 uSize; // of the target
-uniform int uTaps;
-out vec4 outColour;
-
-void main() {
-    vec4 sum = vec4(0.0);
-    for (int j = 0; j < uTaps; j++) for (int i = 0; i < uTaps; i++) {
-        vec2 at = (floor(gl_FragCoord.xy) + (vec2(i, j) + 0.5) / float(uTaps)) / uSize;
-        sum += texture(uVideo, (uTransform * vec4(at.x, 1.0 - at.y, 0.0, 1.0)).xy);
-    }
-    outColour = vec4(sum.rgb / float(uTaps * uTaps), 1.0);
 }
 """
 
