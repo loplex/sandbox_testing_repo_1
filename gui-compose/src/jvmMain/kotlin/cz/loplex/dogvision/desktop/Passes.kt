@@ -4,8 +4,10 @@ import cz.loplex.dogvision.core.Box
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.gl.GL_FRAMEBUFFER
+import cz.loplex.dogvision.gl.GL_PIXEL_PACK_BUFFER
 import cz.loplex.dogvision.gl.GL_RGBA
 import cz.loplex.dogvision.gl.GL_RGBA8
+import cz.loplex.dogvision.gl.GL_STREAM_READ
 import cz.loplex.dogvision.gl.GL_TEXTURE_2D
 import cz.loplex.dogvision.gl.GL_UNSIGNED_BYTE
 import cz.loplex.dogvision.gl.Target
@@ -15,7 +17,6 @@ import org.lwjgl.opengles.GLES30.GL_COLOR_BUFFER_BIT
 import org.lwjgl.opengles.GLES30.glClear
 import org.lwjgl.opengles.GLES30.glClearColor
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * The window's rendering of a photo or a video's or a camera's frames: gl's [ViewPasses], as the Android app and the
@@ -34,7 +35,13 @@ internal class Passes(private val gl: LwjglGles) {
 
     /** The window's area, which the images are drawn into. */
     private val area = Target(gl)
-    private var areaPixels: ByteBuffer = ByteBuffer.allocateDirect(0)
+
+    /** An area drawn and being read back: the pixel pack buffer the GPU reads it into, and the fence signalled then. */
+    private class Read(val buffer: Int, val fence: Long, val width: Int, val height: Int)
+
+    /** The areas being read back, the one drawn first first, and the buffers no read uses now. */
+    private val reads = ArrayDeque<Read>()
+    private val spareBuffers = ArrayDeque<Int>()
 
     /** Makes [pixels], tightly packed RGBA of [width] x [height] with the top row first, the frame to render. */
     fun upload(width: Int, height: Int, pixels: ByteBuffer) {
@@ -75,24 +82,46 @@ internal class Passes(private val gl: LwjglGles) {
     fun readImages(count: Int): List<Image> = passes.readImages(count)
 
     /**
-     * Draws the first images composed into [boxes] of an area of [width] x [height], transparent elsewhere, and reads
-     * it back into [into], RGBA with the top row first as Skia takes it: GL reads the bottom row first.
+     * Draws the first images composed into [boxes] of an area of [width] x [height], transparent elsewhere, and starts
+     * reading it back without waiting for the GPU, which [takeArea] hands over.
      */
-    fun draw(boxes: List<Box>, width: Int, height: Int, into: ByteArray) {
-        val stride = width * 4
-        require(into.size == stride * height) { "$width x $height needs ${stride * height} bytes" }
+    fun draw(boxes: List<Box>, width: Int, height: Int) {
         area.ensure(width, height)
         gl.bindFramebuffer(GL_FRAMEBUFFER, area.framebuffer)
         gl.viewport(0, 0, width, height)
         glClearColor(0f, 0f, 0f, 0f)
         glClear(GL_COLOR_BUFFER_BIT)
         passes.draw(boxes, width, height)
-        if (areaPixels.capacity() < into.size) {
-            areaPixels = ByteBuffer.allocateDirect(into.size).order(ByteOrder.nativeOrder())
+        val buffer = spareBuffers.removeFirstOrNull() ?: gl.createBuffer()
+        gl.bindBuffer(GL_PIXEL_PACK_BUFFER, buffer)
+        gl.bufferData(GL_PIXEL_PACK_BUFFER, width * height * 4, GL_STREAM_READ)
+        gl.readPixelsIntoPackBuffer(0, 0, width, height)
+        gl.bindBuffer(GL_PIXEL_PACK_BUFFER, 0)
+        reads.addLast(Read(buffer, gl.fenceSync(), width, height))
+        gl.flush() // so that the fence reaches the GPU, and is signalled, without a buffer swap
+    }
+
+    /** How many areas drawn are still being read back. */
+    val reading: Int get() = reads.size
+
+    /**
+     * The area drawn first of those being read back, RGBA with the top row first as Skia takes it, once the GPU has
+     * read it, else null; with [wait], it waits for the GPU instead. GL reads the bottom row first.
+     */
+    fun takeArea(wait: Boolean = false): ByteArray? {
+        val read = reads.firstOrNull() ?: return null
+        if (!wait && !gl.signalled(read.fence)) return null
+        reads.removeFirst()
+        gl.deleteSync(read.fence)
+        val stride = read.width * 4
+        val pixels = ByteArray(stride * read.height)
+        gl.bindBuffer(GL_PIXEL_PACK_BUFFER, read.buffer)
+        gl.readMapped(GL_PIXEL_PACK_BUFFER, pixels.size) { mapped ->
+            for (row in 0 until read.height) mapped.get((read.height - 1 - row) * stride, pixels, row * stride, stride)
         }
-        val read = areaPixels.clear().limit(into.size)
-        gl.readPixels(0, 0, width, height, read)
-        for (row in 0 until height) read.get((height - 1 - row) * stride, into, row * stride, stride)
+        gl.bindBuffer(GL_PIXEL_PACK_BUFFER, 0)
+        spareBuffers.addLast(read.buffer)
+        return pixels
     }
 
     /** Deletes the GL objects, in the context they were made in. */
@@ -100,5 +129,12 @@ internal class Passes(private val gl: LwjglGles) {
         passes.release()
         area.release()
         gl.deleteTexture(raw)
+        for (read in reads) {
+            gl.deleteSync(read.fence)
+            gl.deleteBuffer(read.buffer)
+        }
+        reads.clear()
+        spareBuffers.forEach(gl::deleteBuffer)
+        spareBuffers.clear()
     }
 }
