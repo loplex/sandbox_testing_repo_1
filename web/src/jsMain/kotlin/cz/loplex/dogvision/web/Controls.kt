@@ -4,6 +4,7 @@ import cz.loplex.dogvision.core.ChromaScale
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.core.speciesFacts
 import kotlinx.browser.document
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLElement
@@ -32,6 +33,10 @@ class Controls(
     private val compare = select(listOf("" to texts.get("original")) + speciesOptions)
     private val difference = checkbox()
 
+    /** What is known about the species chosen, a row per fact, and the species it was built for. */
+    private val facts = document.createElement("div") as HTMLElement
+    private var factsOf: Species? = null
+
     /** The value shown beside each slider's label. */
     private val outputs = mutableMapOf<HTMLInputElement, HTMLElement>()
     private val reset = (document.createElement("button") as HTMLButtonElement).apply {
@@ -42,6 +47,9 @@ class Controls(
     init {
         section("species") {
             labelled("species", "about_species", species)
+        }
+        section("selected_species") {
+            appendChild(facts)
         }
         section("simulation") {
             labelled("adaptation", "about_adaptation", adaptation)
@@ -91,6 +99,7 @@ class Controls(
     fun show(view: View) {
         val params = view.params
         species.value = params.species.name
+        if (params.species != factsOf) showFacts(params.species)
         setSlider(adaptation, (params.adaptation * 100).roundToInt())
         setSlider(strength, (params.strength * 100).roundToInt())
         chroma.forEach { (scale, input) -> input.checked = scale == params.chromaScale }
@@ -102,6 +111,37 @@ class Controls(
         compare.disabled = !view.sideBySide
         difference.checked = view.difference
         difference.disabled = !view.sideBySide
+    }
+
+    /**
+     * Shows what is known about [species], as the Android app's Facts. A value breaks only between its pieces, unless a
+     * piece is longer than the whole line, so that a share stays with its source's opening and a citation's authors
+     * stay together.
+     */
+    private fun showFacts(species: Species) {
+        facts.innerHTML = ""
+        speciesFacts(species, FactWording(texts)).forEach { fact ->
+            val name = fact.label.name.lowercase()
+            val row = document.createElement("div") as HTMLElement
+            row.className = "row fact"
+            val label = document.createElement("span") as HTMLElement
+            label.className = "fact-label"
+            label.textContent = texts.get("fact_$name")
+            row.appendChild(label)
+            val value = document.createElement("span") as HTMLElement
+            value.className = "fact-value"
+            fact.value.forEachIndexed { i, text ->
+                if (i > 0) value.append(" ")
+                val piece = document.createElement("span") as HTMLElement
+                piece.className = "piece"
+                piece.textContent = text
+                value.appendChild(piece)
+            }
+            row.appendChild(value)
+            facts.appendChild(row)
+            facts.about(row, "about_fact_$name")
+        }
+        factsOf = species
     }
 
     /** Sets [slider] and the value shown beside its label. */

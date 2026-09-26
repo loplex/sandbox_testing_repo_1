@@ -352,7 +352,7 @@ fun InfoButton(title: String, about: Int) {
 /**
  * What is known about the species, a row per fact. A value breaks between its pieces, so that a
  * share stays with its source's opening and a citation's authors stay together; a piece wider than
- * the column on its own breaks at its spaces.
+ * the column on its own breaks at its spaces, as the web page's pieces do.
  */
 @Composable
 private fun Facts(species: Species) {
