@@ -41,7 +41,8 @@ private class Photo(val width: Int, val height: Int, val pixels: Uint8Array)
  * under the boxes [layOut] gives the images.
  *
  * The camera starts only when asked for, as the browser asks the viewer whether the page may use it. It stops while
- * the page is hidden, as the Android app's does in the background, and starts again when it is shown.
+ * the page is hidden, as the Android app's does in the background, and starts again when it is shown, if it is still
+ * the source.
  */
 class Page(private var texts: Texts) {
     private val stage = element<HTMLElement>("stage")
@@ -72,9 +73,6 @@ class Page(private var texts: Texts) {
 
     /** Whether a frame of the camera has been uploaded since the images were composed. */
     private var newFrame = false
-
-    /** Whether the camera ran when the page was hidden, to start it again when it is shown. */
-    private var resumeCamera = false
 
     private var view = View()
 
@@ -137,12 +135,12 @@ class Page(private var texts: Texts) {
         switchButton.addEventListener("click", { startCamera(!(camera?.front ?: false)) })
         document.addEventListener("visibilitychange", {
             val camera = camera ?: return@addEventListener
+            // Started again whatever stopped it meanwhile: this page, or the system, which may end a hidden browser's
+            // camera itself before the page is told it is hidden.
             if (document.asDynamic().hidden as Boolean) {
-                resumeCamera = onCamera && camera.running
                 camera.stop()
-            } else if (resumeCamera) {
-                resumeCamera = false
-                if (onCamera) startCamera(camera.front)
+            } else if (onCamera && !camera.running) {
+                startCamera(camera.front)
             }
         })
         notice.addEventListener("click", { showNotice(null) })
