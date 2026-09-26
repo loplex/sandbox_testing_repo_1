@@ -40,3 +40,16 @@ kotlin {
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }
+
+// One JAR with core and the Kotlin standard library in it, which `java -jar` runs alone on a JDK 17 or newer.
+tasks.register<Jar>("uberJar") {
+    description = "Assembles build/jars/dog-vision-cli.jar, the command line with everything it needs."
+    group = "distribution"
+    archiveFileName = "dog-vision-cli.jar"
+    destinationDirectory = layout.buildDirectory.dir("jars")
+    manifest { attributes("Main-Class" to "cz.loplex.dogvision.cli.MainKt") }
+    from(tasks.named<Jar>("jvmJar").map { zipTree(it.archiveFile) })
+    from(configurations.named("jvmRuntimeClasspath").map { classpath -> classpath.map { zipTree(it) } })
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/module-info.class")
+}
