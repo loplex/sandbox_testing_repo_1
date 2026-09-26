@@ -17,7 +17,7 @@ photo, a video or a camera.
 - [How it differs from the desktop program](#how-it-differs-from-the-desktop-program) — what
   works the Android way.
 - [The model](#the-model) — where the explanation of the simulation lives.
-- [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
+- [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`, the desktop packages.
 - [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `texts`, `ui`, `android`,
   `web`, `cli`, `gui-compose`, `testing`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`, `:texts:allTests`,
@@ -264,7 +264,9 @@ java -jar cli/build/jars/dog-vision-cli.jar --species cat --compare dog photo.jp
 - **Each JAR holds everything the window needs**, the natives for its system on x86-64 included,
   and runs as `java -jar dog-vision-linux-x64-0.1.0.jar` with the same options.
 - **The Windows JAR is built on any machine**, Linux included, with Windows's natives and ANGLE in
-  place of this machine's; an installer, which jpackage builds only on Windows, is not made.
+  place of this machine's.
+- **Packages with a runtime of their own** are made as [The desktop packages](#the-desktop-packages)
+  says.
 
 It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
 program's.
@@ -304,6 +306,42 @@ program's.
 - **q or Escape closes it**, as it closes the desktop program's window.
 - **It has no menus, no settings, no snapshots and no recording yet.**
 
+### The desktop packages
+
+```sh
+./gradlew :gui-compose:packageDeb    # gui-compose/build/compose/binaries/main/deb/dog-vision_0.1.0_amd64.deb
+./gradlew :gui-compose:packageRpm    # gui-compose/build/compose/binaries/main/rpm/dog-vision-0.1.0-1.x86_64.rpm
+./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
+tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's jmods> --wix <WiX 3.14>
+                                     # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
+```
+
+- **Each brings a runtime of its own**, a JDK 25 that jlink cuts down to the modules the window
+  uses, so a video or the camera needs only ffmpeg besides.
+- **Each has two launchers**:
+  - `dog-vision`, the window, which converts a photo given alone as the command line does;
+  - `dog-vision-cli`, the command line alone, which prints its usage rather than open the window,
+    and on Windows runs in a console.
+- **The deb and the rpm install into `/opt/dog-vision`**, with the launchers in its `bin`, and add
+  the window to the desktop's menu under Graphics.
+- **The tar.gz is the same application unpacked**, to run as `dog-vision/bin/dog-vision` without
+  installing it.
+- **The deb and the rpm depend on neither ffmpeg nor libEGL**: jpackage lists the libraries the
+  image links against, and LWJGL opens libEGL only once it runs.
+- **The MSI is built on Linux under Wine**, as jpackage builds an installer only on the system it
+  is for. It installs into `Program Files\dog-vision` and adds both launchers to the Start menu, in
+  a dog-vision group, and to the desktop. It carries a fixed upgrade code, so that a later version's
+  MSI replaces it.
+  - **Wine needs three detours**, which
+    [`tools/package_msi_on_linux.sh`](tools/package_msi_on_linux.sh) describes and takes: jpackage
+    from a JDK 17 with the runtime linked on Linux, WiX's light run a second time without validating
+    the MSI, and Microsoft's .NET Framework 4.8 in the prefix.
+  - **The MSI's code page is Windows-1250**, from
+    [`gui-compose/packaging/windows`](gui-compose/packaging/windows/MsiInstallerStrings_en.wxl), as the
+    vendor's name has a ř that jpackage's Windows-1252 lacks.
+  - **The Start menu and the desktop get `dog-vision-cli` as well**, which started from there only
+    prints its usage: JDK 17's jpackage cannot leave one launcher out.
+
 ### Caveat: the Windows window is tried under Wine
 
 Under Wine 11.18 on Linux, with a Windows JDK 21 and the Windows build of ffmpeg, it was tried with
@@ -315,6 +353,12 @@ switched off, and the command line.
   `winetricks d3dcompiler_47` installs into a Wine prefix, links it.
 - **ANGLE's Direct3D 11 runs on Wine's translation to OpenGL** there, not on a Windows driver, so
   what Wine shows is the code and ANGLE, not the drivers people have.
+- **The MSI was installed and removed under Wine too**, and its window played a video and its
+  command line wrote the same PNG as Linux's.
+- **Installing it under Wine writes into the home**: Wine turns the Start menu's and the desktop's
+  shortcuts into the Linux desktop's (`~/.local/share/applications/wine`, `~/Desktop`) unless
+  `WINEDLLOVERRIDES=winemenubuilder.exe=d` is set, and the prefix's Desktop, Documents and other
+  folders link into the home unless `winetricks sandbox` removed the links.
 
 ### Caveat: the libraries wait for a stable SDK 37
 
