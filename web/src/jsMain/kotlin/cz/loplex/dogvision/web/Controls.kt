@@ -100,7 +100,7 @@ class Controls(
 
         // Each language named in itself, as the Android app's LanguageChoice names them.
         val languages = listOf("" to texts.get("browser_language")) +
-            Texts.LANGUAGES.map { it to Texts.LANGUAGE_NAMES.getValue(it) }
+            Texts.LANGUAGES.map { it to Texts.languageName(it) }
         val languageChoice = select(languages)
         languageChoice.value = language.orEmpty()
         languageChoice.onChange { onLanguage(languageChoice.value.takeIf(String::isNotEmpty)) }
