@@ -162,4 +162,7 @@
     <string name="camera_refused">The camera shows the scene as the chosen animal sees it. To see the live view, allow the page to use it in the browser, and the browser to use it in the device\'s settings.</string>
     <string name="camera_none">the browser finds no camera</string>
     <string name="camera_busy">another app may be using it, or the system does not let the browser start it</string>
+
+    <!-- What only the desktop window says -->
+    <string name="draw_failed">Cannot draw the view: %1$s</string>
 </resources>
