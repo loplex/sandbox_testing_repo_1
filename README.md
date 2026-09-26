@@ -182,6 +182,9 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 - **Open a photo or a video opens either**, as does dropping one on the images.
   - **A video plays over and over without its sound**, scaled down to 1280 pixels as a photo is,
     turned as its file says, and paused while the page is hidden.
+  - **Firefox 156 on Android draws a video into a 2D canvas blank**, where the page turns and
+    scales it for every other browser: there the page reads the turn from the MP4's track header,
+    and scales the frame down bilinearly on the GPU.
   - **What plays is what the browser decodes**: its codecs, and its own tone mapping of an HDR
     video.
 - **Camera starts the camera** when clicked, and the browser asks first whether the page may use
@@ -291,12 +294,14 @@ for IntelliJ IDEA's Android plugin.
     WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's; the share
     of differing pixels counted without waiting, as the camera's is, to the share counted at once;
     and a video's frame, as the camera's are, to its canvas, as it is and mirrored, and scaled down
-    as a photo is when it is larger.
+    as a photo is when it is larger, or as its file stores it, scaled and turned by the passes.
     Chrome renders WebGL 2 there in software, with SwiftShader, as
     [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
     machine's GPU.
     `./gradlew :web:jsTest -PwebTestsOnGpu` runs them on the GPU instead, through ANGLE on Vulkan,
     which needs a GPU and a driver Chrome can use Vulkan with.
+  - [`Mp4Test`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/Mp4Test.kt) reads each quarter turn
+    of an MP4's video track, with the movie box after the media as a phone writes it.
   - [`GlConstantsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/GlConstantsTest.kt) holds
     `gl`'s values of the GL enums to WebGL 2's.
   - [`TextsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/TextsTest.kt) holds the page's

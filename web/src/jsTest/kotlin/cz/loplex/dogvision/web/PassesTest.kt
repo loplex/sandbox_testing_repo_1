@@ -232,6 +232,47 @@ class PassesTest {
     }
 
     /**
+     * Where the browser draws no video into a 2D canvas, a frame is uploaded as its file stores it, scaled down on the
+     * GPU and turned by the passes: red on the left and blue on the right, turned clockwise, is red above and blue
+     * below.
+     */
+    @Test
+    fun aVideoFrameAsStoredIsScaledAndTurnedByThePasses(): Promise<Unit> {
+        val source = document.createElement("canvas") as HTMLCanvasElement
+        source.width = 64
+        source.height = 32
+        val context = source.getContext("2d").unsafeCast<CanvasRenderingContext2D>()
+        fun paint() {
+            context.fillStyle = "rgb(200, 10, 10)"
+            context.fillRect(0.0, 0.0, 32.0, 32.0)
+            context.fillStyle = "rgb(10, 10, 200)"
+            context.fillRect(32.0, 0.0, 32.0, 32.0)
+        }
+        fun ends(video: HTMLVideoElement, rotation: Int, scale: Double): List<String> {
+            passes.uploadStored(video, 64, 32, rotation, scale, mirrored = false)
+            passes.compose(View())
+            val image = passes.readImages(1).single()
+            val quarter = rotation % 180 != 0
+            val (width, height) = (64 * scale).toInt() to (32 * scale).toInt()
+            assertEquals(if (quarter) height to width else width to height, image.width to image.height)
+            // The first and the last eighth along the side the halves now lie on.
+            val points = if (quarter) {
+                listOf(image.width / 2 to image.height / 8, image.width / 2 to image.height * 7 / 8)
+            } else {
+                listOf(image.width / 8 to image.height / 2, image.width * 7 / 8 to image.height / 2)
+            }
+            return points.map { (x, y) -> colour(image[x, y]) }
+        }
+        return atAFrame(source, ::paint) { video ->
+            assertEquals(listOf(RED, BLUE), ends(video, rotation = 0, scale = 1.0), "as stored")
+            assertEquals(listOf(RED, BLUE), ends(video, rotation = 90, scale = 1.0), "turned clockwise")
+            assertEquals(listOf(BLUE, RED), ends(video, rotation = 180, scale = 1.0), "turned half round")
+            assertEquals(listOf(BLUE, RED), ends(video, rotation = 270, scale = 1.0), "turned anticlockwise")
+            assertEquals(listOf(RED, BLUE), ends(video, rotation = 90, scale = 0.5), "scaled and turned")
+        }
+    }
+
+    /**
      * Plays a video of [source], which [paint] paints again for each frame, and hands it to [check] at a frame; a frame
      * [check] fails on is followed by the next, up to [FRAMES_TRIED], and the last failure fails the test. The first
      * frame a video of a canvas hands over may not be one the GPU reads yet: once, on ChromeHeadless under load,
@@ -283,14 +324,14 @@ class PassesTest {
         passes.compose(View())
         val original = passes.readImages(1).single()
         assertEquals(64 to 32, original.width to original.height)
-        return listOf(8, 56).map { x ->
-            val pixel = original[x, 16]
-            when {
-                abs(red(pixel) - 200) <= VIDEO_TOLERANCE && abs(blue(pixel) - 10) <= VIDEO_TOLERANCE -> RED
-                abs(red(pixel) - 10) <= VIDEO_TOLERANCE && abs(blue(pixel) - 200) <= VIDEO_TOLERANCE -> BLUE
-                else -> "rgb(${red(pixel)}, ${green(pixel)}, ${blue(pixel)})"
-            }
-        }
+        return listOf(8, 56).map { x -> colour(original[x, 16]) }
+    }
+
+    /** [pixel] named as the red or the blue a video of the test's canvas carries, or its values. */
+    private fun colour(pixel: Int) = when {
+        abs(red(pixel) - 200) <= VIDEO_TOLERANCE && abs(blue(pixel) - 10) <= VIDEO_TOLERANCE -> RED
+        abs(red(pixel) - 10) <= VIDEO_TOLERANCE && abs(blue(pixel) - 200) <= VIDEO_TOLERANCE -> BLUE
+        else -> "rgb(${red(pixel)}, ${green(pixel)}, ${blue(pixel)})"
     }
 
     private companion object {

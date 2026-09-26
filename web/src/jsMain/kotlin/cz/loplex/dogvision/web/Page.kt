@@ -258,7 +258,7 @@ class Page(private var texts: Texts) {
         lateinit var opened: VideoFeed
         opened = VideoFeed(
             file,
-            onFrame = { video -> if (feed === opened) showFrame(video, mirrored = false, turned = true) },
+            onFrame = { video -> if (feed === opened) showFrame(video, mirrored = false, opened.rotation) },
             onReady = {
                 ready = true
                 closeLive()
@@ -346,10 +346,10 @@ class Page(private var texts: Texts) {
      * Uploads the camera's or the video's frame in [video] and draws it at once, in the browser's rendering of this
      * frame.
      */
-    private fun showFrame(video: HTMLVideoElement, mirrored: Boolean, turned: Boolean = false) {
+    private fun showFrame(video: HTMLVideoElement, mirrored: Boolean, rotation: Int = 0) {
         val passes = passes ?: return
-        if (!live || !passes.upload(video, mirrored, turned)) return
-        recording?.upload(video, mirrored, turned)
+        if (!live || !passes.upload(video, mirrored, rotation)) return
+        recording?.upload(video, mirrored, rotation)
         newFrame = true
         draw()
     }
