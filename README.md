@@ -277,6 +277,8 @@ for IntelliJ IDEA's Android plugin.
     Chrome renders WebGL 2 there in software, with SwiftShader, as
     [`karma.config.d/webgl.js`](web/karma.config.d/webgl.js) tells it to, so it does not test the
     machine's GPU.
+    `./gradlew :web:jsTest -PwebTestsOnGpu` runs them on the GPU instead, through ANGLE on Vulkan,
+    which needs a GPU and a driver Chrome can use Vulkan with.
   - [`Mp4Test`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/Mp4Test.kt) reads each quarter turn
     of an MP4's video track, with the movie box after the media as a phone writes it.
   - [`GlConstantsTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/GlConstantsTest.kt) holds
