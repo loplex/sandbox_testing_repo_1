@@ -16,11 +16,15 @@ import kotlin.math.roundToInt
 /**
  * The controls of the view, in the sections and ranges of the Android app's panel, built into [container]. Each
  * change is handed to [onChange] as a function of the view; [show] sets every control to what a view holds.
+ *
+ * The language chooser at the end shows [language], null for the browser's, and hands a choice to [onLanguage].
  */
 class Controls(
     private val container: HTMLElement,
     private val texts: Texts,
+    language: String?,
     private val onChange: ((View) -> View) -> Unit,
+    onLanguage: (String?) -> Unit,
 ) {
     private val speciesOptions = Species.entries.map { it.name to texts.speciesLabel(it) }
     private val species = select(speciesOptions)
@@ -93,6 +97,25 @@ class Controls(
         }
         difference.onChange { onChange { it.copy(difference = difference.checked) } }
         reset.addEventListener("click", { onChange { View() } })
+
+        // Each language named in itself, as the Android app's LanguageChoice names them.
+        val languages = listOf("" to texts.get("browser_language")) +
+            Texts.LANGUAGES.map { it to Texts.LANGUAGE_NAMES.getValue(it) }
+        val languageChoice = select(languages)
+        languageChoice.value = language.orEmpty()
+        languageChoice.onChange { onLanguage(languageChoice.value.takeIf(String::isNotEmpty)) }
+        val choice = document.createElement("div") as HTMLElement
+        choice.className = "language"
+        val row = document.createElement("div") as HTMLElement
+        row.className = "row"
+        val label = document.createElement("label") as HTMLElement
+        languageChoice.id = "control-language"
+        label.setAttribute("for", languageChoice.id)
+        label.textContent = texts.get("language")
+        row.appendChild(label)
+        choice.appendChild(row)
+        choice.appendChild(languageChoice)
+        container.appendChild(choice)
     }
 
     /** Sets every control to what [view] holds, and enables those that apply to it. */
