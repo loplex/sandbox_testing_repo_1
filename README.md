@@ -236,7 +236,7 @@ for IntelliJ IDEA's Android plugin.
   ported from its pytest suite, and a comparison with what the desktop program computes.
 - `./gradlew :core:allTests` runs them, and in Node.js as well the tests in
   [`commonTest`](core/src/commonTest/kotlin/cz/loplex/dogvision/core), which hold the JVM and
-  JavaScript to rounding a fact's number alike.
+  JavaScript to rounding a fact's number and naming a snapshot alike.
 - `./gradlew :web:jsTest` runs the page's tests in headless Chrome:
   - [`PassesTest`](web/src/jsTest/kotlin/cz/loplex/dogvision/web/PassesTest.kt) holds the page's
     WebGL 2 passes to `core`'s CPU pipeline, as `ViewRendererTest` below holds the app's.

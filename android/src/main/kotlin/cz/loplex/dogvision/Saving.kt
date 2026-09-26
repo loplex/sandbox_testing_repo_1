@@ -10,16 +10,14 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.graphics.createBitmap
 import cz.loplex.dogvision.core.Arrangement
+import cz.loplex.dogvision.core.ClockTime
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.PixelSink
 import cz.loplex.dogvision.core.PixelSource
-import cz.loplex.dogvision.core.View
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.LocalDateTime
 
 /** The folder under Pictures and Movies that what the app saves goes to. */
 const val APP_FOLDER = "Dog vision"
@@ -37,18 +35,8 @@ enum class Gallery(val mimeType: String, val directory: String, val collection: 
 /** Whether saving to the gallery needs the storage permission, as it does before Android 10. */
 val savingNeedsPermission: Boolean get() = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
 
-/**
- * A name for a snapshot of [view] taken now, as the desktop window names it: dog-cat-20260925-105600.png,
- * with [suffix] before the [extension].
- *
- * A photo or a video converted at full size is named so too, with the suffix "-full", not after the
- * original as the desktop window names it: the system photo picker hides a file's name.
- */
-fun snapshotName(view: View, suffix: String = "", extension: String = "png", now: Date = Date()): String {
-    val shown = view.compare?.takeIf { view.sideBySide }?.let { "${it.id}-vs-${view.params.species.id}" }
-        ?: view.params.species.id
-    return "dog-$shown-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(now)}$suffix.$extension"
-}
+/** The time on the local clock now, which names what is saved. */
+fun now(): ClockTime = LocalDateTime.now().run { ClockTime(year, monthValue, dayOfMonth, hour, minute, second) }
 
 /** The images of a view put together as it shows them, side by side or one above another. */
 fun stitch(images: List<Image>, arrangement: Arrangement): Bitmap {
