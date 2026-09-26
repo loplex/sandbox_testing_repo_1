@@ -45,7 +45,9 @@ internal class Camera(
         val generation = generation
         val facing = if (front) "user" else "environment"
         val constraints = js("({ audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } })")
-        // Asked for as the Android app asks for its frames, 1280 x 720, whichever camera it gets.
+        // Asked for as the Android app asks for its frames, 1280 x 720, whichever camera it gets, at a size the camera
+        // itself has: Firefox 156 on Android, held upright, crops 1280 x 720 turned to the middle 720 x 720 otherwise.
+        constraints.video.resizeMode = "none"
         constraints.video.facingMode = facing
         window.navigator.mediaDevices.getUserMedia(constraints).then(
             onFulfilled = { stream ->
