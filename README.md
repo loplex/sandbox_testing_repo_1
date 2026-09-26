@@ -1,14 +1,15 @@
-# dog-vision for Android
+# dog-vision
 
-*The phone's camera, a photo or a video, shown with the colours a dog — or another animal — can tell apart.*
+*A camera, a photo or a video, shown with the colours a dog — or another animal — can tell apart.*
 
-This is the Android version of [dog-vision](https://github.com/loplex/dog-vision-python), a desktop program in Python.\
-Its README explains the model and the science behind it.
+This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-python), a desktop program in Python, as an Android app.\
+Its README explains the model and the science behind it.\
+A [web page](#the-web-page) shows a photo the same way in a browser.
 
 - [Using the app](#using-the-app) — the camera, a photo or a video, the controls, saving, recording, the language.
 - [The model](#the-model) — where the explanation of the simulation lives.
 - [Building it](#building-it) — the JDK, the Android SDK, `./gradlew`.
-- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `android`, the GPU renderer.
+- [How the code is laid out](#how-the-code-is-laid-out) — `core`, `gl`, `android`, `web`, the GPU renderer.
 - [Checking it](#checking-it) — `check`, `:core:jvmTest`, `:core:allTests`,
   `:android:connectedDebugAndroidTest`, `:android:lintDebug`, `ktlintFormat`,
   `tools/check_links.py`, `tools/reference_values.py`, `tools/make_test_videos.sh`.
@@ -129,6 +130,17 @@ The build needs:
 
 The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 
+### The web page
+
+```sh
+./gradlew :web:jsBrowserDevelopmentRun   # serves the page; with -t, builds it again on every change
+./gradlew :web:jsBrowserDistribution     # web/build/dist/js/productionExecutable
+```
+
+- **The built `index.html` opens as it is**, from the folder or from any static server:
+  the page fetches nothing, and its wording is compiled into `dog-vision.js`.
+- **The browser needs WebGL 2**; without it the page says so.
+
 ### Caveat: the libraries wait for a stable SDK 37
 
 The Compose BOM stays at 2026.06.01, `androidx.core` at 1.18 and `lifecycle` at 2.10, and the app targets API 36:
@@ -147,6 +159,11 @@ beside one that AGP is not the newest, which stays at 9.1.1 for IntelliJ IDEA's 
   OpenGL ES 3.0 runs them on Android, and WebGL 2 runs GLSL ES 3.00 as it is.
 - **[`android`](android)** is the Android app:
   the camera, the photos and videos, the GPU renderer, saving, recording, and the Compose screens.
+- **[`web`](web)** is a page for a browser, in Kotlin/JS:
+  a photo shown with the app's controls, and no camera, video, saving or species' facts.
+  - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with `gl`'s shaders in WebGL 2, as `ViewPasses` does on Android.
+  - Its wording is the app's string resources, which the build compiles into the page,
+    in the browser's language if the app speaks it and in English otherwise.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -213,5 +230,5 @@ Its docstring says how to run it; the tests fail when `core` stops matching them
 
 ## License
 
-dog-vision for Android is free software under the GNU General Public License,
+This port of dog-vision is free software under the GNU General Public License,
 version 3 or any later version (`GPL-3.0-or-later`); the full text is in [`LICENSE`](LICENSE).
