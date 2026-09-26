@@ -17,10 +17,10 @@ class Texts private constructor(
     private val plurals: Map<Plural, Map<String, String>>,
 ) {
     /** The string [key], with each %1$s, %2$d and so on replaced by [args] and %% by %, as Android's getString. */
-    fun get(key: Str, vararg args: Any): String = format(strings.getValue(key), args)
+    fun get(key: Str, vararg args: Any?): String = format(strings.getValue(key), args)
 
     /** The plural [key] for [count], its quantity as the language's plural rules choose it, as getQuantityString. */
-    fun plural(key: Plural, count: Int, vararg args: Any): String {
+    fun plural(key: Plural, count: Int, vararg args: Any?): String {
         val quantities = plurals.getValue(key)
         return format(quantities[pluralCategory(language, count)] ?: quantities.getValue("other"), args)
     }
@@ -103,7 +103,7 @@ class Texts private constructor(
         }
 
         /** [template] with its placeholders replaced by [args]; without args, as it stands, as getString gives it. */
-        private fun format(template: String, args: Array<out Any>): String {
+        private fun format(template: String, args: Array<out Any?>): String {
             if (args.isEmpty()) return template
             return PLACEHOLDER.replace(template) { match ->
                 val index = match.groupValues[1]
