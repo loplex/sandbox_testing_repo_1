@@ -41,8 +41,39 @@ class Texts(val language: String, private val strings: Map<String, String>) {
         /** The languages there are strings for, the first the one a string missing from another is taken from. */
         val LANGUAGES = listOf("en") + (ANDROID_STRINGS.keys - "en").sorted()
 
+        /** Each language the page speaks, named in itself, as the Android app's language choice names them. */
+        val LANGUAGE_NAMES = mapOf("en" to "English", "cs" to "Čeština")
+
+        /** Where the browser remembers the language chosen. */
+        private const val LANGUAGE_KEY = "language"
+
+        /**
+         * The language the viewer chose, remembered by this browser, or null to follow the browser's languages. Where
+         * storage is blocked, a choice lasts as long as the page is open.
+         */
+        var chosenLanguage: String?
+            get() = try {
+                window.localStorage.getItem(LANGUAGE_KEY)?.takeIf { it in LANGUAGES }
+            } catch (_: dynamic) {
+                null
+            }
+            set(value) {
+                try {
+                    if (value == null) {
+                        window.localStorage.removeItem(LANGUAGE_KEY)
+                    } else {
+                        window.localStorage.setItem(LANGUAGE_KEY, value)
+                    }
+                } catch (_: dynamic) {
+                    // Storage blocked, as in some private windows: the choice is not remembered.
+                }
+            }
+
+        /** The language chosen, else the browser's. */
+        fun preferredLanguage(): String = chosenLanguage ?: browserLanguage()
+
         /** The first of the browser's languages there are strings for, or English. */
-        fun preferredLanguage(): String = window.navigator.languages.asList()
+        fun browserLanguage(): String = window.navigator.languages.asList()
             .map { it.substringBefore('-').lowercase() }
             .firstOrNull { it in LANGUAGES } ?: LANGUAGES.first()
 
@@ -134,6 +165,7 @@ private val WEB_TEXTS = mapOf(
         "no_webgl2" to "This browser cannot draw the view: it has no WebGL 2.",
         "gl_failed" to "This browser cannot draw the view: %1\$s",
         "snapshot_not_encoded" to "the browser cannot encode it as PNG",
+        "browser_language" to "As the browser",
     ),
     "cs" to mapOf(
         "open_photo" to "Otevřít fotku",
@@ -142,5 +174,6 @@ private val WEB_TEXTS = mapOf(
         "no_webgl2" to "Tento prohlížeč neumí zobrazení vykreslit, protože nepodporuje WebGL 2.",
         "gl_failed" to "Tento prohlížeč neumí zobrazení vykreslit: %1\$s",
         "snapshot_not_encoded" to "prohlížeč ho neumí převést do PNG",
+        "browser_language" to "Podle prohlížeče",
     ),
 )
