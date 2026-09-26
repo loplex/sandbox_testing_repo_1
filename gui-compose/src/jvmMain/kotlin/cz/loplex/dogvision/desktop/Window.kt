@@ -280,6 +280,9 @@ private fun startFeed(source: Source, renderer: Renderer, onFailure: (Failure) -
                     { reason -> onFailure { it.get(Str.CAMERA_FAILED, reason) } },
                 )
             }
+        } catch (error: FfmpegMissing) {
+            onFailure { it.get(Str.FFMPEG_MISSING, error.program) }
+            null
         } catch (error: IOException) {
             val reason = error.message.orEmpty()
             onFailure { texts ->
