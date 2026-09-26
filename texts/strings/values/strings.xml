@@ -184,6 +184,7 @@
     <string name="usage_option_window">shows the file in the window instead of converting it</string>
     <string name="usage_option_camera">the camera the window shows, /dev/videoN (default %1$s)</string>
     <string name="usage_option_output_dir">writes a converted file there instead of next to its original</string>
+    <string name="usage_option_gl">how the window draws on Windows: angle, or wgl (default angle, and wgl where it cannot start)</string>
     <string name="usage_option_help">shows this and exits</string>
     <string name="usage_species">species:</string>
     <string name="usage_error">dog-vision: error: %1$s</string>
@@ -197,6 +198,7 @@
     <string name="usage_not_share">%1$s: %2$s is not between 0 and 1</string>
     <string name="usage_not_angle">%1$s: %2$s is not an angle</string>
     <string name="usage_not_camera">%1$s: %2$s is not a camera\'s number</string>
+    <string name="usage_not_gl">%1$s: %2$s is neither angle nor wgl</string>
     <string name="photo_unreadable">Cannot read %1$s: %2$s</string>
     <string name="photo_not_photo">Cannot read %1$s as a photo; converting a video is not supported yet</string>
     <string name="photo_unwritable">Cannot write %1$s: %2$s</string>

@@ -17,18 +17,22 @@ import org.lwjgl.egl.EGL12.EGL_OPENGL_ES_API
 import org.lwjgl.egl.EGL12.EGL_RENDERABLE_TYPE
 import org.lwjgl.egl.EGL12.eglBindAPI
 import org.lwjgl.egl.EGL14.EGL_DEFAULT_DISPLAY
+import org.lwjgl.egl.EGL14.EGL_OPENGL_API
+import org.lwjgl.egl.EGL14.EGL_OPENGL_BIT
 import org.lwjgl.egl.EGL15.EGL_CONTEXT_MAJOR_VERSION
 import org.lwjgl.egl.EGL15.EGL_CONTEXT_MINOR_VERSION
+import org.lwjgl.egl.EGL15.EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT
+import org.lwjgl.egl.EGL15.EGL_CONTEXT_OPENGL_PROFILE_MASK
 import org.lwjgl.egl.EGL15.EGL_OPENGL_ES3_BIT
 import org.lwjgl.egl.EXTDeviceDRMRenderNode.EGL_DRM_RENDER_NODE_FILE_EXT
 import org.lwjgl.egl.EXTDeviceEnumeration.eglQueryDevicesEXT
 import org.lwjgl.egl.EXTDeviceQuery.eglQueryDeviceStringEXT
 import org.lwjgl.egl.EXTPlatformBase.eglGetPlatformDisplayEXT
 import org.lwjgl.egl.EXTPlatformDevice.EGL_PLATFORM_DEVICE_EXT
+import org.lwjgl.opengl.GL
+import org.lwjgl.opengl.GL33C
 import org.lwjgl.opengles.GLES
-import org.lwjgl.opengles.GLES20.GL_RENDERER
-import org.lwjgl.opengles.GLES20.GL_VERSION
-import org.lwjgl.opengles.GLES20.glGetString
+import org.lwjgl.opengles.GLES20
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack
 import java.io.IOException
@@ -39,11 +43,43 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 /**
- * An OpenGL ES 3.0 context through EGL on the [display] given, with no surface, current on the thread that makes it.
+ * An OpenGL ES 3.0 context through EGL on the [display] given, with no surface, current on the thread that makes it;
+ * or, for the tests of [LwjglGl] on Linux, a desktop OpenGL 3.3 core context, which Windows's WGL gives.
  *
- * Throws IllegalStateException where the display, EGL or an ES 3 context is missing.
+ * Throws IllegalStateException where the display, EGL or the context asked for is missing.
  */
-class EglContext private constructor(private val display: Long) : GlContext {
+class EglContext private constructor(private val display: Long, private val api: Api = Api.ES) : GlContext {
+    /** An API EGL makes a context for: what to bind and ask for, and how LWJGL reads its strings. */
+    enum class Api(
+        val title: String,
+        val eglApi: Int,
+        val renderable: Int,
+        val contextAttributes: IntArray,
+        val getString: (Int) -> String?,
+    ) {
+        ES(
+            "OpenGL ES 3.0",
+            EGL_OPENGL_ES_API,
+            EGL_OPENGL_ES3_BIT,
+            intArrayOf(EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 0),
+            GLES20::glGetString,
+        ),
+        DESKTOP(
+            "OpenGL 3.3 core",
+            EGL_OPENGL_API,
+            EGL_OPENGL_BIT,
+            intArrayOf(
+                EGL_CONTEXT_MAJOR_VERSION,
+                3,
+                EGL_CONTEXT_MINOR_VERSION,
+                3,
+                EGL_CONTEXT_OPENGL_PROFILE_MASK,
+                EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+            ),
+            GL33C::glGetString,
+        ),
+    }
+
     private val context: Long
 
     override val renderer: String
@@ -55,27 +91,38 @@ class EglContext private constructor(private val display: Long) : GlContext {
             val major = stack.mallocInt(1)
             val minor = stack.mallocInt(1)
             check(eglInitialize(display, major, minor)) { "Cannot initialise EGL (error 0x${eglError()})" }
-            check(eglBindAPI(EGL_OPENGL_ES_API)) { "EGL has no OpenGL ES (error 0x${eglError()})" }
+            check(eglBindAPI(api.eglApi)) { "EGL has no ${api.title} (error 0x${eglError()})" }
             // No surface of any kind is asked for, as none is drawn into.
-            val attributes = stack.ints(EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_SURFACE_TYPE, 0, EGL_NONE)
+            val attributes = stack.ints(EGL_RENDERABLE_TYPE, api.renderable, EGL_SURFACE_TYPE, 0, EGL_NONE)
             val configs = stack.mallocPointer(1)
             val count = stack.mallocInt(1)
             check(eglChooseConfig(display, attributes, configs, count) && count[0] > 0) {
-                "EGL has no configuration for OpenGL ES 3 (error 0x${eglError()})"
+                "EGL has no configuration for ${api.title} (error 0x${eglError()})"
             }
-            val version = stack.ints(EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 0, EGL_NONE)
+            val version = stack.ints(*api.contextAttributes, EGL_NONE)
             context = eglCreateContext(display, configs[0], EGL_NO_CONTEXT, version)
-            check(context != EGL_NO_CONTEXT) { "Cannot make an OpenGL ES 3.0 context (error 0x${eglError()})" }
+            check(context != EGL_NO_CONTEXT) { "Cannot make an ${api.title} context (error 0x${eglError()})" }
         }
         check(eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context)) {
-            "Cannot make the OpenGL ES context current (error 0x${eglError()})"
+            "Cannot make the ${api.title} context current (error 0x${eglError()})"
         }
-        GLES.createCapabilities()
-        renderer = glGetString(GL_RENDERER).orEmpty()
-        version = glGetString(GL_VERSION).orEmpty()
+        when (api) {
+            Api.ES -> GLES.createCapabilities()
+
+            Api.DESKTOP -> {
+                // Desktop GL's functions come through EGL here, not through GLX, which LWJGL asks on Linux otherwise.
+                Configuration.OPENGL_CONTEXT_API.set("EGL")
+                GL.createCapabilities()
+            }
+        }
+        renderer = api.getString(GLES20.GL_RENDERER).orEmpty()
+        version = api.getString(GLES20.GL_VERSION).orEmpty()
     }
 
-    override val gl = LwjglGles()
+    override val gl: DesktopGl = when (api) {
+        Api.ES -> LwjglGles()
+        Api.DESKTOP -> LwjglGl()
+    }
 
     /**
      * Whether GL renders in software, on the CPU, as Mesa's llvmpipe and softpipe do, and Direct3D's WARP, which ANGLE
@@ -86,7 +133,10 @@ class EglContext private constructor(private val display: Long) : GlContext {
 
     override fun close() {
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)
-        GLES.setCapabilities(null)
+        when (api) {
+            Api.ES -> GLES.setCapabilities(null)
+            Api.DESKTOP -> GL.setCapabilities(null)
+        }
         eglDestroyContext(display, context)
         eglTerminate(display)
     }
@@ -105,8 +155,8 @@ class EglContext private constructor(private val display: Long) : GlContext {
          * it: the platform takes a null native display, which LWJGL's binding refuses. Where no device has a render
          * node, the context is the first device's, and [software] says so.
          */
-        fun onDevice(): EglContext =
-            EglContext(eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, device(), null as IntBuffer?))
+        fun onDevice(api: Api = Api.ES): EglContext =
+            EglContext(eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, device(), null as IntBuffer?), api)
 
         /**
          * A context through ANGLE, which runs OpenGL ES over Direct3D 11, as on Windows, where no system EGL gives ES.
