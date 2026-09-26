@@ -9,6 +9,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
+import cz.loplex.dogvision.core.exifTurn
 import cz.loplex.dogvision.render.Frame
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -18,18 +19,6 @@ import kotlin.math.roundToInt
  * saving keeps a photo's size, and a video's unless its encoder cannot take it.
  */
 const val PREVIEW_LONGEST_SIDE = 1280
-
-/** The rotation clockwise and the mirroring after it that an EXIF orientation asks for. */
-fun exifTurn(orientation: Int): Pair<Int, Boolean> = when (orientation) {
-    ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> 0 to true
-    ExifInterface.ORIENTATION_ROTATE_180 -> 180 to false
-    ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180 to true
-    ExifInterface.ORIENTATION_TRANSPOSE -> 90 to true
-    ExifInterface.ORIENTATION_ROTATE_90 -> 90 to false
-    ExifInterface.ORIENTATION_TRANSVERSE -> 270 to true
-    ExifInterface.ORIENTATION_ROTATE_270 -> 270 to false
-    else -> 0 to false
-}
 
 /** The name a document provider gives the file at [uri], or its last path segment. */
 fun displayName(context: Context, uri: Uri): String =
