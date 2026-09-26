@@ -178,6 +178,11 @@ label.button:focus-within, button.button:focus-visible, .controls button:focus-v
     color: var(--muted);
 }
 
+/* The language, after the last section, as the Android app's panel ends with it. */
+.controls .language {
+    padding: 12px 0;
+}
+
 .controls .row {
     display: flex;
     flex-wrap: wrap;
