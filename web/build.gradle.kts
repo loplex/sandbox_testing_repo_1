@@ -45,6 +45,12 @@ kotlin {
             commonWebpackConfig {
                 outputFileName = "dog-vision.js"
             }
+            // In headless Chrome, told in karma.config.d to render WebGL 2 in software where there is no GPU.
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                }
+            }
         }
         binaries.executable()
     }
@@ -56,6 +62,9 @@ kotlin {
                 implementation(project(":core"))
                 implementation(project(":gl"))
             }
+        }
+        jsTest.dependencies {
+            implementation(kotlin("test"))
         }
     }
 }
