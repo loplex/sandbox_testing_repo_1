@@ -13,9 +13,6 @@ import cz.loplex.dogvision.gl.GL_UNSIGNED_BYTE
 import cz.loplex.dogvision.gl.Target
 import cz.loplex.dogvision.gl.ViewPasses
 import cz.loplex.dogvision.gl.texture
-import org.lwjgl.opengles.GLES30.GL_COLOR_BUFFER_BIT
-import org.lwjgl.opengles.GLES30.glClear
-import org.lwjgl.opengles.GLES30.glClearColor
 import java.nio.ByteBuffer
 
 /**
@@ -27,7 +24,7 @@ import java.nio.ByteBuffer
  * A frame comes upright, as ffmpeg turns a video and as a photo is turned when it is read, so it is turned upright as
  * it is, as the app turns every frame.
  */
-internal class Passes(private val gl: LwjglGles) {
+internal class Passes(private val gl: DesktopGl) {
     private val passes = ViewPasses(gl).apply { create() }
 
     /** The frame as uploaded, before it is turned upright. */
@@ -89,8 +86,7 @@ internal class Passes(private val gl: LwjglGles) {
         area.ensure(width, height)
         gl.bindFramebuffer(GL_FRAMEBUFFER, area.framebuffer)
         gl.viewport(0, 0, width, height)
-        glClearColor(0f, 0f, 0f, 0f)
-        glClear(GL_COLOR_BUFFER_BIT)
+        gl.clear()
         passes.draw(boxes, width, height)
         val buffer = spareBuffers.removeFirstOrNull() ?: gl.createBuffer()
         gl.bindBuffer(GL_PIXEL_PACK_BUFFER, buffer)
