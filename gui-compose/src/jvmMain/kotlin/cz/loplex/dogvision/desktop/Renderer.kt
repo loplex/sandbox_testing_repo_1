@@ -28,7 +28,9 @@ data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap
  * up.
  *
  * It renders when something has changed: a frame, the view or the area; a live frame's share of differing pixels,
- * counted without waiting for the GPU as the Android app counts it, comes with a later picture.
+ * counted without waiting for the GPU as the Android app counts it, comes with a later picture. The area drawn is read
+ * back without waiting for the GPU either, [READS] at a time: its picture comes once the GPU has read it, and the
+ * frames after it are uploaded and composed meanwhile.
  */
 class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: (String) -> Unit) : AutoCloseable {
     private val lock = ReentrantLock()
@@ -108,6 +110,9 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
         }
     }
 
+    /** An area drawn and being read back, with what its picture says of it. */
+    private class Drawn(val layout: ScreenLayout, val view: View, var share: Double?, val area: Area)
+
     /** The loop that renders until [close]. */
     private fun render(passes: Passes) {
         var uploading: ByteBuffer = ByteBuffer.allocateDirect(0)
@@ -117,6 +122,17 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
         var share: Double? = null
         var last: Picture? = null
         var drawnArea: Area? = null
+        // The areas being read back, in the order Passes hands them over.
+        val drawing = ArrayDeque<Drawn>()
+
+        fun handOver(pixels: ByteArray) {
+            val drawn = drawing.removeFirst()
+            val info = ImageInfo(drawn.area.width, drawn.area.height, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
+            val bitmap = SkiaImage.makeRaster(info, pixels, drawn.area.width * 4).toComposeImageBitmap()
+            val picture = Picture(bitmap, drawn.layout, drawn.view, drawn.share)
+            last = picture
+            onPicture(picture)
+        }
         while (true) {
             var frameWidth = 0
             var frameHeight = 0
@@ -125,9 +141,9 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
             val area: Area?
             lock.withLock {
                 while (!closed && !changed) {
-                    // A count under way is asked for once a frame, and a live frame may be long in coming.
-                    if (live && passes.counting) {
-                        changes.await(COUNT_POLL_MILLIS, TimeUnit.MILLISECONDS)
+                    // A read or a count under way is asked after, and a live frame may be long in coming.
+                    if (passes.reading > 0 || (live && passes.counting)) {
+                        changes.await(POLL_MILLIS, TimeUnit.MILLISECONDS)
                         break
                     }
                     changes.await()
@@ -147,6 +163,7 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
                 view = this.view
                 area = this.area
             }
+            while (true) handOver(passes.takeArea() ?: break)
             if (newFrame) {
                 passes.upload(frameWidth, frameHeight, uploading)
                 hasFrame = true
@@ -170,37 +187,38 @@ class Renderer(private val onPicture: (Picture) -> Unit, private val onFailure: 
                     counted = true
                 }
             }
-            val previous = last
-            val picture = when {
-                recomposed || area != drawnArea || previous == null -> draw(passes, view, area, share.takeIf { counts })
-                counted -> Picture(previous.bitmap, previous.layout, view, share.takeIf { counts })
-                else -> continue
+            val shown = share.takeIf { counts }
+            if (recomposed || area != drawnArea) {
+                if (passes.reading >= READS) handOver(checkNotNull(passes.takeArea(wait = true)))
+                val layout = layOut(
+                    area.width,
+                    area.height,
+                    passes.frameWidth,
+                    passes.frameHeight,
+                    view.images,
+                    area.captionHeight,
+                    area.gap,
+                )
+                passes.draw(layout.images, area.width, area.height)
+                drawing.addLast(Drawn(layout, view, shown, area))
+                drawnArea = area
+            } else if (counted) {
+                // The share goes with the picture drawn last, or, if that is shown already, with that picture again.
+                val latest = drawing.lastOrNull()
+                val previous = last
+                if (latest != null) {
+                    latest.share = shown
+                } else if (previous != null) {
+                    last = Picture(previous.bitmap, previous.layout, view, shown).also(onPicture)
+                }
             }
-            drawnArea = area
-            last = picture
-            onPicture(picture)
         }
     }
 
-    private fun draw(passes: Passes, view: View, area: Area, share: Double?): Picture {
-        val layout = layOut(
-            area.width,
-            area.height,
-            passes.frameWidth,
-            passes.frameHeight,
-            view.images,
-            area.captionHeight,
-            area.gap,
-        )
-        val pixels = ByteArray(area.width * area.height * 4)
-        passes.draw(layout.images, area.width, area.height, pixels)
-        val info = ImageInfo(area.width, area.height, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
-        val bitmap = SkiaImage.makeRaster(info, pixels, area.width * 4).toComposeImageBitmap()
-        return Picture(bitmap, layout, view, share)
-    }
-
     private companion object {
-        const val COUNT_POLL_MILLIS = 4L
+        /** How many areas may be read back at a time; one more waits for the first. */
+        const val READS = 2
+        const val POLL_MILLIS = 2L
         const val CLOSE_WAIT_MILLIS = 2000L
     }
 }
