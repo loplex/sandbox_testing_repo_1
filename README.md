@@ -251,11 +251,10 @@ for IntelliJ IDEA's Android plugin.
     OpenGL ES 3.0 they need, which WebGL 2 has as well.
   - `Gl` names GL objects by integers, as OpenGL ES does; over WebGL 2, whose objects are
     JavaScript objects, a table holds them, as Emscripten's GL layer does.
-- **[`texts`](texts)** words what the web page says, in English and Czech, with no toolkit in it,
-  built alike for the JVM and JavaScript.
-  - Its strings are the app's string resources and those in its own [`strings`](texts/strings)
-    folder, in Android's `strings.xml` format, which the build compiles into Kotlin, each named by
-    an entry of the enum `Str` or `Plural`.
+- **[`texts`](texts)** words what the app and the web page say, in English and Czech, with no
+  toolkit in it, built alike for the JVM and JavaScript.
+  - Its strings are in its [`strings`](texts/strings) folder, in Android's `strings.xml` format,
+    which the build compiles into Kotlin, each named by an entry of the enum `Str` or `Plural`.
   - [`Texts`](texts/src/commonMain/kotlin/cz/loplex/dogvision/texts/Texts.kt) gives them in one
     language, with English for a string the language lacks, as Android does, and words a species,
     the facts about it and the images' captions.
@@ -264,6 +263,10 @@ for IntelliJ IDEA's Android plugin.
     takes them from `Intl`.
 - **[`android`](android)** is the Android app: the camera, the photos and videos, the GPU renderer, saving,
   recording, and the Compose screens.
+  - Its screens take `texts`' strings through `LocalTexts`, in the language of the activity's
+    configuration, which the language choice sets as it would for resources.
+  - Its one string resource, the name under the launcher's icon, is written by the build from
+    `texts`' `app_name`, since the manifest takes a name only from a resource.
 - **[`web`](web)** is a page for a browser, in Kotlin/JS: a photo, a video or the camera shown with
   the app's controls and the selected species' facts.
   - [`Passes`](web/src/jsMain/kotlin/cz/loplex/dogvision/web/Passes.kt) renders the view with
