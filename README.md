@@ -316,6 +316,19 @@ tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's j
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
 ```
 
+Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
+
+| Package | Tools                                      | Ubuntu's packages | Run by                                           |
+|---------|--------------------------------------------|-------------------|--------------------------------------------------|
+| deb     | `dpkg-deb`, `dpkg`, `fakeroot`             | dpkg, fakeroot    | jpackage, and `packageDeb` to pack it again      |
+| deb     | `readelf`                                  | binutils          | `debDepends`                                     |
+| rpm     | `rpmbuild` 4.10 or later, `rpm`, `elfdeps` | rpm               | jpackage and `rpmLibraryRequires`                |
+| MSI     | Wine, a Windows JDK 17, jmods, WiX 3.14    | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
+
+- **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
+  so that build needs the network.
+- **The tar.gz needs nothing more**, and neither do the JARs.
+
 - **Each brings a runtime of its own**, Temurin's JDK 25, which jlink cuts down to the modules the
   window uses.
   - **Gradle downloads Temurin for the Linux packages** as a toolchain where the machine has none,
