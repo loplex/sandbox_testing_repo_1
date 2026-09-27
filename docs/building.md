@@ -7,8 +7,8 @@ What each program does is [Using it](using.md)'s.
 - [The Android app](#the-android-app), [the web page](#the-web-page),
   [the command line](#the-command-line) and [the desktop window](#the-desktop-window) — the
   `./gradlew` tasks and what they write.
-- [The desktop packages](#the-desktop-packages) — the deb, the rpm, the tar.gz and the MSI: the
-  tools they need, what they install, their dependencies, and the scripts that try them.
+- [The desktop packages](#the-desktop-packages) — the deb, the rpm, the tar.gz and the MSI of each
+  window: the tools they need, what they install, their dependencies, and the scripts that try them.
 
 ## What the build needs
 
@@ -78,8 +78,12 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's jmods> --wix <WiX 3.14>
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
+tools/package_msi_on_linux.sh --window swing --jdk <Windows JDK 17> --jmods <…> --wix <…>
+                                     # gui-swing/build/packages/msi/dog-vision-swing-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1
                                      # on Windows: gui-compose/build/compose/binaries/main/msi/0.1.0/dog-vision-0.1.0.msi
+pwsh tools/package_msi_on_windows.ps1 -Window swing
+                                     # on Windows: gui-swing/build/packages/msi/0.1.0/dog-vision-swing-0.1.0.msi
 ```
 
 Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
@@ -142,9 +146,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   links.
   It is to run as `dog-vision/bin/dog-vision` or `dog-vision-swing/bin/dog-vision-swing` without
   installing it.
-- **The MSI installs into `Program Files\dog-vision`** and adds the window to the Start menu, in a
-  dog-vision group, and to the desktop.
-  It carries a fixed upgrade code, so that a later version's MSI replaces it.
+- **The MSI installs into `Program Files\<package>`** and adds the window to the Start menu, in a
+  group of the package's name, and to the desktop.
+  Each window's MSI carries a fixed upgrade code of its own, so that a later version's MSI replaces
+  it, and installing the one window leaves the other.
 
 ### The Linux packages' dependencies
 
@@ -203,8 +208,9 @@ runtime into its packages.
 
 ### The MSI, built under Wine or on Windows
 
-jpackage builds an installer only on the system it is for, so the MSI is built either under Wine on
-Linux or on Windows.
+jpackage builds an installer only on the system it is for, so each window's MSI is built either
+under Wine on Linux or on Windows; each script builds the Compose window's, or with `--window swing`
+or `-Window swing` the Swing window's.
 
 - **On Windows, [`tools/package_msi_on_windows.ps1`](../tools/package_msi_on_windows.ps1) builds
   it** with the JDK 25 it runs on and WiX 3.14, and light.exe validates it.
@@ -216,7 +222,8 @@ Linux or on Windows.
   Linux and validates, installs, upgrades and removes it on Windows.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
   machine to throw away**: it installs the MSI, runs the command line, looks at the shortcuts,
-  installs a later version over it and removes that.
+  installs a later version over it and removes that; `-Name dog-vision-swing` tries the Swing
+  window's.
 - **The MSI's code page is Windows-1250**, from
   [`gui-compose/packaging/windows`](../gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl), as the
   vendor's name has a ř that jpackage's Windows-1252 lacks.
