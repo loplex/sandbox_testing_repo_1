@@ -4,11 +4,12 @@
 #
 # A bare image has no desktop, and openSUSE's has no /etc/xdg/menus, which is what a headless
 # install for the command line alone meets. dnf or zypper installs the rpm there with its
-# dependencies; rpm removes it. Each check says whether it held, and every check runs, so that one
-# failing does not hide the others; the script fails if any did.
+# dependencies, and microdnf those its repositories have; rpm removes it. Each check says whether
+# it held, and every check runs, so that one failing does not hide the others; the script fails if
+# any did.
 #
 # Needs docker, or podman installed as docker. Usage:
-#   tools/test_rpm.sh <the rpm> [image with dnf or zypper, fedora:42 by default]
+#   tools/test_rpm.sh <the rpm> [image with dnf, zypper or microdnf, fedora:42 by default]
 set -euo pipefail
 
 # Says why on the standard error and exits, with 1 or the status given.
@@ -57,14 +58,30 @@ if command -v zypper >/dev/null; then
     install_rpm() { zypper -q -n install --allow-unsigned-rpm /rpm/dog-vision.rpm; }
 elif command -v dnf >/dev/null; then
     install_rpm() { dnf -q -y install /rpm/dog-vision.rpm; }
+elif command -v microdnf >/dev/null; then
+    # microdnf installs no file: what the rpm requires comes from the image's repositories, one at
+    # a time, and the rpm itself through rpm, past what none of them has.
+    install_rpm() {
+        for requirement in $(rpm -qpR /rpm/dog-vision.rpm | grep -v '^rpmlib('); do
+            rpm -q --whatprovides "$requirement" || microdnf -y install "$requirement" ||
+                unavailable="$unavailable $requirement"
+        done
+        if [ -z "$unavailable" ]; then
+            rpm -i /rpm/dog-vision.rpm
+        else
+            rpm -i --nodeps /rpm/dog-vision.rpm
+        fi
+    }
 else
-    echo "FAILED: the image has neither dnf nor zypper"
+    echo "FAILED: the image has none of dnf, zypper and microdnf"
     exit 1
 fi
+unavailable=""
 # A scriptlet that fails leaves the package installed, and only the status tells.
 install_rpm >/tmp/install.log 2>&1
 status=$?
 [ "$status" -eq 0 ] || tail -n 20 /tmp/install.log
+[ -n "$unavailable" ] && echo "note: installed without what no repository has:$unavailable"
 check "the install exits with 0 (it exited with $status)" test "$status" -eq 0
 check "dog-vision is installed" is_installed
 check "it does not require xdg-utils" requires_no_xdg_utils
