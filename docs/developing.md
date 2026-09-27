@@ -115,6 +115,10 @@ The test classes' comments say what each of them holds.
 - **`./gradlew :cli:renderFigures` renders the figures again**, from the apple photo beside them;
   [`Figures.kt`](../cli/src/jvmTest/kotlin/cz/loplex/dogvision/cli/Figures.kt) says what each
   shows.
+- **The screenshots are not checked.** `android.png`, `web.png`, `window.png` and
+  `window-swing.png` show the programs as they were when taken, with the apple photo open and in
+  English: the app on a phone, the page in headless Chrome, and the windows under Xvfb at
+  1400 x 820.
 
 ### The Kotlin style is ktlint's
 
