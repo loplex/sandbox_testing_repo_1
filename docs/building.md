@@ -116,8 +116,9 @@ against, since LWJGL opens libEGL only once it runs.
 - **The deb names packages as Ubuntu 20.04 and Debian 11 name them**, which later releases keep or
   provide (Ubuntu 24.04's `libasound2t64` provides `libasound2`), so that the deb is the same
   wherever it is built.
-  The table `debianPackages` in [`gui-compose/build.gradle.kts`](../gui-compose/build.gradle.kts) names
-  them, and the build fails on a library it lacks.
+  The table `debianPackages` in
+  [`DebDepends.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DebDepends.kt)
+  names them, and the build fails on a library it lacks.
 - **The rpm names libraries and a file** (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
   `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently.
 - **Neither needs xdg-utils**: jpackage's scripts would install the desktop entry with
@@ -125,7 +126,10 @@ against, since LWJGL opens libEGL only once it runs.
   make it a file of the package instead.
 
 How the build rewrites jpackage's deb and rpm for each of these is in the comments of
-[`gui-compose/build.gradle.kts`](../gui-compose/build.gradle.kts).
+[`RepackDeb.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RepackDeb.kt) and
+[`RepackRpm.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RepackRpm.kt), in
+[`build-logic`](../build-logic), which
+[`gui-compose/build.gradle.kts`](../gui-compose/build.gradle.kts) registers and wires to jpackage's tasks.
 
 ### Trying the Linux packages
 
