@@ -69,12 +69,13 @@ tasks.register<Jar>("uberJar") {
 // and it needs a headless Java only, as it opens no window.
 val linuxPackage = "dog-vision-cli"
 val linuxHome = "/usr/share/$linuxPackage"
-val jars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
+val linuxJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
 
 val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
     commandName = linuxPackage
     mainClass = mainClassName
-    classpath = provider { jars.files.map { "$linuxHome/lib/${it.name}" } }
+    jars.from(linuxJars)
+    jarDirectory = "$linuxHome/lib"
     jvmOptions = emptyList()
     minimumJava = 17
     script = layout.buildDirectory.file("packages/launcher/$linuxPackage")
@@ -82,7 +83,7 @@ val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
 
 val linuxTree = tasks.register<Sync>("linuxTree") {
     into(layout.buildDirectory.dir("packages/tree"))
-    from(jars) { into(linuxHome.removePrefix("/") + "/lib") }
+    from(linuxJars) { into(linuxHome.removePrefix("/") + "/lib") }
     from(linuxLauncher) { into("usr/bin") }
 }
 
