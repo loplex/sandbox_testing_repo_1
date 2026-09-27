@@ -17,10 +17,10 @@ import kotlin.concurrent.thread
 /**
  * What a desktop window shows and does, in no toolkit:
  * the source, the view, the language, what failed, and the pictures [renderer] draws;
- * each window only lays it out, so that windows in different toolkits cannot drift apart.
+ * each window only lays it out, so that the Compose window and the Swing one cannot drift apart.
  *
  * Its methods are called on the AWT event thread, and its flows change only there, through [post]:
- * Compose Desktop composes on that thread.\
+ * Compose Desktop composes on that thread, and Swing collects on it.\
  * It starts on what [arguments] ask for, as the window does.
  *
  * The renderer is made by [makeRenderer] once, the feed of each source by [feed],
