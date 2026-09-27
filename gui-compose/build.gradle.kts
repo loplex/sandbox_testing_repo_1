@@ -116,7 +116,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "dog-vision"
-            packageVersion = "0.1.0" // the Android app's versionName
+            packageVersion = providers.gradleProperty("appVersion").get()
             description = "How a dog or another animal sees a photo, a video or the camera"
             vendor = "Martin Lopatář"
             licenseFile = rootProject.file("LICENSE")
