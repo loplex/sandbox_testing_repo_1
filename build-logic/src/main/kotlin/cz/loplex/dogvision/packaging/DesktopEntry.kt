@@ -49,6 +49,13 @@ abstract class DesktopEntry : DefaultTask() {
     @get:Input
     abstract val categories: ListProperty<String>
 
+    /**
+     * The WM_CLASS of the application's windows, by which the desktop tells them to be this entry's and shows its
+     * name and icon for them.
+     */
+    @get:Input
+    abstract val startupWmClass: Property<String>
+
     @get:OutputFile
     abstract val entry: RegularFileProperty
 
@@ -77,6 +84,7 @@ abstract class DesktopEntry : DefaultTask() {
             "Icon=${icon.get()}",
             "Terminal=false",
             "Categories=${categories.get().joinToString("") { "$it;" }}",
+            "StartupWMClass=${startupWmClass.get()}",
         )
         entry.get().asFile.writeText(lines.joinToString("\n", postfix = "\n"))
     }
