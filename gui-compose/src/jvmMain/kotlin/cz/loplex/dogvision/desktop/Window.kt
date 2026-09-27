@@ -37,6 +37,8 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -51,33 +53,22 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import cz.loplex.dogvision.cli.Arguments
-import cz.loplex.dogvision.cli.readPhoto
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import cz.loplex.dogvision.ui.Controls
 import cz.loplex.dogvision.ui.LocalTexts
+import org.jetbrains.skia.ColorAlphaType
+import org.jetbrains.skia.ColorType
+import org.jetbrains.skia.ImageInfo
 import java.awt.Desktop
 import java.awt.EventQueue
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
-import java.io.IOException
 import java.net.URI
 import java.util.Locale
 import kotlin.concurrent.thread
-
-/** What the window shows: a file, which is a photo or else a video played over and over, or a camera. */
-sealed interface Source {
-    class Media(val file: File) : Source
-
-    class Camera(val index: Int) : Source
-}
-
-/**
- * Why nothing is shown, worded when it is shown, in the language chosen then; [ffmpegMissing] if it is that ffmpeg
- * cannot be run, which the window offers to install on Windows.
- */
-private class Failure(val ffmpegMissing: Boolean = false, val words: (Texts) -> String)
+import org.jetbrains.skia.Image as SkiaImage
 
 /** The height of a caption under each image, and the gap between images, as in the Android app. */
 private val CAPTION_HEIGHT = 40.dp
@@ -159,13 +150,14 @@ private fun Screen(
 ) {
     val texts = LocalTexts.current
     var view by remember { mutableStateOf(arguments.windowView) }
-    var picture by remember { mutableStateOf<Picture?>(null) }
+    var picture by remember { mutableStateOf<Picture<ImageBitmap>?>(null) }
     // Why the source cannot be shown, which another source clears, and why nothing can be drawn, which stays.
     var sourceFailure by remember { mutableStateOf<Failure?>(null) }
     var drawFailure by remember { mutableStateOf<Failure?>(null) }
     val renderer = remember {
         Renderer(
             arguments.windowsGl,
+            ::composeImage,
             onPicture = { EventQueue.invokeLater { picture = it } },
             onFailure = { message ->
                 EventQueue.invokeLater { drawFailure = Failure { it.get(Str.DRAW_FAILED, message) } }
@@ -236,7 +228,7 @@ private fun droppedFiles(event: DragAndDropEvent): List<File> =
  */
 @Composable
 private fun Preview(
-    picture: Picture?,
+    picture: Picture<ImageBitmap>?,
     failure: Failure?,
     modifier: Modifier,
     onArea: (Area) -> Unit,
@@ -259,7 +251,7 @@ private fun Preview(
             return@Box
         }
         if (picture == null) return@Box
-        Canvas(Modifier.fillMaxSize()) { drawImage(picture.bitmap) }
+        Canvas(Modifier.fillMaxSize()) { drawImage(picture.image) }
         val captions = texts.captions(picture.view, picture.differenceShare)
         picture.layout.captions.zip(captions).forEach { (box, caption) ->
             Text(
@@ -319,63 +311,8 @@ private fun openDownloadPage() {
     }
 }
 
-/**
- * Starts showing [source] through [renderer], on a thread of its own, since a large photo takes a moment to read and
- * ffmpeg to open a camera; [onFailure] is told why it cannot be shown. The feed it returns stops what it started, and a
- * photo read after it is closed is not shown.
- */
-private fun startFeed(source: Source, renderer: Renderer, onFailure: (Failure) -> Unit): AutoCloseable {
-    var feed: FfmpegFeed? = null
-    var closed = false
-    val lock = Any()
-    thread(name = "dog-vision-source", isDaemon = true) {
-        val started = try {
-            when (source) {
-                is Source.Media -> {
-                    val photo = readPhoto(source.file)
-                    if (photo == null) {
-                        FfmpegFeed.video(
-                            source.file,
-                            { renderer.show(it, live = true) },
-                            { reason -> onFailure(Failure { it.get(Str.VIDEO_FAILED, source.file.name, reason) }) },
-                        )
-                    } else {
-                        val frame = frameOf(preview(photo))
-                        synchronized(lock) { if (!closed) renderer.show(frame, live = false) }
-                        null
-                    }
-                }
-
-                is Source.Camera -> FfmpegFeed.camera(
-                    source.index,
-                    { renderer.show(it, live = true) },
-                    { reason -> onFailure(Failure { it.get(Str.CAMERA_FAILED, reason) }) },
-                )
-            }
-        } catch (error: FfmpegMissing) {
-            onFailure(Failure(ffmpegMissing = true) { it.get(Str.FFMPEG_MISSING, error.program) })
-            null
-        } catch (error: IOException) {
-            val reason = error.message.orEmpty()
-            onFailure(
-                Failure { texts ->
-                    when (source) {
-                        is Source.Camera -> texts.get(Str.CAMERA_FAILED, reason)
-                        is Source.Media -> texts.get(Str.MEDIA_FAILED, source.file.name) + ": $reason"
-                    }
-                },
-            )
-            null
-        }
-        synchronized(lock) {
-            if (closed) started?.close() else feed = started
-        }
-    }
-    // A feed that starts after this is closed closes itself.
-    return AutoCloseable {
-        synchronized(lock) {
-            closed = true
-            feed?.close()
-        }
-    }
+/** An area's pixels as Compose draws them, through Skia. */
+private fun composeImage(pixels: ByteArray, width: Int, height: Int): ImageBitmap {
+    val info = ImageInfo(width, height, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
+    return SkiaImage.makeRaster(info, pixels, width * 4).toComposeImageBitmap()
 }
