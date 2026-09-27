@@ -3,8 +3,8 @@
 *A camera, a photo or a video, shown with the colours a dog — or another animal — can tell
 apart.*
 
-This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision), a desktop program in
-Python, as an Android app.
+This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-python), a desktop
+program in Python, as an Android app.
 It simulates the same species with the same model, and the desktop program's README explains that
 model and the science behind it.
 A [web page](#the-web-page) shows a photo, a video or a camera's live image the same way in a
@@ -142,17 +142,19 @@ Before Android 10, saving asks for the storage permission.
 The simulation is the desktop program's, ported to Kotlin in [`core`](core), and the desktop
 README explains it:
 
-- [How it works](https://github.com/loplex/dog-vision#how-it-works) — the model in five steps.
-- [Species](https://github.com/loplex/dog-vision#species) — every species, its cone peaks and their
-  sources.
-- [Colour saturation](https://github.com/loplex/dog-vision#colour-saturation) — the fixed and the
-  RNL scale.
-- [Acuity](https://github.com/loplex/dog-vision#acuity) — the blur, and why it needs the field of
-  view.
-- [Map of differences](https://github.com/loplex/dog-vision#map-of-differences) — what the red
-  means.
-- [What it cannot show](https://github.com/loplex/dog-vision#what-it-cannot-show) — its limits.
-- [References](https://github.com/loplex/dog-vision#references) — every source in full.
+- [How it works](https://github.com/loplex/dog-vision-python#how-it-works) — the model in five
+  steps.
+- [Species](https://github.com/loplex/dog-vision-python#species) — every species, its cone peaks and
+  their sources.
+- [Colour saturation](https://github.com/loplex/dog-vision-python#colour-saturation) — the fixed and
+  the RNL scale.
+- [Acuity](https://github.com/loplex/dog-vision-python#acuity) — the blur, and why it needs the
+  field of view.
+- [Map of differences](https://github.com/loplex/dog-vision-python#map-of-differences) — what the
+  red means.
+- [What it cannot show](https://github.com/loplex/dog-vision-python#what-it-cannot-show) — its
+  limits.
+- [References](https://github.com/loplex/dog-vision-python#references) — every source in full.
 
 ## Building it
 

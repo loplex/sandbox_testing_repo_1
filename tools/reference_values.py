@@ -1,6 +1,6 @@
 """Write what the desktop dog-vision computes, as the reference core's tests compare against.
 
-The desktop dog-vision is https://github.com/loplex/dog-vision. From a checkout of it, run
+The desktop dog-vision is https://github.com/loplex/dog-vision-python. From a checkout of it, run
 
     uv run --project <checkout> python tools/reference_values.py core/src/jvmTest/resources
 
