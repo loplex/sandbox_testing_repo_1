@@ -1,4 +1,6 @@
 pluginManagement {
+    // The tasks the Linux packages are made with.
+    includeBuild("build-logic")
     repositories {
         google {
             content {
