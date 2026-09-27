@@ -42,6 +42,8 @@ The web page and the desktop window show the same ones.
 | *Reset*                       | every control back to where it started                   |
 | *Language*                    | the app's language; *As the system* follows the phone    |
 
+What each control does to the picture, and from which measurements, is [The model](model.md)'s.
+
 The controls, which camera is shown, and the photo or video shown instead (a video from its start)
 stay as they were when Android ends the app in the background to free memory.
 A photo or a video that cannot be read by then, as when it was deleted meanwhile, gives way to the
