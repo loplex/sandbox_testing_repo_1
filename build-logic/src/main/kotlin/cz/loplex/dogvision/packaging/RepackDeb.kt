@@ -11,7 +11,7 @@ import java.nio.file.attribute.PosixFilePermissions
 
 /**
  * Makes each deb jpackage wrote to [debs] the one to ship, and packs it again with xz, which every dpkg reads, where
- * the build machine's dpkg-deb may choose zstd, which Debian 11's cannot:
+ * the build machine's dpkg-deb may choose zstd, which Debian's reads only from Debian 12 on:
  * - its Depends is [depends]';
  * - the window's desktop entry, [jpackageEntry] in the package's tree, is a file of the package at [entry], as Debian's
  *   packages ship theirs: dpkg makes its folder where it is missing and removes it with the package. jpackage's scripts

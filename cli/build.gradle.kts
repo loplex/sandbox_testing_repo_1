@@ -106,7 +106,7 @@ tasks.register<DebPackage>("packageDeb") {
     summary = linuxSummary
     longDescription = linuxDescription
     // The distribution's default JRE where it is 17 or newer, as the Debian Java Policy has it, and any JRE that
-    // provides java17-runtime-headless where it is not: Ubuntu 20.04's and 22.04's and Debian 11's are 11.
+    // provides java17-runtime-headless where it is not: Ubuntu 20.04's and 22.04's are 11.
     depends = listOf("default-jre-headless (>= 2:1.17) | java17-runtime-headless")
     recommends = emptyList()
 }
