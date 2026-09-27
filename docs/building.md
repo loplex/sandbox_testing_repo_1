@@ -130,8 +130,8 @@ is in the comments of [`gui-compose/build.gradle.kts`](../gui-compose/build.grad
   and on Rocky Linux 9's and UBI 9's minimal images, whose repositories lack ffmpeg.
 - **With `--upgrade <a later package>`, each installs that one over the first** before removing it,
   as an update does, and checks that the later version is the one installed and that the menu entry is still there.\
-  The later package is the same build with `-PappVersion=0.1.1`,
-  and each build empties the folder it writes to, so the first package goes aside before.\
+  The later package is the same build with `-PappVersion=0.1.1`, and each build empties the folder it writes to,
+  so the first package goes aside before, as the Linux job of [`ci.yml`](../.github/workflows/ci.yml) does.\
   The upgrade holds on Ubuntu 20.04 and 24.04, Fedora 42, openSUSE Leap 15.6 and Rocky Linux 9's minimal image.
 
 ### The MSI, built under Wine or on Windows
