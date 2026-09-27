@@ -83,6 +83,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
   so that build needs the network.
 - **The tar.gz needs nothing more**, and neither do the JARs.
+- **The version, 0.1.0 in the names above, is `appVersion` in
+  [`gradle.properties`](../gradle.properties)**, the Android app's `versionName` too.
+  `-PappVersion=<version>` builds the packages with another, and the MSI scripts take
+  `--app-version` and `-AppVersion` for the same.
 
 ### What each package holds
 
