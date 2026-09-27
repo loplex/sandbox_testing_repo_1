@@ -28,6 +28,19 @@ fun interface ImageMaker<I> {
 /** The area the images are laid out on, and the height of a caption under each and the gap between them, in pixels. */
 data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap: Int)
 
+/** What a feed shows its frames on, and a [LiveSession] draws its view through: a [GlRenderer], or a test's own. */
+interface Renderer : AutoCloseable {
+    /**
+     * Makes [frame] the one to render, copying it, so that its buffer can be reused as soon as this returns; a [live]
+     * frame is a video's or a camera's, followed by others, a frame that is not is a photo's.
+     */
+    fun show(frame: Frame, live: Boolean)
+
+    fun setView(view: View)
+
+    fun setArea(area: Area)
+}
+
 /**
  * Renders the view of the frame shown last on a thread of its own, which holds a [GlContext], opened as [windowsGl]
  * asks on Windows, and [Passes], and hands each picture to [onPicture] on that thread, its image made there by
@@ -38,12 +51,12 @@ data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap
  * back without waiting for the GPU either, [READS] at a time: its picture comes once the GPU has read it, and the
  * frames after it are uploaded and composed meanwhile.
  */
-class Renderer<I>(
+class GlRenderer<I>(
     private val windowsGl: WindowsGl?,
     private val imageMaker: ImageMaker<I>,
     private val onPicture: (Picture<I>) -> Unit,
     private val onFailure: (String) -> Unit,
-) : AutoCloseable {
+) : Renderer {
     private val lock = ReentrantLock()
 
     /** Signalled whenever [changed] or [closed] is set. */
@@ -62,11 +75,7 @@ class Renderer<I>(
 
     private val thread = thread(name = "dog-vision-gl", isDaemon = true) { run() }
 
-    /**
-     * Makes [frame] the one to render, copying it, so that its buffer can be reused as soon as this returns; a [live]
-     * frame is a video's or a camera's, followed by others, a frame that is not is a photo's.
-     */
-    fun show(frame: Frame, live: Boolean) = lock.withLock {
+    override fun show(frame: Frame, live: Boolean) = lock.withLock {
         val size = frame.width * frame.height * 4
         if (pending.capacity() < size) pending = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
         pending.clear().put(frame.pixels.duplicate()).flip()
@@ -78,9 +87,9 @@ class Renderer<I>(
         changes.signalAll()
     }
 
-    fun setView(view: View) = update { this.view = view }
+    override fun setView(view: View) = update { this.view = view }
 
-    fun setArea(area: Area) = update { this.area = area }
+    override fun setArea(area: Area) = update { this.area = area }
 
     private inline fun update(change: () -> Unit) = lock.withLock {
         change()
