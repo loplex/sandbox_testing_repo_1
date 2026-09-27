@@ -122,8 +122,9 @@ is in the comments of [`gui-compose/build.gradle.kts`](../gui-compose/build.grad
 - **[`tools/test_deb.sh`](../tools/test_deb.sh) installs the deb in a bare container**, runs its command line and removes it;
   it holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.\
   On Debian 11, `apt-get install --simulate` resolved every dependency.
-- **[`tools/test_rpm.sh`](../tools/test_rpm.sh) does for the rpm what `test_deb.sh` does**, with dnf or zypper;
-  it holds on Fedora 42, its minimal image, openSUSE Leap 15.6 and Tumbleweed.
+- **[`tools/test_rpm.sh`](../tools/test_rpm.sh) does for the rpm what `test_deb.sh` does**, with dnf, zypper or microdnf;
+  it holds on Fedora 42, its minimal image, openSUSE Leap 15.6 and Tumbleweed,
+  and on Rocky Linux 9's and UBI 9's minimal images, whose repositories lack ffmpeg.
 
 ### The MSI, built under Wine or on Windows
 
