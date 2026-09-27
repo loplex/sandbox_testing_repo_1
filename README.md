@@ -279,7 +279,7 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 |---------|--------------------------------------------|-------------------|--------------------------------------------------|
 | deb     | `dpkg-deb`, `dpkg`, `fakeroot`             | dpkg, fakeroot    | jpackage, and `packageDeb` to pack it again      |
 | deb     | `readelf`                                  | binutils          | `debDepends`                                     |
-| rpm     | `rpmbuild` 4.10 or later, `rpm`, `elfdeps` | rpm               | jpackage and `rpmLibraryRequires`                |
+| rpm     | `rpmbuild` 4.10 or later, `rpm`, `elfdeps` | rpm               | jpackage, `rpmLibraryRequires`, `packageRpm`     |
 | MSI     | Wine, a Windows JDK 17, jmods, WiX 3.14    | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
@@ -301,6 +301,14 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     and on Windows runs in a console.
 - **The deb and the rpm install into `/opt/dog-vision`**, with the launchers in its `bin`,
   and add the window to the desktop's menu under Graphics.
+  - **Each ships the window's desktop entry as a file of the package**,
+    `/usr/share/applications/cz.loplex.dogvision.desktop`, which dpkg or rpm adds and removes with it,
+    as the distributions' own packages do.\
+    `packageDeb` and `packageRpm` move it there from jpackage's scripts,
+    whose `xdg-desktop-menu` fails on a system with no desktop: in Ubuntu where that folder does not exist,
+    in openSUSE where `/etc/xdg/menus` does not, and rpm then cannot remove the package.
+  - **`packageRpm` builds jpackage's rpm a second time** with `rpmbuild`, from the spec jpackage wrote, changed,
+    as jpackage takes a spec of our own only from a `--resource-dir`, and Compose passes its own after ours.
 - **The tar.gz is the same application unpacked**, to run as `dog-vision/bin/dog-vision` without installing it.
 - **The deb and the rpm depend on libEGL and ffmpeg** as well as on the libraries the image links against,
   since LWJGL opens libEGL only once it runs.
@@ -311,13 +319,15 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     and names each by the table `debianPackages` in [`gui-compose/build.gradle.kts`](gui-compose/build.gradle.kts), failing on one the table lacks;
     `packageDeb` then puts that Depends into jpackage's deb in place of the build machine's names
     and packs it again with xz, which every dpkg reads.
-  - **The deb was tried on Ubuntu 20.04**,
-    installed and its command line run, **and on Debian 11, Debian 12, Ubuntu 22.04 and 24.04**,
-    where `apt-get install --simulate` resolved every dependency.
+  - **[`tools/test_deb.sh`](tools/test_deb.sh) installs the deb in a bare container**, runs its command line and removes it;
+    it holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.\
+    On Debian 11, `apt-get install --simulate` resolved every dependency.
   - **The rpm names libraries and a file** (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
     `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently.\
     rpm's `elfdeps` lists the libraries from the image, in the task `rpmLibraryRequires`,
     as jpackage finds their packages only on an rpm-based build machine.
+  - **[`tools/test_rpm.sh`](tools/test_rpm.sh) does for the rpm what `test_deb.sh` does**, with dnf or zypper;
+    it holds on Fedora 42, its minimal image, openSUSE Leap 15.6 and Tumbleweed.
 - **The MSI is built under Wine on Linux, or on Windows**,
   as jpackage builds an installer only on the system it is for.\
   It installs into `Program Files\dog-vision` and adds the window to the Start menu,
@@ -336,12 +346,6 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   - **The MSI built under Wine gives `dog-vision-cli` a Start menu entry and a desktop shortcut as well**,
     which started from there only says that the window is the desktop app's:
     JDK 17's jpackage cannot leave one launcher out, where JDK 25's, on Windows, does.
-
-### Caveat: the deb does not install where the system has no desktop menu
-
-jpackage's script adds the window to the desktop's menu with `xdg-desktop-menu`,
-which fails where `/usr/share/applications` does not exist, as in a bare container,
-and dpkg then leaves the package unconfigured.
 
 ### Caveat: the Windows window is tried under Wine, its tests on Windows without a GPU
 
