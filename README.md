@@ -2,6 +2,9 @@
 
 *A camera, a photo or a video, shown with the colours a dog — or another animal — can tell apart.*
 
+![Red and yellow-green apples as they are, and as a dog, a cat, a protanope, a deuteranope and a harbour seal see them:
+the red and the yellow-green merge for every dichromat, and all is grey for the seal](docs/images/apples-species.png)
+
 This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-python), a desktop program in Python.\
 Its README explains the model and the science behind it.
 
@@ -48,6 +51,10 @@ The simulation is the Python program's, ported to Kotlin in [`core`](core), and 
   `./gradlew` for each program, and the deb, the rpm, the tar.gz and the MSI.
 - [Developing it](docs/developing.md) —
   the modules, what each test task holds, the CI, and the caveats of testing on an emulator and under Wine.
+
+## Credits
+
+The apple photo in the figures is [*Shiny red apples*](https://commons.wikimedia.org/wiki/File:Shiny_red_apples.jpg) by Leon Brooks, released into the public domain.
 
 ## License
 
