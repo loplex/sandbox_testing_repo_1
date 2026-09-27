@@ -30,6 +30,11 @@ kotlin {
     }
 }
 
+/** The documents, which ModelDocTest holds to what core does. */
+val docs = rootProject.layout.projectDirectory.dir("docs")
+
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
+    inputs.file(docs.file("model.md")).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("dogvision.docs", docs.asFile.absolutePath)
 }
