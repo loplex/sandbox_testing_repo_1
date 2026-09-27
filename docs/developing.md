@@ -29,7 +29,7 @@ the tasks the Linux packages are made with, which a module takes by applying the
 
 - **`core` has no platform in it**:
   parts such as the species, the model, the facts and the image pipeline,
-  with no video.\
+  with no video and no window's session.\
   The one part written for each platform is how a fact's number is rounded,
   in [`Facts.jvm.kt`](../core/src/jvmMain/kotlin/cz/loplex/dogvision/core/Facts.jvm.kt) and [`Facts.js.kt`](../core/src/jsMain/kotlin/cz/loplex/dogvision/core/Facts.js.kt), since JavaScript has no `BigDecimal`.
 - **`gl`'s passes run on every GPU the programs draw on**:
