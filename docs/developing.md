@@ -27,6 +27,10 @@ Building the programs is [Building it](building.md)'s.
 | [`gui-compose`](../gui-compose) | the desktop window                             | the JVM               |
 | [`testing`](../testing)         | what the renderers' tests hold them to         | the JVM, JavaScript   |
 
+[`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one:
+the tasks the desktop's Linux packages are made with, which a module takes by applying the plugin
+`cz.loplex.dogvision.packaging`.
+
 - **`core` has no platform in it**: it holds what the desktop program's `dog_vision.core` holds,
   less video and the window's session.
   The one part written for each platform is how a fact's number is rounded, in
@@ -99,6 +103,8 @@ The style is [ktlint](https://pinterest.github.io/ktlint/)'s, as IntelliJ IDEA f
 in [`.editorconfig`](../.editorconfig):
 
 - `./gradlew ktlintCheck` checks it, and `./gradlew ktlintFormat` fixes what it can;
+  `build-logic`'s own are `:build-logic:ktlintCheck` and `:build-logic:ktlintFormat`, and each
+  module's `check` runs `build-logic`'s;
 - `./gradlew checkLineLength` holds every line to 120 characters, comments included: ktlint does not
   measure a line that is a comment and nothing else.
 
