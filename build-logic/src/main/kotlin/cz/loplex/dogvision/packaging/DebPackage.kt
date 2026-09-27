@@ -21,7 +21,8 @@ import java.security.MessageDigest
 /**
  * Packs [tree], the files as they are installed from /, into a deb with dpkg-deb, as jpackage cannot: it always puts a
  * Java runtime in. The deb is named as Debian names them, name_version_architecture.deb, owned by root, and packed with
- * xz, which every dpkg reads, where the build machine's dpkg-deb may choose zstd, which Debian 11's cannot.
+ * xz, which every dpkg reads, where the build machine's dpkg-deb may choose zstd, which Debian's reads only from Debian
+ * 12 on.
  */
 abstract class DebPackage : DefaultTask() {
     @get:InputDirectory
