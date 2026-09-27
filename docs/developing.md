@@ -24,8 +24,9 @@ Building the programs is [Building it](building.md)'s.
 | [`android`](../android)           | the Android app                            | Android             |
 | [`web`](../web)                   | the web page                               | JavaScript          |
 | [`cli`](../cli)                   | the command line                           | the JVM             |
-| [`gui-core`](../gui-core)         | what the desktop window draws with         | the JVM             |
-| [`gui-compose`](../gui-compose)   | the desktop window                         | the JVM             |
+| [`gui-core`](../gui-core)         | what the desktop windows share             | the JVM             |
+| [`gui-compose`](../gui-compose)   | the desktop window, in Compose             | the JVM             |
+| [`gui-swing`](../gui-swing)       | the desktop window, in Swing               | the JVM             |
 | [`testing`](../testing)           | what the renderers' tests hold them to     | the JVM, JavaScript |
 
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one:
@@ -56,6 +57,8 @@ the tasks the Linux packages are made with, which a module takes by applying the
 - **`gui-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
   renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
   image of them.
+  Its `LiveSession` holds what a window shows, as the Python program's does, so that the Compose
+  window and the Swing one only lay it out.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -83,7 +86,8 @@ The test classes' comments say what each of them holds.
 | `./gradlew :texts:allTests`                    | every language having every string, and plurals      |
 | `./gradlew :ui:jvmTest`                        | the shared controls, in Compose's test scene         |
 | `./gradlew :cli:jvmTest`                       | the options, the EXIF orientation, a conversion      |
-| `./gradlew :gui-core:jvmTest`                  | the window's passes, GL contexts and ffmpeg          |
+| `./gradlew :gui-core:jvmTest`                  | the window's passes, GL contexts, ffmpeg, session    |
+| `./gradlew :gui-swing:jvmTest`                 | the Swing window's image, theme and a dropped file   |
 | `./gradlew :web:jsTest`                        | the page's passes, snapshot and recording            |
 | `./gradlew :android:connectedDebugAndroidTest` | the renderer, recording and conversion, on a device  |
 | `./gradlew :android:lintDebug`                 | Android Lint alone                                   |
@@ -145,9 +149,9 @@ as 186 there, and `VideoFeedTest` and `ConversionTest` fail their colour checks.
 
 ## Caveat: Windows is tested without a GPU and under Wine
 
-Under Wine 11.18 on Linux, with a Windows JDK 21 and the Windows build of ffmpeg, the window was
-tried with a photo, a video, the camera through DirectShow, WGL chosen and WGL taken where
-Direct3D 11 is switched off, and the command line.
+Under Wine 11.18 on Linux, with a Windows JDK 21 and the Windows build of ffmpeg, the Compose
+window was tried with a photo, a video, the camera through DirectShow, WGL chosen and WGL taken
+where Direct3D 11 is switched off, and the command line.
 
 - **Its tests and its MSI run on GitHub's Windows Server 2022**, as
   [GitHub Actions runs them](#github-actions-runs-them-on-linux-and-windows), which has no GPU:
@@ -159,8 +163,8 @@ Direct3D 11 is switched off, and the command line.
 - **Installing the MSI under Wine writes into the home**: Wine turns its shortcuts into the Linux
   desktop's unless `WINEDLLOVERRIDES=winemenubuilder.exe=d` is set, and the prefix's folders link
   into the home unless `winetricks sandbox` removed the links.
-- **The window's button that installs ffmpeg is tried on Linux**, with scripts in place of winget
-  and PowerShell, as Wine has neither winget nor a registry that winget writes to.
+- **The Compose window's button that installs ffmpeg is tried on Linux**, with scripts in place of
+  winget and PowerShell, as Wine has neither winget nor a registry that winget writes to.
   winget's install itself ran on GitHub's Windows Server 2025, whose image has winget.
 
 ## Caveat: the libraries wait for a stable SDK 37
