@@ -142,6 +142,9 @@ Linux or on Windows.
 - **Under Wine, [`tools/package_msi_on_linux.sh`](../tools/package_msi_on_linux.sh) builds it**,
   with three detours round Wine that the script describes.
   Its runtime is linked from the jmods it is given.
+  Wine cannot validate it, so the workflow
+  [`msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml), started by hand, builds it on
+  Linux and validates, installs, upgrades and removes it on Windows.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
   machine to throw away**: it installs the MSI, runs the command line, looks at the shortcuts,
   installs a later version over it and removes that.
