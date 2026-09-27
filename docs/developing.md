@@ -28,7 +28,7 @@ Building the programs is [Building it](building.md)'s.
 | [`testing`](../testing)         | what the renderers' tests hold them to         | the JVM, JavaScript   |
 
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one:
-the tasks the desktop's Linux packages are made with, which a module takes by applying the plugin
+the tasks the Linux packages are made with, which a module takes by applying the plugin
 `cz.loplex.dogvision.packaging`.
 
 - **`core` has no platform in it**: it holds what the desktop program's `dog_vision.core` holds,
