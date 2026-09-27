@@ -163,6 +163,14 @@ class LiveSession<I>(
     }
 
     private fun textsIn(language: String): Texts = Texts.forLanguages(listOf(language.ifEmpty(systemLanguage)))
+
+    companion object {
+        /** A session drawn by a [GlRenderer], opened as [arguments] ask on Windows, into images [imageMaker] makes. */
+        fun <I> drawnOnGpu(arguments: Arguments, imageMaker: ImageMaker<I>): LiveSession<I> =
+            LiveSession(arguments, { onPicture, onFailure ->
+                GlRenderer(arguments.windowsGl, imageMaker, onPicture, onFailure)
+            })
+    }
 }
 
 /** Installs ffmpeg as [FfmpegPrograms.install] does, and opens ffmpeg's download page where winget is missing. */

@@ -24,12 +24,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -60,14 +57,10 @@ import cz.loplex.dogvision.ui.LocalTexts
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
-import java.awt.Desktop
-import java.awt.EventQueue
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
 import java.net.URI
-import java.util.Locale
-import kotlin.concurrent.thread
 import org.jetbrains.skia.Image as SkiaImage
 
 /** The height of a caption under each image, and the gap between images, as in the Android app. */
@@ -78,26 +71,27 @@ private val GAP = 6.dp
  * Opens the window on what [arguments] ask for: the file given with --window, a photo or else a video, or the camera
  * --camera names; returns once the window is closed. Another file is opened from the system's dialog, from the o key
  * as in the Python program's window, or dropped onto the window; q or Escape closes it, as in the Python program's.
+ * What it shows is a [LiveSession]'s, which the window only lays out.
  */
 fun showWindow(arguments: Arguments): Int {
-    val start = arguments.file?.let(Source::Media) ?: Source.Camera(arguments.camera)
     application(exitProcessOnExit = false) {
-        var language by remember { mutableStateOf("") }
-        val texts = remember(language) {
-            Texts.forLanguages(listOf(language.ifEmpty { Locale.getDefault().toLanguageTag() }))
+        val session = remember { LiveSession.drawnOnGpu(arguments, ::composeImage) }
+        DisposableEffect(session) {
+            onDispose { session.close() }
         }
-        var source by remember { mutableStateOf(start) }
+        val state by session.state.collectAsState()
         val dialogs = remember { Dialogs() }
-        CompositionLocalProvider(LocalTexts provides texts) {
+        val open = { dialogs.open(state.texts, state.source)?.let(session::openFile) }
+        CompositionLocalProvider(LocalTexts provides state.texts) {
             Window(
                 onCloseRequest = ::exitApplication,
-                title = texts.get(Str.APP_NAME),
+                title = state.texts.get(Str.APP_NAME),
                 state = rememberWindowState(width = 1280.dp, height = 800.dp),
                 onKeyEvent = { event ->
                     val down = event.type == KeyEventType.KeyDown
                     when {
                         down && (event.key == Key.Escape || event.key == Key.Q) -> exitApplication().let { true }
-                        down && event.key == Key.O -> true.also { dialogs.open(texts, source)?.let { source = it } }
+                        down && event.key == Key.O -> true.also { open() }
                         else -> false
                     }
                 },
@@ -105,14 +99,7 @@ fun showWindow(arguments: Arguments): Int {
                 dialogs.parent = window
                 MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                     Surface {
-                        Screen(
-                            source,
-                            arguments,
-                            language,
-                            onLanguage = { language = it },
-                            onSource = { source = it },
-                            onOpen = { dialogs.open(texts, source)?.let { source = it } },
-                        )
+                        Screen(session, state, onOpen = { open() })
                     }
                 }
             }
@@ -129,88 +116,46 @@ private class Dialogs {
      * A photo or a video picked in the system's dialog, which starts in the folder of the file [shown], if one is; null
      * if none is picked.
      */
-    fun open(texts: Texts, shown: Source): Source? {
+    fun open(texts: Texts, shown: Source): File? {
         val dialog = FileDialog(parent, texts.get(Str.OPEN_MEDIA), FileDialog.LOAD)
         if (shown is Source.Media) dialog.directory = shown.file.absoluteFile.parent
         dialog.isVisible = true
-        return dialog.files.firstOrNull()?.let(Source::Media)
+        return dialog.files.firstOrNull()
     }
 }
 
-/** The images and the controls, which a file dropped anywhere on them opens in place of what [source] shows. */
+/** The images and the controls, which a file dropped anywhere on them opens in place of what [state] shows. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Screen(
-    source: Source,
-    arguments: Arguments,
-    language: String,
-    onLanguage: (String) -> Unit,
-    onSource: (Source) -> Unit,
-    onOpen: () -> Unit,
-) {
+private fun Screen(session: LiveSession<ImageBitmap>, state: LiveSession.State, onOpen: () -> Unit) {
     val texts = LocalTexts.current
-    var view by remember { mutableStateOf(arguments.windowView) }
-    var picture by remember { mutableStateOf<Picture<ImageBitmap>?>(null) }
-    // Why the source cannot be shown, which another source clears, and why nothing can be drawn, which stays.
-    var sourceFailure by remember { mutableStateOf<Failure?>(null) }
-    var drawFailure by remember { mutableStateOf<Failure?>(null) }
-    val renderer = remember {
-        GlRenderer(
-            arguments.windowsGl,
-            ::composeImage,
-            onPicture = { EventQueue.invokeLater { picture = it } },
-            onFailure = { message ->
-                EventQueue.invokeLater { drawFailure = Failure { it.get(Str.DRAW_FAILED, message) } }
-            },
-        )
-    }
-    DisposableEffect(renderer) {
-        onDispose { renderer.close() }
-    }
-    // Counted up once ffmpeg is installed, which starts the source again.
-    var ffmpegInstalls by remember { mutableStateOf(0) }
-    // Disposed before the renderer, and the source shown before is closed before another starts.
-    DisposableEffect(source, ffmpegInstalls) {
-        sourceFailure = null
-        val feed = startFeed(source, renderer, { failed -> EventQueue.invokeLater { sourceFailure = failed } })
-        onDispose { feed.close() }
-    }
-    LaunchedEffect(view) { renderer.setView(view) }
-    val currentOnSource by rememberUpdatedState(onSource)
-    val drop = remember {
+    val picture by session.picture.collectAsState()
+    val drop = remember(session) {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
                 val file = droppedFiles(event).firstOrNull() ?: return false
-                currentOnSource(Source.Media(file))
+                session.openFile(file)
                 return true
             }
         }
     }
     Row(Modifier.dragAndDropTarget(shouldStartDragAndDrop = { droppedFiles(it).isNotEmpty() }, target = drop)) {
-        Preview(
-            picture,
-            drawFailure ?: sourceFailure,
-            Modifier.weight(1f).fillMaxHeight(),
-            renderer::setArea,
-            onFfmpegInstalled = { ffmpegInstalls++ },
-        )
+        Preview(picture, state, Modifier.weight(1f).fillMaxHeight(), session::setArea, session::installFfmpeg)
         Column(Modifier.width(380.dp).fillMaxHeight()) {
             Row(
                 Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(onClick = onOpen) { Text(texts.get(Str.OPEN_MEDIA)) }
-                OutlinedButton(onClick = { onSource(Source.Camera(arguments.camera)) }) {
-                    Text(texts.get(Str.SHOW_CAMERA))
-                }
+                OutlinedButton(onClick = session::openCamera) { Text(texts.get(Str.SHOW_CAMERA)) }
             }
             Controls(
-                view = view,
+                view = state.view,
                 recording = false,
-                onChange = { change -> view = change(view) },
-                onReset = { view = arguments.windowView },
-                language = language,
-                onLanguage = onLanguage,
+                onChange = session::changeView,
+                onReset = session::reset,
+                language = state.language,
+                onLanguage = session::setLanguage,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -223,22 +168,23 @@ private fun droppedFiles(event: DragAndDropEvent): List<File> =
     (event.dragData() as? DragData.FilesList)?.readFiles().orEmpty().map { File(URI(it)) }
 
 /**
- * The images laid out as [picture] has them, with their captions, or why there are none, and on Windows an offer to
- * install ffmpeg where it is missing, whose [onFfmpegInstalled] is told once it is.
+ * The images laid out as [picture] has them, with their captions, or why there are none, and where [state] offers it
+ * an offer to install ffmpeg, which [onInstallFfmpeg] starts.
  */
 @Composable
 private fun Preview(
     picture: Picture<ImageBitmap>?,
-    failure: Failure?,
+    state: LiveSession.State,
     modifier: Modifier,
     onArea: (Area) -> Unit,
-    onFfmpegInstalled: () -> Unit,
+    onInstallFfmpeg: () -> Unit,
 ) {
     val density = LocalDensity.current
     val texts = LocalTexts.current
     val captionHeight = with(density) { CAPTION_HEIGHT.roundToPx() }
     val gap = with(density) { GAP.roundToPx() }
     Box(modifier.onSizeChanged { onArea(Area(it.width, it.height, captionHeight, gap)) }) {
+        val failure = state.failure
         if (failure != null) {
             Column(
                 Modifier.align(Alignment.Center).padding(24.dp),
@@ -246,7 +192,7 @@ private fun Preview(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(failure.words(texts), textAlign = TextAlign.Center)
-                if (failure.ffmpegMissing && onWindows) FfmpegOffer(onFfmpegInstalled)
+                if (state.offersFfmpeg) FfmpegOffer(state, onInstallFfmpeg)
             }
             return@Box
         }
@@ -270,45 +216,16 @@ private fun Preview(
 }
 
 /**
- * A button that installs ffmpeg through winget, and what came of it; [onInstalled] is told once ffmpeg is found. Where
- * winget is missing, ffmpeg's download page is opened in the browser, where the system has one.
+ * A button that installs ffmpeg through winget, which [onInstall] starts, and what came of it, as [state] has it; where
+ * winget is missing, the session opens ffmpeg's download page in the browser.
  */
 @Composable
-private fun FfmpegOffer(onInstalled: () -> Unit) {
+private fun FfmpegOffer(state: LiveSession.State, onInstall: () -> Unit) {
     val texts = LocalTexts.current
-    var installing by remember { mutableStateOf(false) }
-    var failure by remember { mutableStateOf<Failure?>(null) }
-    val currentOnInstalled by rememberUpdatedState(onInstalled)
-    OutlinedButton(
-        enabled = !installing,
-        onClick = {
-            installing = true
-            failure = null
-            thread(name = "dog-vision-ffmpeg-install", isDaemon = true) {
-                val installed = FfmpegPrograms.install()
-                if (installed == FfmpegInstall.NoWinget) openDownloadPage()
-                EventQueue.invokeLater {
-                    installing = false
-                    failure = when (installed) {
-                        FfmpegInstall.Found -> null
-                        FfmpegInstall.NoWinget -> Failure { it.get(Str.NO_WINGET, FfmpegPrograms.DOWNLOAD_PAGE) }
-                        is FfmpegInstall.Failed -> Failure { it.get(Str.FFMPEG_NOT_INSTALLED, installed.reason) }
-                    }
-                    if (installed == FfmpegInstall.Found) currentOnInstalled()
-                }
-            }
-        },
-    ) {
-        Text(texts.get(if (installing) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG))
+    OutlinedButton(enabled = !state.installingFfmpeg, onClick = onInstall) {
+        Text(texts.get(if (state.installingFfmpeg) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG))
     }
-    failure?.let { Text(it.words(texts), textAlign = TextAlign.Center) }
-}
-
-/** ffmpeg's download page, in the system's browser, where it has one. */
-private fun openDownloadPage() {
-    runCatching {
-        if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(URI(FfmpegPrograms.DOWNLOAD_PAGE))
-    }
+    state.ffmpegFailure?.let { Text(it.words(texts), textAlign = TextAlign.Center) }
 }
 
 /** An area's pixels as Compose draws them, through Skia. */
