@@ -4,7 +4,7 @@
 # jpackage makes an installer only on the system the installer is for,
 # so this runs a Windows JDK's jpackage.exe under Wine,
 # over the JAR that `:gui-compose:windowsUberJar` assembles, with WiX Toolset 3 making the MSI.
-# As the Linux packages have, it has a runtime of its own, the window's launcher dog-vision.exe,
+# As the tar.gz has, it has a runtime of its own, the window's launcher dog-vision.exe,
 # and dog-vision-cli.exe, the command line alone, which runs in a console.
 # It is written to gui-compose/build/compose/binaries/main/msi.
 #
@@ -51,8 +51,7 @@ output="$desktop/build/compose/binaries/main/msi"
 # as Windows Installer tells versions of one product apart by it: never change it.
 upgrade_uuid="602aa86b-3230-4786-8460-ba08bca42e45"
 
-# The runtime's modules, the Linux packages' too:
-# those Compose always takes, and the ones gui-compose/build.gradle.kts adds.
+# The runtime's modules, the tar.gz's too: those Compose always takes, and the ones gui-compose/build.gradle.kts adds.
 modules="java.base,java.desktop,java.logging,jdk.crypto.ec,java.instrument,jdk.unsupported"
 
 # Says why on the standard error and exits, with 1 or the status given.
