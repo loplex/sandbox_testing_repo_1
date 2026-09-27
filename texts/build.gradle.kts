@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.w3c.dom.Element
 import javax.xml.parsers.DocumentBuilderFactory
 
-// Everything the Android app, the web page, the desktop window and the command line say, in each language, with no
+// Everything the Android app, the web page, the desktop windows and the command line say, in each language, with no
 // toolkit: the strings.xml files in Android's format, compiled into Kotlin at build time, and what words a species, a
 // fact or a caption from them.
 plugins {

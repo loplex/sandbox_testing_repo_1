@@ -12,7 +12,7 @@ import kotlin.math.exp
 
 /**
  * The GL passes that render a view's images from a frame, through [gl], in whichever context draws them: the Android
- * app's screen, a video being converted, the web page's canvas, or a framebuffer the desktop window reads back.
+ * app's screen, a video being converted, the web page's canvas, or a framebuffer a desktop window reads back.
  * Everything here runs on that context's thread, between [create] and [release].
  *
  * The frame is turned upright into a texture of its own, each image of the view is rendered into a texture of its own,
