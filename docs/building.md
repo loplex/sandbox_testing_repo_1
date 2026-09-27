@@ -113,7 +113,7 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 The deb and the rpm depend on libEGL and ffmpeg as well as on the libraries the image links
 against, since LWJGL opens libEGL only once it runs.
 
-- **The deb names packages as Ubuntu 20.04 and Debian 11 name them**, which later releases keep or
+- **The deb names packages as Ubuntu 20.04 names them**, which later releases keep or
   provide (Ubuntu 24.04's `libasound2t64` provides `libasound2`), so that the deb is the same
   wherever it is built.
   The table `debianPackages` in
@@ -134,8 +134,9 @@ How the build rewrites jpackage's deb and rpm for each of these is in the commen
 ### Trying the Linux packages
 
 - **[`tools/test_deb.sh`](../tools/test_deb.sh) installs the deb in a bare container**, runs its
-  command line and removes it; it holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12. On
-  Debian 11, `apt-get install --simulate` resolved every dependency.
+  command line and removes it; it holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.
+  Debian 11 is not among them: its support ended in August 2026, and its repositories moved to
+  archive.debian.org.
 - **[`tools/test_rpm.sh`](../tools/test_rpm.sh) does for the rpm what `test_deb.sh` does**, with
   dnf, zypper or microdnf; it holds on Fedora 42, its minimal image, openSUSE Leap 15.6 and
   Tumbleweed, and on Rocky Linux 9's and UBI 9's minimal images, whose repositories lack ffmpeg.

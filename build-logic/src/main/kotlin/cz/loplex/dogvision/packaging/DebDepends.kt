@@ -12,9 +12,9 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * The Debian package of each library the app image links against, by soname, as Ubuntu 20.04 and Debian 11 name them:
- * later releases keep the names or provide them (Ubuntu 24.04's libasound2t64 provides libasound2). [DebDepends] fails
- * on a library missing here.
+ * The Debian package of each library the app image links against, by soname, as Ubuntu 20.04, the oldest release the
+ * debs are for, names them: later releases keep the names or provide them (Ubuntu 24.04's libasound2t64 provides
+ * libasound2). [DebDepends] fails on a library missing here.
  */
 val debianPackages = mapOf(
     "ld-linux-x86-64.so.2" to "libc6",
