@@ -628,7 +628,8 @@ for IntelliJ IDEA's Android plugin.
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push:
 
 - **On Ubuntu 24.04, `./gradlew check`**, the window's GL tests on Mesa's llvmpipe, as the runner
-  has no GPU; then the deb, built and tried by `test_deb.sh` in Ubuntu 20.04.
+  has no GPU; then the deb, built and tried by `test_deb.sh` in Ubuntu 20.04, and the rpm, by
+  `test_rpm.sh` in Fedora 42.
 - **On Windows Server 2022, `./gradlew :gui-compose:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and
