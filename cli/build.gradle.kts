@@ -45,8 +45,22 @@ kotlin {
     }
 }
 
+/** The documents' figures, which core renders from the photo beside them. */
+val figures = rootProject.layout.projectDirectory.dir("docs/images")
+
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
+    inputs.dir(figures).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("dogvision.figures", figures.asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("renderFigures") {
+    description = "Renders the documents' figures in docs/images from the apple photo there."
+    group = "documentation"
+    val test = kotlin.jvm().compilations.getByName("test")
+    classpath = files(test.output.allOutputs, test.runtimeDependencyFiles)
+    mainClass = "cz.loplex.dogvision.cli.FiguresKt"
+    args(figures.asFile.absolutePath)
 }
 
 // One JAR with core and the Kotlin standard library in it, which `java -jar` runs alone on a JDK 17 or newer.
