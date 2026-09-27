@@ -1,6 +1,6 @@
 # Building dog-vision
 
-How to build each program from this repository, and the desktop window's packages.
+How to build each program from this repository, and the desktop windows' packages.
 What each program does is [Using it](using.md)'s.
 
 - [What the build needs](#what-the-build-needs) — the JDK, the Android SDK, Chrome.
@@ -49,8 +49,14 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ./gradlew :gui-compose:run --args="--window photo.jpg"       # a photo, or a video played over and over
 ./gradlew :gui-compose:packageUberJarForCurrentOS            # gui-compose/build/compose/jars/dog-vision-linux-x64-0.1.0.jar
 ./gradlew :gui-compose:windowsUberJar                        # gui-compose/build/compose/jars/dog-vision-windows-x64-0.1.0.jar
+./gradlew :gui-swing:runJvm                                  # the Swing window, on the camera
+./gradlew :gui-swing:runJvm --args="--window photo.jpg"      # the Swing window, on a photo or a video
+./gradlew :gui-swing:linuxUberJar                            # gui-swing/build/jars/dog-vision-swing-linux-x64-0.1.0.jar
+./gradlew :gui-swing:windowsUberJar                          # gui-swing/build/jars/dog-vision-swing-windows-x64-0.1.0.jar
 ```
 
+- **`gui-compose` is the Compose window and `gui-swing` the Swing one**, each with its own JARs and
+  packages.
 - **Each JAR holds everything the window needs**, the natives for its system on x86-64 included,
   and runs as `java -jar dog-vision-linux-x64-0.1.0.jar` on a JDK 17 or newer, with the window's
   options.
@@ -64,9 +70,12 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ```sh
 ./gradlew :gui-compose:packageDeb    # gui-compose/build/packages/deb/dog-vision_0.1.0_amd64.deb
 ./gradlew :gui-compose:packageRpm    # gui-compose/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm
+./gradlew :gui-swing:packageDeb      # gui-swing/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb
+./gradlew :gui-swing:packageRpm      # gui-swing/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm
 ./gradlew :cli:packageDeb            # cli/build/packages/deb/dog-vision-cli_0.1.0_all.deb
 ./gradlew :cli:packageRpm            # cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
+./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's jmods> --wix <WiX 3.14>
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1
@@ -83,8 +92,11 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 | MSI     | Wine, a Windows JDK 17, jmods, WiX 3.14    | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
-  so that build needs the network: jpackage runs from it, and it is the tar.gz's runtime, where the
+  so that build needs the network: jpackage runs from it, and it is the tar.gzs' runtime, where the
   MSI scripts link the MSI's from a Windows JDK 25.
+  The Compose window's tar.gz comes from Compose's own jpackage task, the Swing window's from
+  [`AppImage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/AppImage.kt) in
+  `build-logic`, as Compose's plugin is not applied to it.
   The deb and the rpm take none, as they run on the system's Java.
 - **The tar.gz needs nothing more**, and neither do the JARs.
 - **The version, 0.1.0 in the names above, is `appVersion` in
@@ -96,19 +108,24 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 
 - **The deb and the rpm run on the system's Java**, 17 or newer, which they depend on: the
   distribution updates it, and a machine with a JRE downloads little more.
-  Each comes in two packages:
-  - `dog-vision`, the window, which converts a photo given alone as the command line does;
+  They come in three packages:
+  - `dog-vision`, the Compose window, which converts a photo given alone as the command line does;
+  - `dog-vision-swing`, the Swing window, which does the same, and installs beside `dog-vision`;
   - `dog-vision-cli`, the command line alone, which needs no display and so only a headless Java,
-    and which `dog-vision` recommends.
+    and which both windows recommend.
 - **Their files are where Debian's and Fedora's Java applications have them**:
-  - the JARs in `/usr/share/dog-vision/lib` and `/usr/share/dog-vision-cli/lib`, each package with
-    its own copy of the command line's, so that they share no classpath;
-  - the window's native libraries, skiko's and LWJGL's, in `/usr/lib/dog-vision`, where the FHS
-    puts what depends on the architecture, and which skiko and LWJGL load them from rather than
-    unpack their own copies at run time;
-  - the launchers, `dog-vision` and `dog-vision-cli`, in `/usr/bin`, on `PATH`;
-  - the window's menu entry, `/usr/share/applications/cz.loplex.dogvision.desktop`, named in the
-    system's language ("Dog vision", "Psí vidění"), and its icons in the hicolor theme.
+  - the JARs in `/usr/share/<package>/lib`, each package with its own copy of the command line's, so
+    that they share no classpath;
+  - each window's native libraries in `/usr/lib/<package>`, where the FHS puts what depends on the
+    architecture, and which skiko and LWJGL load them from rather than unpack their own copies at
+    run time: skiko's and LWJGL's for `dog-vision`, LWJGL's alone for `dog-vision-swing`;
+  - the launchers, `dog-vision`, `dog-vision-swing` and `dog-vision-cli`, in `/usr/bin`, on `PATH`;
+  - each window's menu entry, named in the system's language, and its icons in the hicolor theme:
+    `cz.loplex.dogvision.desktop` ("Dog vision", "Psí vidění") and
+    `cz.loplex.dogvision.swing.desktop` ("Dog vision (Swing)", "Psí vidění (Swing)"), in
+    `/usr/share/applications`.
+- **FlatLaf's natives stay in its JAR** in `dog-vision-swing`: it loads them on Linux only for
+  window decorations of its own, which the window does not use, and they link GTK 3.
 - **Each launcher finds its Java** in `JAVA_HOME`, then on `PATH`, then the newest in
   `/usr/lib/jvm` and `/usr/lib64/jvm`, and says so where none is 17 or newer:
   the alternatives may point `java` at an older one on a machine that has a newer one as well.
@@ -118,11 +135,13 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   where `dog-vision-cli` brought a headless Java and a window a full one of another version,
   `java` may be the headless one.
 - **The tar.gz and the MSI bring a runtime of their own**, Temurin's JDK 25, which jlink cuts down
-  to the modules the window uses, and both launchers.
+  to the modules the window uses, and both launchers, the window's and `dog-vision-cli`.
   Temurin brings its own image and font libraries, which a distribution's OpenJDK takes from the
   system, so the tar.gz needs little more than glibc 2.28 or later, which LWJGL's natives ask for,
-  X11, ALSA, fontconfig and the C++ runtime.
-  It is to run as `dog-vision/bin/dog-vision` without installing it.
+  X11 and ALSA, and for the Compose window fontconfig and the C++ runtime as well, which skiko
+  links.
+  It is to run as `dog-vision/bin/dog-vision` or `dog-vision-swing/bin/dog-vision-swing` without
+  installing it.
 - **The MSI installs into `Program Files\dog-vision`** and adds the window to the Start menu, in a
   dog-vision group, and to the desktop.
   It carries a fixed upgrade code, so that a later version's MSI replaces it.
@@ -145,6 +164,11 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     names them, and the build fails on a library it lacks;
   - the rpm names libraries and a file (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
     `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently.
+- **A font, for the rpm of `dog-vision-swing`**, `(dejavu-sans-fonts or dejavu-fonts)`: Swing cannot
+  start without one, and openSUSE's JRE brings none, where Debian's fontconfig does.
+  It is DejaVu by name, as Fedora and Rocky or openSUSE package it, not `font(:lang=en)`:
+  openSUSE's `xorg-x11-fonts-core` provides that, with bitmap fonts only, which Java does not read.
+  The Compose window draws its text through skiko and needs none.
 - **Nothing else, and no scripts**: the menu entry and the icons are files of the package, which
   the desktop finds by itself.
 
@@ -156,12 +180,13 @@ runtime into its packages.
 
 ### Trying the Linux packages
 
-- **[`tools/test_deb.sh`](../tools/test_deb.sh) installs a deb in a bare container**, `dog-vision`
-  or `dog-vision-cli`, with the Java apt chooses for it, and checks that each runs from `PATH`,
-  converts [`test_photo.jpg`](../tools/test_photo.jpg) and is removed with nothing left behind.
-  - Of `dog-vision`, it also opens the window under Xvfb, installed only after the deb's own
-    dependencies so that its X libraries hide none the deb misses, and checks that skiko and
-    LWJGL loaded the deb's natives rather than unpack their own into the home or `/tmp`.
+- **[`tools/test_deb.sh`](../tools/test_deb.sh) installs a deb in a bare container**, `dog-vision`,
+  `dog-vision-swing` or `dog-vision-cli`, with the Java apt chooses for it, and checks that each
+  runs from `PATH`, converts [`test_photo.jpg`](../tools/test_photo.jpg) and is removed with nothing
+  left behind.
+  - Of each window, it also opens the window under Xvfb, installed only after the deb's own
+    dependencies so that its X libraries hide none the deb misses, and checks that skiko, LWJGL and
+    FlatLaf unpacked no natives of their own into the home or `/tmp`.
   - It holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.
     Debian 11 is not among them: its support ended in August 2026, and its repositories moved to
     archive.debian.org.
