@@ -39,7 +39,7 @@ import kotlin.test.assertTrue
 class ControlsTest {
     private val english = Texts.of("en")
 
-    /** What the controls change, held as the app's ViewModel and the Compose window hold it. */
+    /** What the controls change, held as the app's ViewModel and gui-core's `LiveSession` hold it. */
     private class Held(view: View) {
         var view by mutableStateOf(view)
         var language by mutableStateOf("")
