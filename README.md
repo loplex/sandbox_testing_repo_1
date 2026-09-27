@@ -532,8 +532,9 @@ for IntelliJ IDEA's Android plugin.
     the passes to `core`'s CPU pipeline, as the page's and the app's tests do, and the area read
     back to its top row first, over OpenGL ES 3.0 and over desktop OpenGL 3.3, as WGL draws.
   - [`GlContextTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/GlContextTest.kt)
-    holds contexts of the two APIs to opening one after the other in one JVM, and a context that
-    cannot compile the passes to falling back to the other, as ANGLE falls back to WGL.
+    holds contexts of the two APIs to opening one after the other in one JVM, a context that
+    cannot compile the passes to falling back to the other, as ANGLE falls back to WGL, and the
+    window's own choice to OpenGL ES.
   - [`FfmpegFeedTest`](gui-compose/src/jvmTest/kotlin/cz/loplex/dogvision/desktop/FfmpegFeedTest.kt)
     plays a video it makes, turned by its file, upright and over and over; reads ffmpeg's list of
     DirectShow cameras as ffmpeg words it now and as it did before 4.4; and holds a program that
