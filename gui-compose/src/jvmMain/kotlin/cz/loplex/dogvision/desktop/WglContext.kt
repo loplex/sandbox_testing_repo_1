@@ -29,7 +29,9 @@ import org.lwjgl.system.MemoryUtil.memUTF8Safe
  * GLFW makes it on a window that is never shown, since WGL makes a context only for a window's device context, and GL
  * draws into framebuffers of its own, as in the other contexts.
  *
- * Throws IllegalStateException where GLFW or a 3.3 core context is missing.
+ * LWJGL's library of desktop OpenGL is loaded for the context and unloaded with it, as [loadApi] says why.
+ *
+ * Throws IllegalStateException where GLFW or a 3.3 core context is missing, having undone what it did.
  */
 class WglContext : GlContext {
     private val window: Long
@@ -52,9 +54,15 @@ class WglContext : GlContext {
             throw IllegalStateException("Cannot make an OpenGL 3.3 core context: $error")
         }
         glfwMakeContextCurrent(window)
-        GL.createCapabilities()
-        renderer = glGetString(GL_RENDERER).orEmpty()
-        version = glGetString(GL_VERSION).orEmpty()
+        try {
+            loadApi(GL::create)
+            GL.createCapabilities()
+            renderer = glGetString(GL_RENDERER).orEmpty()
+            version = glGetString(GL_VERSION).orEmpty()
+        } catch (error: Throwable) {
+            close()
+            throw error
+        }
     }
 
     override val gl = LwjglGl()
@@ -70,6 +78,7 @@ class WglContext : GlContext {
         GL.setCapabilities(null)
         glfwDestroyWindow(window)
         glfwTerminate()
+        GL.destroy()
     }
 
     /** What GLFW said of the last error, or that it said nothing. */

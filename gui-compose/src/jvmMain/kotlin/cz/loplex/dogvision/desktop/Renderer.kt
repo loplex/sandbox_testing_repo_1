@@ -91,8 +91,8 @@ class Renderer(
     }
 
     private fun run() {
-        val context = try {
-            GlContext.open(windowsGl)
+        val (context, passes) = try {
+            GlContext.open(windowsGl, ::Passes)
         } catch (error: IllegalStateException) {
             onFailure(error.message.orEmpty())
             return
@@ -102,12 +102,6 @@ class Renderer(
         }
         if (context.software) System.err.println("OpenGL renders on the CPU here: ${context.renderer}")
         try {
-            val passes = try {
-                Passes(context.gl)
-            } catch (error: IllegalStateException) {
-                onFailure(error.message.orEmpty())
-                return
-            }
             render(passes)
             passes.release()
         } finally {
