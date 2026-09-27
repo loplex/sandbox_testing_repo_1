@@ -107,6 +107,9 @@ The test classes' comments say what each of them holds.
 
 ### The documents are checked against core
 
+- **`ModelDocTest`, in `:core:jvmTest`, holds [The model](model.md) to `Species`**: both its tables
+  list every species, in order, with the peaks, S-cone shares, acuities and sources `core` has,
+  formatted as `core` formats them, and the neutral points it quotes still hold.
 - **`FiguresTest`, in `:cli:jvmTest`, holds the figures in [`docs/images`](images) to what `core`
   renders**, within 2 in each channel; the captions are left out, as fonts differ between systems.
 - **`./gradlew :cli:renderFigures` renders the figures again**, from the apple photo beside them;
