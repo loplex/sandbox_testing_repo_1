@@ -46,7 +46,9 @@ import java.security.MessageDigest
  * An OpenGL ES 3.0 context through EGL on the [display] given, with no surface, current on the thread that makes it;
  * or, for the tests of [LwjglGl] on Linux, a desktop OpenGL 3.3 core context, which Windows's WGL gives.
  *
- * Throws IllegalStateException where the display, EGL or the context asked for is missing.
+ * LWJGL's library of the API is loaded for the context and unloaded with it, as [loadApi] says why.
+ *
+ * Throws IllegalStateException where the display, EGL or the context asked for is missing, having undone what it did.
  */
 class EglContext private constructor(private val display: Long, private val api: Api = Api.ES) : GlContext {
     /** An API EGL makes a context for: what to bind and ask for, and how LWJGL reads its strings. */
@@ -80,43 +82,57 @@ class EglContext private constructor(private val display: Long, private val api:
         ),
     }
 
-    private val context: Long
+    private var context = EGL_NO_CONTEXT
+    private var initialized = false
+    private var loaded = false
 
     override val renderer: String
     override val version: String
 
     init {
-        check(display != EGL_NO_DISPLAY) { "EGL cannot open the display (error 0x${eglError()})" }
-        MemoryStack.stackPush().use { stack ->
-            val major = stack.mallocInt(1)
-            val minor = stack.mallocInt(1)
-            check(eglInitialize(display, major, minor)) { "Cannot initialise EGL (error 0x${eglError()})" }
-            check(eglBindAPI(api.eglApi)) { "EGL has no ${api.title} (error 0x${eglError()})" }
-            // No surface of any kind is asked for, as none is drawn into.
-            val attributes = stack.ints(EGL_RENDERABLE_TYPE, api.renderable, EGL_SURFACE_TYPE, 0, EGL_NONE)
-            val configs = stack.mallocPointer(1)
-            val count = stack.mallocInt(1)
-            check(eglChooseConfig(display, attributes, configs, count) && count[0] > 0) {
-                "EGL has no configuration for ${api.title} (error 0x${eglError()})"
+        try {
+            check(display != EGL_NO_DISPLAY) { "EGL cannot open the display (error 0x${eglError()})" }
+            MemoryStack.stackPush().use { stack ->
+                val major = stack.mallocInt(1)
+                val minor = stack.mallocInt(1)
+                check(eglInitialize(display, major, minor)) { "Cannot initialise EGL (error 0x${eglError()})" }
+                initialized = true
+                check(eglBindAPI(api.eglApi)) { "EGL has no ${api.title} (error 0x${eglError()})" }
+                // No surface of any kind is asked for, as none is drawn into.
+                val attributes = stack.ints(EGL_RENDERABLE_TYPE, api.renderable, EGL_SURFACE_TYPE, 0, EGL_NONE)
+                val configs = stack.mallocPointer(1)
+                val count = stack.mallocInt(1)
+                check(eglChooseConfig(display, attributes, configs, count) && count[0] > 0) {
+                    "EGL has no configuration for ${api.title} (error 0x${eglError()})"
+                }
+                val version = stack.ints(*api.contextAttributes, EGL_NONE)
+                context = eglCreateContext(display, configs[0], EGL_NO_CONTEXT, version)
+                check(context != EGL_NO_CONTEXT) { "Cannot make an ${api.title} context (error 0x${eglError()})" }
             }
-            val version = stack.ints(*api.contextAttributes, EGL_NONE)
-            context = eglCreateContext(display, configs[0], EGL_NO_CONTEXT, version)
-            check(context != EGL_NO_CONTEXT) { "Cannot make an ${api.title} context (error 0x${eglError()})" }
-        }
-        check(eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context)) {
-            "Cannot make the ${api.title} context current (error 0x${eglError()})"
-        }
-        when (api) {
-            Api.ES -> GLES.createCapabilities()
+            check(eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context)) {
+                "Cannot make the ${api.title} context current (error 0x${eglError()})"
+            }
+            when (api) {
+                Api.ES -> {
+                    loadApi(GLES::create)
+                    loaded = true
+                    GLES.createCapabilities()
+                }
 
-            Api.DESKTOP -> {
-                // Desktop GL's functions come through EGL here, not through GLX, which LWJGL asks on Linux otherwise.
-                Configuration.OPENGL_CONTEXT_API.set("EGL")
-                GL.createCapabilities()
+                Api.DESKTOP -> {
+                    // Desktop GL's functions come through EGL here, not through GLX, LWJGL's default on Linux.
+                    Configuration.OPENGL_CONTEXT_API.set("EGL")
+                    loadApi(GL::create)
+                    loaded = true
+                    GL.createCapabilities()
+                }
             }
+            renderer = api.getString(GLES20.GL_RENDERER).orEmpty()
+            version = api.getString(GLES20.GL_VERSION).orEmpty()
+        } catch (error: Throwable) {
+            release()
+            throw error
         }
-        renderer = api.getString(GLES20.GL_RENDERER).orEmpty()
-        version = api.getString(GLES20.GL_VERSION).orEmpty()
     }
 
     override val gl: DesktopGl = when (api) {
@@ -131,14 +147,28 @@ class EglContext private constructor(private val display: Long, private val api:
     override val software: Boolean
         get() = listOf("llvmpipe", "softpipe", "Microsoft Basic Render Driver").any { it in renderer }
 
-    override fun close() {
+    override fun close() = release()
+
+    /** Undoes as much of making the context as was done, down to loading LWJGL's library of its API. */
+    private fun release() {
+        if (!initialized) return
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)
-        when (api) {
-            Api.ES -> GLES.setCapabilities(null)
-            Api.DESKTOP -> GL.setCapabilities(null)
-        }
-        eglDestroyContext(display, context)
+        if (context != EGL_NO_CONTEXT) eglDestroyContext(display, context)
         eglTerminate(display)
+        if (loaded) {
+            when (api) {
+                Api.ES -> {
+                    GLES.setCapabilities(null)
+                    GLES.destroy()
+                }
+
+                Api.DESKTOP -> {
+                    GL.setCapabilities(null)
+                    GL.destroy()
+                }
+            }
+        }
+        initialized = false
     }
 
     companion object {

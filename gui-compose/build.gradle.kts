@@ -332,6 +332,4 @@ tasks.register<Jar>("windowsUberJar") {
 
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
-    // A JVM for each test class, as LWJGL takes either OpenGL ES's functions or desktop GL's in one, not both.
-    forkEvery = 1
 }
