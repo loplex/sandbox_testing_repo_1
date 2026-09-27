@@ -15,17 +15,18 @@ Building the programs is [Building it](building.md)'s.
 
 ## How the code is laid out
 
-| Module                          | Holds                                          | Built for             |
-|---------------------------------|------------------------------------------------|-----------------------|
-| [`core`](../core)               | the species, the model, the image pipeline     | the JVM, JavaScript   |
-| [`gl`](../gl)                   | the GLSL ES 3.00 passes that render a view     | the JVM, JavaScript   |
-| [`texts`](../texts)             | the wording, in English and Czech              | the JVM, JavaScript   |
-| [`ui`](../ui)                   | the controls, in Compose Multiplatform         | Android, the JVM      |
-| [`android`](../android)         | the Android app                                | Android               |
-| [`web`](../web)                 | the web page                                   | JavaScript            |
-| [`cli`](../cli)                 | the command line                               | the JVM               |
-| [`gui-compose`](../gui-compose) | the desktop window                             | the JVM               |
-| [`testing`](../testing)         | what the renderers' tests hold them to         | the JVM, JavaScript   |
+| Module                            | Holds                                      | Built for           |
+|-----------------------------------|--------------------------------------------|---------------------|
+| [`core`](../core)                 | the species, the model, the image pipeline | the JVM, JavaScript |
+| [`gl`](../gl)                     | the GLSL ES 3.00 passes that render a view | the JVM, JavaScript |
+| [`texts`](../texts)               | the wording, in English and Czech          | the JVM, JavaScript |
+| [`ui`](../ui)                     | the controls, in Compose Multiplatform     | Android, the JVM    |
+| [`android`](../android)           | the Android app                            | Android             |
+| [`web`](../web)                   | the web page                               | JavaScript          |
+| [`cli`](../cli)                   | the command line                           | the JVM             |
+| [`gui-core`](../gui-core)         | what the desktop window draws with         | the JVM             |
+| [`gui-compose`](../gui-compose)   | the desktop window                         | the JVM             |
+| [`testing`](../testing)           | what the renderers' tests hold them to     | the JVM, JavaScript |
 
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one:
 the tasks the Linux packages are made with, which a module takes by applying the plugin
@@ -52,6 +53,9 @@ the tasks the Linux packages are made with, which a module takes by applying the
   [`runCommandLine`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
   a command line it cannot read itself, converts a photo, and hands anything else to a window given
   to it.
+- **`gui-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
+  renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
+  image of them.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -79,15 +83,15 @@ The test classes' comments say what each of them holds.
 | `./gradlew :texts:allTests`                    | every language having every string, and plurals      |
 | `./gradlew :ui:jvmTest`                        | the shared controls, in Compose's test scene         |
 | `./gradlew :cli:jvmTest`                       | the options, the EXIF orientation, a conversion      |
-| `./gradlew :gui-compose:jvmTest`               | the window's passes, GL contexts and ffmpeg          |
+| `./gradlew :gui-core:jvmTest`                  | the window's passes, GL contexts and ffmpeg          |
 | `./gradlew :web:jsTest`                        | the page's passes, snapshot and recording            |
 | `./gradlew :android:connectedDebugAndroidTest` | the renderer, recording and conversion, on a device  |
 | `./gradlew :android:lintDebug`                 | Android Lint alone                                   |
 
 - **The renderers' tests hold each GPU renderer to `core`'s CPU pipeline**: the app's, the web
   page's and the window's alike, through [`testing`](../testing)'s reference pattern.
-- **`:gui-compose:jvmTest` draws on this machine's GPU**, through EGL on Linux and through ANGLE and
-  WGL on Windows, and runs the machine's `ffmpeg`.
+- **`:gui-core:jvmTest` draws on this machine's GPU**, through EGL on Linux and through
+  ANGLE and WGL on Windows, and runs the machine's `ffmpeg`.
 - **`:web:jsTest` runs in headless Chrome, which renders WebGL 2 in software**, with SwiftShader, as
   [`karma.config.d/webgl.js`](../web/karma.config.d/webgl.js) tells it to.
   `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead,
@@ -117,7 +121,7 @@ in [`.editorconfig`](../.editorconfig):
   versions and tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and `test_rpm.sh --upgrade` in
   Fedora 42, `dog-vision`'s window under Xvfb; and the tar.gz, unpacked on the runner, where its
   command line runs and its window's main converts a photo.
-- **On Windows Server 2022, `./gradlew :gui-compose:jvmTest`**, over ANGLE on WARP and over WGL on
+- **On Windows Server 2022, `./gradlew :gui-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and
   tried by `test_msi_on_windows.ps1`; the MSIs are the run's artifacts.
