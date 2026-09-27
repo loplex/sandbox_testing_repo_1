@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The MSI's code page: Windows-1250, Central Europe's, in place of jpackage's Windows-1252, which has no ř for the
+  vendor's name, Martin Lopatář. light.exe takes the code page from the first localization it is handed, and a string
+  defined in two would clash, so this one defines none. JDK 17's jpackage, which tools/package_msi_on_linux.sh runs,
+  hands light.exe its own English strings first, so that script, which runs light.exe a second time under Wine, hands
+  it this file first. JDK 25's replaces its own strings with a file of their name, MsiInstallerStrings_en.wxl, so
+  tools/package_msi_on_windows.ps1 puts jpackage's own strings with this code page in its place.
+-->
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="1250"/>
