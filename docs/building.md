@@ -62,8 +62,10 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ## The desktop packages
 
 ```sh
-./gradlew :gui-compose:packageDeb    # gui-compose/build/compose/binaries/main/deb/dog-vision_0.1.0_amd64.deb
-./gradlew :gui-compose:packageRpm    # gui-compose/build/compose/binaries/main/rpm/dog-vision-0.1.0-1.x86_64.rpm
+./gradlew :gui-compose:packageDeb    # gui-compose/build/packages/deb/dog-vision_0.1.0_amd64.deb
+./gradlew :gui-compose:packageRpm    # gui-compose/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm
+./gradlew :cli:packageDeb            # cli/build/packages/deb/dog-vision-cli_0.1.0_all.deb
+./gradlew :cli:packageRpm            # cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's jmods> --wix <WiX 3.14>
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
@@ -75,9 +77,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 
 | Package | Tools                                      | Ubuntu's packages | Run by                                           |
 |---------|--------------------------------------------|-------------------|--------------------------------------------------|
-| deb     | `dpkg-deb`, `dpkg`, `fakeroot`             | dpkg, fakeroot    | jpackage, and `packageDeb` to pack it again      |
+| deb     | `dpkg-deb`                                 | dpkg              | `packageDeb`                                     |
 | deb     | `readelf`                                  | binutils          | `debDepends`                                     |
-| rpm     | `rpmbuild` 4.10 or later, `rpm`, `elfdeps` | rpm               | jpackage, `rpmLibraryRequires`, `packageRpm`     |
+| rpm     | `rpmbuild` 4.13 or later, `rpm`, `elfdeps` | rpm               | `rpmLibraryRequires`, `packageRpm`               |
 | MSI     | Wine, a Windows JDK 17, jmods, WiX 3.14    | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
@@ -90,64 +92,87 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 
 ### What each package holds
 
-- **Each brings a runtime of its own**, Temurin's JDK 25, which jlink cuts down to the modules the
-  window uses.
-  Temurin brings its own image and font libraries, which a distribution's OpenJDK takes from the
-  system, so the Linux packages need little more than glibc 2.17 or later, X11, ALSA, fontconfig
-  and the C++ runtime.
-- **Each has two launchers**:
+- **The deb and the rpm run on the system's Java**, 17 or newer, which they depend on: the
+  distribution updates it, and a machine with a JRE downloads little more.
+  Each comes in two packages:
   - `dog-vision`, the window, which converts a photo given alone as the command line does;
-  - `dog-vision-cli`, the command line alone, which prints its usage rather than open the window,
-    and on Windows runs in a console.
-- **The deb and the rpm install into `/opt/dog-vision`**, with the launchers in its `bin`, and add
-  the window to the desktop's menu under Graphics, as the file of the package
-  `/usr/share/applications/cz.loplex.dogvision.desktop`.
-- **The tar.gz is the same application unpacked**, to run as `dog-vision/bin/dog-vision` without
-  installing it.
+  - `dog-vision-cli`, the command line alone, which needs no display and so only a headless Java,
+    and which `dog-vision` recommends.
+- **Their files are where Debian's and Fedora's Java applications have them**:
+  - the JARs in `/usr/share/dog-vision/lib` and `/usr/share/dog-vision-cli/lib`, each package with
+    its own copy of the command line's, so that they share no classpath;
+  - the window's native libraries, skiko's and LWJGL's, in `/usr/lib/dog-vision`, where the FHS
+    puts what depends on the architecture, and which skiko and LWJGL load them from rather than
+    unpack their own copies at run time;
+  - the launchers, `dog-vision` and `dog-vision-cli`, in `/usr/bin`, on `PATH`;
+  - the window's menu entry, `/usr/share/applications/cz.loplex.dogvision.desktop`, named in the
+    system's language ("Dog vision", "Psí vidění"), and its icons in the hicolor theme.
+- **Each launcher finds its Java** in `JAVA_HOME`, then on `PATH`, then the newest in
+  `/usr/lib/jvm` and `/usr/lib64/jvm`, and says so where none is 17 or newer:
+  the alternatives may point `java` at an older one on a machine that has a newer one as well.
+  It is [`launcher.sh`](../build-logic/src/main/resources/cz/loplex/dogvision/packaging/launcher.sh),
+  filled in by the build.
+- **A window's launcher passes over a headless Java**, one without `lib/libawt_xawt.so`:
+  where `dog-vision-cli` brought a headless Java and a window a full one of another version,
+  `java` may be the headless one.
+- **The tar.gz and the MSI bring a runtime of their own**, Temurin's JDK 25, which jlink cuts down
+  to the modules the window uses, and both launchers.
+  Temurin brings its own image and font libraries, which a distribution's OpenJDK takes from the
+  system, so the tar.gz needs little more than glibc 2.28 or later, which LWJGL's natives ask for,
+  X11, ALSA, fontconfig and the C++ runtime.
+  It is to run as `dog-vision/bin/dog-vision` without installing it.
 - **The MSI installs into `Program Files\dog-vision`** and adds the window to the Start menu, in a
   dog-vision group, and to the desktop.
   It carries a fixed upgrade code, so that a later version's MSI replaces it.
 
 ### The Linux packages' dependencies
 
-The deb and the rpm depend on libEGL and ffmpeg as well as on the libraries the image links
-against, since LWJGL opens libEGL only once it runs.
+- **A Java that can open a window**, or a headless one for `dog-vision-cli`:
+  - the deb, `default-jre (>= 2:1.17) | java17-runtime`: the distribution's default JRE where it is
+    17 or newer, as the Debian Java Policy has it, and any other JRE that provides
+    `java17-runtime`, Temurin's among them, where it is not (Ubuntu 20.04's and 22.04's are 11);
+  - the rpm, `(jre-17 or jre-21 or jre-25)`, a rich dependency, as no one name is provided by every
+    rpm JRE of 17 or newer and by no older one: Fedora's and Rocky's Java 8 provide `jre = 1:1.8.0`,
+    whose epoch puts it above `jre >= 17`.
+    A new long-term release joins the list when a distribution makes it its default.
+- **The libraries the window's natives link against**, and libEGL and ffmpeg, which LWJGL opens only
+  once it runs and the window runs apart for a video or the camera:
+  - the deb names packages as Ubuntu 20.04 names them, which later releases keep or provide, so
+    that the deb is the same wherever it is built; the table `debianPackages` in
+    [`DebDepends.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DebDepends.kt)
+    names them, and the build fails on a library it lacks;
+  - the rpm names libraries and a file (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
+    `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently.
+- **Nothing else, and no scripts**: the menu entry and the icons are files of the package, which
+  the desktop finds by itself.
 
-- **The deb names packages as Ubuntu 20.04 names them**, which later releases keep or
-  provide (Ubuntu 24.04's `libasound2t64` provides `libasound2`), so that the deb is the same
-  wherever it is built.
-  The table `debianPackages` in
-  [`DebDepends.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DebDepends.kt)
-  names them, and the build fails on a library it lacks.
-- **The rpm names libraries and a file** (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
-  `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently.
-- **Neither needs xdg-utils**: jpackage's scripts would install the desktop entry with
-  `xdg-desktop-menu`, which fails on a system with no desktop, so `packageDeb` and `packageRpm`
-  make it a file of the package instead.
-
-How the build rewrites jpackage's deb and rpm for each of these is in the comments of
-[`RepackDeb.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RepackDeb.kt) and
-[`RepackRpm.kt`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RepackRpm.kt), in
-[`build-logic`](../build-logic), which
-[`gui-compose/build.gradle.kts`](../gui-compose/build.gradle.kts) registers and wires to jpackage's tasks.
+The tasks that make them,
+[`DebPackage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DebPackage.kt) and
+[`RpmPackage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RpmPackage.kt), call
+`dpkg-deb` and `rpmbuild` themselves, in [`build-logic`](../build-logic), as jpackage always puts a
+runtime into its packages.
 
 ### Trying the Linux packages
 
-- **[`tools/test_deb.sh`](../tools/test_deb.sh) installs the deb in a bare container**, runs its
-  command line and removes it; it holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.
-  Debian 11 is not among them: its support ended in August 2026, and its repositories moved to
-  archive.debian.org.
-- **[`tools/test_rpm.sh`](../tools/test_rpm.sh) does for the rpm what `test_deb.sh` does**, with
-  dnf, zypper or microdnf; it holds on Fedora 42, its minimal image, openSUSE Leap 15.6 and
-  Tumbleweed, and on Rocky Linux 9's and UBI 9's minimal images, whose repositories lack ffmpeg.
+- **[`tools/test_deb.sh`](../tools/test_deb.sh) installs a deb in a bare container**, `dog-vision`
+  or `dog-vision-cli`, with the Java apt chooses for it, and checks that each runs from `PATH`,
+  converts [`test_photo.jpg`](../tools/test_photo.jpg) and is removed with nothing left behind.
+  - Of `dog-vision`, it also opens the window under Xvfb, installed only after the deb's own
+    dependencies so that its X libraries hide none the deb misses, and checks that skiko and
+    LWJGL loaded the deb's natives rather than unpack their own into the home or `/tmp`.
+  - It holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.
+    Debian 11 is not among them: its support ended in August 2026, and its repositories moved to
+    archive.debian.org.
+- **[`tools/test_rpm.sh`](../tools/test_rpm.sh) does for an rpm what `test_deb.sh` does**, with
+  dnf, zypper or microdnf; it holds on Fedora 42, openSUSE Leap 15.6 and Rocky Linux 9's minimal
+  image, whose repositories lack ffmpeg.
 - **With `--upgrade <a later package>`, each installs that one over the first** before removing
-  it, as an update does, and checks that the later version is the one installed and that the menu
-  entry is still there.
-  The later package is the same build with `-PappVersion=0.1.1`, and each build empties the folder
-  it writes to, so the first package goes aside before, as the Linux job of
-  [`ci.yml`](../.github/workflows/ci.yml) does.
-  The upgrade holds on Ubuntu 20.04 and 24.04, Fedora 42, openSUSE Leap 15.6 and Rocky Linux 9's
-  minimal image.
+  it, as an update does, and checks that the later version is the one installed and does what the
+  first did.
+  The later package is the same build with `-PappVersion=0.1.1`, which the build writes beside the
+  first, as the Linux job of [`ci.yml`](../.github/workflows/ci.yml) does.
+- **With `--temurin`, each installs Temurin's JRE from Adoptium's repository first**, and checks
+  that the package takes it and no OpenJDK beside it, as it does on Ubuntu 24.04 and Fedora 42.
 
 ### The MSI, built under Wine or on Windows
 

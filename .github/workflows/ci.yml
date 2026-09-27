@@ -21,24 +21,21 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
       - run: ./gradlew check
       # The deb in a bare Ubuntu 20.04, the oldest release its dependencies are named for, upgraded
-      # to a later version. Each build empties the folder it writes to, so the first deb goes aside.
+      # to a later version, which the build writes beside the first.
       - name: Build the deb and a later version of it, and try them
         run: |
-          sudo apt-get install -y fakeroot
           ./gradlew :gui-compose:packageDeb
-          mv gui-compose/build/compose/binaries/main/deb/dog-vision_0.1.0_amd64.deb "$RUNNER_TEMP"
           ./gradlew :gui-compose:packageDeb -PappVersion=0.1.1
-          tools/test_deb.sh --upgrade gui-compose/build/compose/binaries/main/deb/dog-vision_0.1.1_amd64.deb \
-            "$RUNNER_TEMP/dog-vision_0.1.0_amd64.deb" ubuntu:20.04
+          tools/test_deb.sh --upgrade gui-compose/build/packages/deb/dog-vision_0.1.1_amd64.deb \
+            gui-compose/build/packages/deb/dog-vision_0.1.0_amd64.deb ubuntu:20.04
       # The rpm in a bare Fedora, with no desktop, upgraded the same way.
       - name: Build the rpm and a later version of it, and try them
         run: |
           sudo apt-get install -y rpm
           ./gradlew :gui-compose:packageRpm
-          mv gui-compose/build/compose/binaries/main/rpm/dog-vision-0.1.0-1.x86_64.rpm "$RUNNER_TEMP"
           ./gradlew :gui-compose:packageRpm -PappVersion=0.1.1
-          tools/test_rpm.sh --upgrade gui-compose/build/compose/binaries/main/rpm/dog-vision-0.1.1-1.x86_64.rpm \
-            "$RUNNER_TEMP/dog-vision-0.1.0-1.x86_64.rpm" fedora:42
+          tools/test_rpm.sh --upgrade gui-compose/build/packages/rpm/dog-vision-0.1.1-1.x86_64.rpm \
+            gui-compose/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm fedora:42
       - if: failure()
         uses: actions/upload-artifact@v5
         with:

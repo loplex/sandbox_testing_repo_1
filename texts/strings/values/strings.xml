@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Dog vision</string>
+    <string name="desktop_comment">How a dog or another animal sees a photo, a video or the camera</string>
 
     <!-- Captions under the images -->
     <string name="original">original</string>

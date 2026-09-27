@@ -8,15 +8,15 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Lists the libraries an app image's runtime and natives link against, as rpm's own generator, elfdeps, names them for
- * an rpm's requirements (libX11.so.6()(64bit) and the like), less those the image brings itself. jpackage asks the
- * build machine's rpm database which packages own them, which off an rpm-based system finds none.
+ * Lists the libraries the ELF files under [image] link against, as rpm's own generator, elfdeps, names them for an
+ * rpm's requirements (libX11.so.6()(64bit) and the like), less those the files bring themselves. Named so, not by
+ * package, they hold on Fedora and openSUSE alike, whose package names differ, and need no rpm database to build on.
  */
 abstract class RpmLibraryRequires : DefaultTask() {
     @get:InputDirectory
     abstract val image: DirectoryProperty
 
-    /** The requirements, joined by commas as jpackage's --linux-package-deps takes them. */
+    /** The requirements, joined by commas. */
     @get:OutputFile
     abstract val requires: RegularFileProperty
 
