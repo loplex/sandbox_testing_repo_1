@@ -4,7 +4,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 /**
- * Applied by a module that makes Linux packages: it puts this package's tasks and actions on the module's build script
+ * Applied by a module that makes Linux packages: it puts this package's tasks on the module's build script
  * classpath, and gives each [DebPackage] and [RpmPackage] what every package of the project shares, which the module's
  * script registers with what is its own.
  */
