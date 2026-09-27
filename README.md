@@ -9,7 +9,8 @@ the seal](docs/images/apples-species.png)
 
 This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-python), a desktop
 program in Python.
-Its README explains the model and the science behind it.
+[The model](docs/model.md) explains how it simulates each species, with its measurements and their
+sources.
 
 ## Four ways to run it
 
@@ -35,29 +36,12 @@ Its README explains the model and the science behind it.
 ./gradlew :gui-swing:runJvm              # the same window in Swing
 ```
 
-## The model
-
-The simulation is the Python program's, ported to Kotlin in [`core`](core), and its README
-explains it:
-
-- [How it works](https://github.com/loplex/dog-vision-python#how-it-works) — the model in five
-  steps.
-- [Species](https://github.com/loplex/dog-vision-python#species) — every species, its cone peaks and
-  their sources.
-- [Colour saturation](https://github.com/loplex/dog-vision-python#colour-saturation) — the fixed and
-  the RNL scale.
-- [Acuity](https://github.com/loplex/dog-vision-python#acuity) — the blur, and why it needs the
-  field of view.
-- [Map of differences](https://github.com/loplex/dog-vision-python#map-of-differences) — what the
-  red means.
-- [What it cannot show](https://github.com/loplex/dog-vision-python#what-it-cannot-show) — its
-  limits.
-- [References](https://github.com/loplex/dog-vision-python#references) — every source in full.
-
 ## The documents
 
 - [Using it](docs/using.md) — the app's controls, saving and recording; what the web page, the
   command line and the window do.
+- [The model](docs/model.md) — every species and its sources, how the simulation works, the
+  colour saturation, the acuity blur, the map of differences, and what it cannot show.
 - [Building it](docs/building.md) — the JDK and the Android SDK, `./gradlew` for each program, and
   the deb, the rpm, the tar.gz and the MSI.
 - [Developing it](docs/developing.md) — the modules, what each test task holds, the CI, and the
