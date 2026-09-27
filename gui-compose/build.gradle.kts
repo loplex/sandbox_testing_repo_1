@@ -2,6 +2,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 
 // The desktop window in Compose Multiplatform, for Linux and Windows: a photo, a video or the camera through ffmpeg,
 // rendered by gl's passes in an offscreen GL context, with ui's controls beside it.
@@ -254,18 +255,27 @@ val debDepends = tasks.register<DebDepends>("debDepends") {
     image = tasks.named<AbstractJPackageTask>("createDistributable").flatMap { it.destinationDir }
     packages = debianPackages
     // What the image's ELF files do not name:
-    // LWJGL opens libEGL once it runs, ffmpeg runs apart for a video or the camera,
-    // and the deb's scripts add the window to the desktop's menu through xdg-utils.
-    others = listOf("libegl1", "ffmpeg", "xdg-utils")
+    // LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video or the camera.
+    others = listOf("libegl1", "ffmpeg")
     depends = layout.buildDirectory.file("compose/tmp/debDepends.txt")
 }
 
 /**
- * Puts [depends]' Depends into each deb jpackage wrote to [debs], and packs it again with xz,
- * which every dpkg reads, where the build machine's dpkg-deb may choose zstd, which Debian 11's cannot.
+ * Makes each deb jpackage wrote to [debs] the one to ship, and packs it again with xz, which every dpkg reads,
+ * where the build machine's dpkg-deb may choose zstd, which Debian 11's cannot:
+ * - its Depends is [depends]';
+ * - the window's desktop entry, [jpackageEntry] in the package's tree, is a file of the package at [entry],
+ *   as Debian's packages ship theirs: dpkg makes its folder where it is missing and removes it with the package.
+ *   jpackage's scripts install it and remove it with xdg-desktop-menu instead,
+ *   which fails where the folder does not exist, as on a system with no desktop,
+ *   and dpkg then leaves the package half-installed or half-removed.
  */
-class ReplaceDebDepends(private val debs: Provider<Directory>, private val depends: Provider<RegularFile>) :
-    Action<Task> {
+class RepackDeb(
+    private val debs: Provider<Directory>,
+    private val depends: Provider<RegularFile>,
+    private val jpackageEntry: String,
+    private val entry: String,
+) : Action<Task> {
     override fun execute(task: Task) {
         for (deb in debs.get().asFile.listFiles { file -> file.extension == "deb" }.orEmpty()) {
             val tree = Files.createTempDirectory("deb").toFile()
@@ -276,6 +286,21 @@ class ReplaceDebDepends(private val debs: Provider<Directory>, private val depen
                 val lines = control.readLines()
                     .map { if (it.startsWith("Depends:")) "Depends: ${depends.get().asFile.readText()}" else it }
                 control.writeText(lines.joinToString("\n", postfix = "\n"))
+                val desktopFile = tree.resolve(jpackageEntry)
+                check(desktopFile.isFile) { "jpackage's deb has no $jpackageEntry" }
+                val installed = tree.resolve(entry)
+                // Each folder made here as Debian's are, rwxr-xr-x, whatever the build's umask.
+                generateSequence(installed.parentFile) { it.parentFile }.takeWhile { it != tree }.toList().reversed()
+                    .forEach { folder ->
+                        folder.mkdir()
+                        Files.setPosixFilePermissions(folder.toPath(), PosixFilePermissions.fromString("rwxr-xr-x"))
+                    }
+                check(desktopFile.renameTo(installed)) { "Cannot move $jpackageEntry to $entry" }
+                removeLine(tree.resolve("DEBIAN/postinst"), "xdg-desktop-menu install /$jpackageEntry")
+                removeLine(
+                    tree.resolve("DEBIAN/prerm"),
+                    "do_if_file_belongs_to_single_package /$jpackageEntry xdg-desktop-menu uninstall /$jpackageEntry",
+                )
                 dpkgDeb("--root-owner-group", "-Zxz", "-b", tree.path, deb.path)
             } finally {
                 tree.deleteRecursively()
@@ -283,11 +308,93 @@ class ReplaceDebDepends(private val debs: Provider<Directory>, private val depen
         }
     }
 
+    /** Removes the one line of [script] that is [line], and fails where jpackage's script has none. */
+    private fun removeLine(script: File, line: String) {
+        val lines = script.readLines()
+        check(lines.count { it.trim() == line } == 1) { "${script.name} has no line $line" }
+        script.writeText(lines.filterNot { it.trim() == line }.joinToString("\n", postfix = "\n"))
+    }
+
     private fun dpkgDeb(vararg arguments: String) {
         val process = ProcessBuilder("dpkg-deb", *arguments).redirectErrorStream(true).start()
         val output = process.inputReader().readText()
         check(process.waitFor() == 0) { "dpkg-deb ${arguments.joinToString(" ")} failed: $output" }
     }
+}
+
+class DeleteDirectory(private val directory: Provider<Directory>) : Action<Task> {
+    override fun execute(task: Task) {
+        directory.get().asFile.deleteRecursively()
+    }
+}
+
+/**
+ * Makes the rpm jpackage wrote to [rpms] the one to ship,
+ * by running rpmbuild again on the spec and the app image jpackage left in [temp], its --temp, with the spec changed:
+ * - the window's desktop entry, [jpackageEntry] in the image, is a file of the package at [entry],
+ *   as with the deb, and xdg-utils is not required.
+ *   jpackage's scriptlets install and remove it with xdg-desktop-menu instead,
+ *   which openSUSE's xdg-utils fails where /etc/xdg/menus does not exist, as on a system with no desktop:
+ *   the entry is not installed, and %preun fails, so rpm cannot remove the package;
+ * - the package owns no folder of the system's, wherever it is built.
+ *   jpackage's spec leaves out the folders of the build machine's filesystem package,
+ *   or where there is none, as off an rpm-based system, those of a list it prints on one line, which leaves out none:
+ *   the rpm then owned /opt, /usr and /usr/share.
+ *
+ * jpackage cannot be given a spec of ours: it reads the last --resource-dir, and Compose passes its own after freeArgs.
+ */
+class RepackRpm(
+    private val rpms: Provider<Directory>,
+    private val temp: Provider<Directory>,
+    private val jpackageEntry: String,
+    private val entry: String,
+) : Action<Task> {
+    override fun execute(task: Task) {
+        val temp = temp.get().asFile
+        val spec = temp.resolve("SPECS").listFiles { file -> file.extension == "spec" }.orEmpty().singleOrNull()
+            ?: error("jpackage left no single spec in ${temp.resolve("SPECS")}")
+        val rpm = rpms.get().asFile.listFiles { file -> file.extension == "rpm" }.orEmpty().singleOrNull()
+            ?: error("jpackage wrote no single rpm to ${rpms.get()}")
+        var lines = spec.readLines()
+        lines = replaceLine(lines, { it.startsWith("Requires: xdg-utils ,") }) {
+            listOf("Requires: " + it.substringAfter(',').trim())
+        }
+        lines = replaceLine(lines, { it.startsWith("cp -r %{_sourcedir}/") }) {
+            listOf(
+                it,
+                "install -d -m 755 %{buildroot}/${entry.substringBeforeLast('/')}",
+                "mv %{buildroot}/$jpackageEntry %{buildroot}/$entry",
+            )
+        }
+        lines = replaceLine(lines, { it.startsWith("{ rpm -ql filesystem ||") }) {
+            val folders = "%{default_filesystem} /usr/share /${entry.substringBeforeLast('/')} %{_defaultlicensedir}"
+            listOf("printf '%s\\n' $folders | sort > %{filesystem_filelist}")
+        }
+        lines = replaceLine(lines, { it.trim() == "xdg-desktop-menu install /$jpackageEntry" }) { emptyList() }
+        lines = replaceLine(
+            lines,
+            {
+                it.trim() ==
+                    "do_if_file_belongs_to_single_package /$jpackageEntry xdg-desktop-menu uninstall /$jpackageEntry"
+            },
+        ) { emptyList() }
+        spec.writeText(lines.joinToString("\n", postfix = "\n"))
+        // As jpackage runs it.
+        val process = ProcessBuilder(
+            "rpmbuild", "-bb", spec.path,
+            "--define", "%_sourcedir ${temp.resolve("image")}",
+            "--define", "%_rpmdir ${rpm.parent}",
+            "--define", "%_topdir $temp",
+            "--define", "%_rpmfilename ${rpm.name}",
+        ).redirectErrorStream(true).start()
+        val output = process.inputReader().readText()
+        check(process.waitFor() == 0) { "rpmbuild failed: $output" }
+    }
+
+    /** Replaces the one line of [lines] that [matches] by [by]'s, and fails where jpackage's spec has none. */
+    private fun replaceLine(lines: List<String>, matches: (String) -> Boolean, by: (String) -> List<String>) =
+        lines.singleOrNull(matches)?.let { line -> lines.flatMap { if (it === line) by(it) else listOf(it) } }
+            ?: error("jpackage's spec has no single line to replace")
 }
 
 // dog-vision-cli beside dog-vision, in the app image and in each package:
@@ -306,13 +413,35 @@ tasks.withType<AbstractJPackageTask>().configureEach {
     when {
         name.endsWith("Deb") -> {
             inputs.files(debDepends)
-            doLast(ReplaceDebDepends(destinationDir, debDepends.flatMap { it.depends }))
+            val packageName = compose.desktop.application.nativeDistributions.packageName
+            doLast(
+                RepackDeb(
+                    destinationDir,
+                    debDepends.flatMap { it.depends },
+                    jpackageEntry = "opt/$packageName/lib/$packageName-$packageName.desktop",
+                    entry = "usr/share/applications/cz.loplex.dogvision.desktop",
+                ),
+            )
         }
 
         name.endsWith("Rpm") -> {
             freeArgs.add("--linux-package-deps")
             val libraries = rpmLibraryRequires.flatMap { it.requires }.map { it.asFile.readText() }
             freeArgs.add(libraries.map { "$it,libEGL.so.1()(64bit),/usr/bin/ffmpeg" })
+            // jpackage's --temp, which it wants empty, for RepackRpm to build the rpm again from.
+            val temp = layout.buildDirectory.dir("compose/tmp/$name-jpackage")
+            freeArgs.add("--temp")
+            freeArgs.add(temp.map { it.asFile.path })
+            doFirst(DeleteDirectory(temp))
+            val packageName = compose.desktop.application.nativeDistributions.packageName
+            doLast(
+                RepackRpm(
+                    destinationDir,
+                    temp,
+                    jpackageEntry = "opt/$packageName/lib/$packageName-$packageName.desktop",
+                    entry = "usr/share/applications/cz.loplex.dogvision.desktop",
+                ),
+            )
         }
     }
 }
