@@ -19,12 +19,16 @@ Its README explains the model and the science behind it.
 - **The app, the web page and the window draw the view with the same GPU passes**, and the same
   controls, so each shows what the others do.
 - **The desktop window is a first version**: it has no snapshots and no recording yet.
+- **The desktop window comes in two toolkits**: `dog-vision` in Compose, with the app's controls,
+  and [`dog-vision-swing`](docs/using.md#the-same-window-in-swing-dog-vision-swing) in Swing, which
+  shows the same from the same state and needs neither Compose nor skiko.
 - **Each is built from this repository**, as [Building it](docs/building.md) says:
 
 ```sh
 ./gradlew :android:installDebug          # the app, onto the connected phone or emulator
 ./gradlew :web:jsBrowserDevelopmentRun   # the web page, served locally
-./gradlew :gui-compose:run               # the desktop window, on the camera
+./gradlew :gui-compose:run               # the Compose window, on the camera
+./gradlew :gui-swing:runJvm              # the same window in Swing
 ```
 
 ## The model
