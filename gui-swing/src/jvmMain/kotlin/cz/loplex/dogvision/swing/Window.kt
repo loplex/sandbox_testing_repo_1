@@ -6,6 +6,7 @@ import com.formdev.flatlaf.util.UIScale
 import cz.loplex.dogvision.cli.Arguments
 import cz.loplex.dogvision.desktop.LiveSession
 import cz.loplex.dogvision.desktop.Source
+import cz.loplex.dogvision.desktop.windowIcon
 import cz.loplex.dogvision.texts.Str
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +72,7 @@ private fun openWindow(arguments: Arguments, onClosed: () -> Unit) {
         )
         add(scrolled(controls), BorderLayout.CENTER)
     }
+    frame.iconImage = windowIcon()
     frame.contentPane.add(preview, BorderLayout.CENTER)
     frame.contentPane.add(column, BorderLayout.EAST)
 
