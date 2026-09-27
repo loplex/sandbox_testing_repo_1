@@ -1,6 +1,7 @@
-# Installs the desktop window's MSI, upgrades it to a later one and removes it, checking each step.
+# Installs a desktop window's MSI, upgrades it to a later one and removes it, checking each step.
 #
-# The MSIs are tools/package_msi_on_windows.ps1's: -Msi of -Version, and -UpgradeMsi of the later -UpgradeVersion.
+# The MSIs are tools/package_msi_on_windows.ps1's: -Msi of -Version, and -UpgradeMsi of the later -UpgradeVersion,
+# of the product -Name, dog-vision, the default, or dog-vision-swing.
 # Each check says whether it held, and every check runs, so that one failing does not hide the others;
 # the script fails if any did.
 # msiexec's logs go to -LogDir.
@@ -17,6 +18,7 @@ param(
     [Parameter(Mandatory)] [string]$UpgradeMsi,
     [Parameter(Mandatory)] [string]$UpgradeVersion,
     [Parameter(Mandatory)] [string]$LogDir,
+    [ValidateSet("dog-vision", "dog-vision-swing")] [string]$Name = "dog-vision",
     [switch]$BuiltUnderWine
 )
 
@@ -39,8 +41,8 @@ function Test-Check([string]$What, [bool]$Holds) {
     }
 }
 
-$installDir = Join-Path $env:ProgramFiles "dog-vision"
-$startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\dog-vision"
+$installDir = Join-Path $env:ProgramFiles $Name
+$startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$Name"
 $desktop = Join-Path $env:PUBLIC "Desktop"
 
 # msiexec with [Arguments], waited for; 3010 is success that asks for a restart.
@@ -50,13 +52,13 @@ function Invoke-Msiexec([string]$Log, [string[]]$Arguments) {
     return $process.ExitCode -in @(0, 3010)
 }
 
-# The products named dog-vision in the list of installed programs, as Windows Installer registers them.
+# The products of the name in the list of installed programs, as Windows Installer registers them.
 function Get-Installed {
     @(
         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     ) | ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } |
-        Where-Object { $_.PSObject.Properties["DisplayName"] -and $_.DisplayName -eq "dog-vision" }
+        Where-Object { $_.PSObject.Properties["DisplayName"] -and $_.DisplayName -eq $Name }
 }
 
 # The MSI against Windows Installer's rules (ICE), less ICE27, which jpackage's own run of light.exe leaves out too.
@@ -68,9 +70,9 @@ function Test-Ice([string]$Package) {
 # The installed product: one, of [Expected] version, with both launchers.
 function Test-Installed([string]$Expected) {
     $installed = @(Get-Installed)
-    Test-Check "one dog-vision is installed" ($installed.Count -eq 1)
+    Test-Check "one $Name is installed" ($installed.Count -eq 1)
     Test-Check "the installed version is $Expected" (@($installed | Where-Object DisplayVersion -eq $Expected).Count -eq 1)
-    foreach ($launcher in @("dog-vision.exe", "dog-vision-cli.exe")) {
+    foreach ($launcher in @("$Name.exe", "dog-vision-cli.exe")) {
         Test-Check "$launcher is installed" (Test-Path (Join-Path $installDir $launcher))
     }
 }
@@ -99,8 +101,8 @@ Test-Check "dog-vision-cli.exe converts a photo" (
 # but in an MSI built under Wine.
 Write-Host "Start menu: $(@(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Name -join ', ')"
 Write-Host "Desktop: $(@(Get-ChildItem $desktop -Filter 'dog-vision*' -ErrorAction SilentlyContinue).Name -join ', ')"
-Test-Check "dog-vision has a Start menu shortcut" (Test-Path (Join-Path $startMenu "dog-vision.lnk"))
-Test-Check "dog-vision has a desktop shortcut" (Test-Path (Join-Path $desktop "dog-vision.lnk"))
+Test-Check "$Name has a Start menu shortcut" (Test-Path (Join-Path $startMenu "$Name.lnk"))
+Test-Check "$Name has a desktop shortcut" (Test-Path (Join-Path $desktop "$Name.lnk"))
 $cliShortcuts = if ($BuiltUnderWine) { "has" } else { "has no" }
 Test-Check "dog-vision-cli $cliShortcuts Start menu shortcut" (
     (Test-Path (Join-Path $startMenu "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
@@ -124,7 +126,7 @@ Test-Installed $UpgradeVersion
 Test-Check "the MSI of $UpgradeVersion uninstalls" (
     Invoke-Msiexec "uninstall-$UpgradeVersion.log" @("/x", "`"$UpgradeMsi`"")
 )
-Test-Check "no dog-vision is installed after" (@(Get-Installed).Count -eq 0)
+Test-Check "no $Name is installed after" (@(Get-Installed).Count -eq 0)
 Test-Check "the installation folder is gone" (-not (Test-Path $installDir))
 Test-Check "the Start menu folder is gone" (-not (Test-Path $startMenu))
 
