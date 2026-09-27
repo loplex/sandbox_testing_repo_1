@@ -1,6 +1,7 @@
 package cz.loplex.dogvision.desktop
 
 import cz.loplex.dogvision.cli.readPhoto
+import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import java.io.File
@@ -25,10 +26,15 @@ class Failure(val ffmpegMissing: Boolean = false, val words: (Texts) -> String)
 
 /**
  * Starts showing [source] through [renderer], on a thread of its own, since a large photo takes a moment to read and
- * ffmpeg to open a camera; [onFailure] is told why it cannot be shown. The feed it returns stops what it started, and a
- * photo read after it is closed is not shown.
+ * ffmpeg to open a camera; [onFailure] is told why it cannot be shown. A file is a photo if [photoReader] reads it, and
+ * else a video. The feed it returns stops what it started, and a photo read after it is closed is not shown.
  */
-fun startFeed(source: Source, renderer: Renderer<*>, onFailure: (Failure) -> Unit): AutoCloseable {
+fun startFeed(
+    source: Source,
+    renderer: Renderer,
+    onFailure: (Failure) -> Unit,
+    photoReader: (File) -> Image? = ::readPhoto,
+): AutoCloseable {
     var feed: FfmpegFeed? = null
     var closed = false
     val lock = Any()
@@ -36,7 +42,7 @@ fun startFeed(source: Source, renderer: Renderer<*>, onFailure: (Failure) -> Uni
         val started = try {
             when (source) {
                 is Source.Media -> {
-                    val photo = readPhoto(source.file)
+                    val photo = photoReader(source.file)
                     if (photo == null) {
                         FfmpegFeed.video(
                             source.file,

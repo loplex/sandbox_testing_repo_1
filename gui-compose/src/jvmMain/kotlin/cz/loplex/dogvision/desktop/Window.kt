@@ -155,7 +155,7 @@ private fun Screen(
     var sourceFailure by remember { mutableStateOf<Failure?>(null) }
     var drawFailure by remember { mutableStateOf<Failure?>(null) }
     val renderer = remember {
-        Renderer(
+        GlRenderer(
             arguments.windowsGl,
             ::composeImage,
             onPicture = { EventQueue.invokeLater { picture = it } },
@@ -172,7 +172,7 @@ private fun Screen(
     // Disposed before the renderer, and the source shown before is closed before another starts.
     DisposableEffect(source, ffmpegInstalls) {
         sourceFailure = null
-        val feed = startFeed(source, renderer) { failed -> EventQueue.invokeLater { sourceFailure = failed } }
+        val feed = startFeed(source, renderer, { failed -> EventQueue.invokeLater { sourceFailure = failed } })
         onDispose { feed.close() }
     }
     LaunchedEffect(view) { renderer.setView(view) }

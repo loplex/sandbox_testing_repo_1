@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.lwjgl.glfw)
             implementation(libs.lwjgl.opengl)
             implementation(libs.lwjgl.opengles)
+            api(libs.kotlinx.coroutines.core)
         }
         jvmTest.dependencies {
             implementation(project(":testing"))
