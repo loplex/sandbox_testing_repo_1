@@ -1,41 +1,47 @@
 package cz.loplex.dogvision.desktop
 
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import cz.loplex.dogvision.cli.WindowsGl
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
-import org.jetbrains.skia.ColorAlphaType
-import org.jetbrains.skia.ColorType
-import org.jetbrains.skia.ImageInfo
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import org.jetbrains.skia.Image as SkiaImage
 
-/** The images of [view] drawn into [layout]'s boxes on a transparent [bitmap] of the area, and the share it counted. */
-class Picture(val bitmap: ImageBitmap, val layout: ScreenLayout, val view: View, val differenceShare: Double?)
+/**
+ * The images of [view] drawn into [layout]'s boxes on a transparent [image] of the area, as the window shows an image,
+ * and the share it counted.
+ */
+class Picture<I>(val image: I, val layout: ScreenLayout, val view: View, val differenceShare: Double?)
+
+fun interface ImageMaker<I> {
+    /**
+     * Makes the window's image of an area of [width] x [height] from its [pixels] as they are read back: RGBA with the
+     * alpha premultiplied, the top row first, [width] * 4 bytes a row. The array is the image's to keep.
+     */
+    fun make(pixels: ByteArray, width: Int, height: Int): I
+}
 
 /** The area the images are laid out on, and the height of a caption under each and the gap between them, in pixels. */
 data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap: Int)
 
 /**
  * Renders the view of the frame shown last on a thread of its own, which holds a [GlContext], opened as [windowsGl]
- * asks on Windows, and [Passes], and hands each picture to [onPicture] on that thread. [onFailure] is told, once, why
- * nothing can be drawn, if GL cannot be set up.
+ * asks on Windows, and [Passes], and hands each picture to [onPicture] on that thread, its image made there by
+ * [imageMaker]. [onFailure] is told, once, why nothing can be drawn, if GL cannot be set up.
  *
  * It renders when something has changed: a frame, the view or the area; a live frame's share of differing pixels,
  * counted without waiting for the GPU as the Android app counts it, comes with a later picture. The area drawn is read
  * back without waiting for the GPU either, [READS] at a time: its picture comes once the GPU has read it, and the
  * frames after it are uploaded and composed meanwhile.
  */
-class Renderer(
+class Renderer<I>(
     private val windowsGl: WindowsGl?,
-    private val onPicture: (Picture) -> Unit,
+    private val imageMaker: ImageMaker<I>,
+    private val onPicture: (Picture<I>) -> Unit,
     private val onFailure: (String) -> Unit,
 ) : AutoCloseable {
     private val lock = ReentrantLock()
@@ -119,16 +125,15 @@ class Renderer(
         var hasFrame = false
         var composed: View? = null
         var share: Double? = null
-        var last: Picture? = null
+        var last: Picture<I>? = null
         var drawnArea: Area? = null
         // The areas being read back, in the order Passes hands them over.
         val drawing = ArrayDeque<Drawn>()
 
         fun handOver(pixels: ByteArray) {
             val drawn = drawing.removeFirst()
-            val info = ImageInfo(drawn.area.width, drawn.area.height, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
-            val bitmap = SkiaImage.makeRaster(info, pixels, drawn.area.width * 4).toComposeImageBitmap()
-            val picture = Picture(bitmap, drawn.layout, drawn.view, drawn.share)
+            val image = imageMaker.make(pixels, drawn.area.width, drawn.area.height)
+            val picture = Picture(image, drawn.layout, drawn.view, drawn.share)
             last = picture
             onPicture(picture)
         }
@@ -208,7 +213,7 @@ class Renderer(
                 if (latest != null) {
                     latest.share = shown
                 } else if (previous != null) {
-                    last = Picture(previous.bitmap, previous.layout, view, shown).also(onPicture)
+                    last = Picture(previous.image, previous.layout, view, shown).also(onPicture)
                 }
             }
         }
