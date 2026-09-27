@@ -245,7 +245,7 @@ dog-vision-swing --window photo.jpg   # as dog-vision, with the same options, ke
 - **On Linux it installs from the deb or the rpm `dog-vision-swing`**, as `dog-vision-swing` on the
   `PATH` and *Dog vision (Swing)* in the desktop's menu (*Psí vidění (Swing)* in Czech), beside
   `dog-vision` where both are installed.
-  Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`.
+  Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`, and on Windows its MSI installs it.
 - **It is light or dark as the desktop asks**: on Linux as the desktop portal's colour scheme says,
   which GNOME and KDE set, on Windows as `AppsUseLightTheme` says, and light where neither can be
   read.
