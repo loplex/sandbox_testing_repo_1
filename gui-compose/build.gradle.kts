@@ -1,10 +1,12 @@
 import cz.loplex.dogvision.packaging.DebDepends
-import cz.loplex.dogvision.packaging.DeleteDirectory
-import cz.loplex.dogvision.packaging.RepackDeb
-import cz.loplex.dogvision.packaging.RepackRpm
+import cz.loplex.dogvision.packaging.DebPackage
+import cz.loplex.dogvision.packaging.DesktopEntry
+import cz.loplex.dogvision.packaging.JavaLauncher
+import cz.loplex.dogvision.packaging.NativesOnly
 import cz.loplex.dogvision.packaging.RpmLibraryRequires
+import cz.loplex.dogvision.packaging.RpmPackage
+import cz.loplex.dogvision.packaging.UnpackNatives
 import cz.loplex.dogvision.packaging.debianPackages
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -102,9 +104,9 @@ dependencies {
 val packaging = layout.projectDirectory.dir("packaging")
 
 /**
- * The JDK the Linux packages' runtime is linked from and jpackage runs from: Temurin, which brings its own libjpeg,
- * giflib, libpng, lcms2, HarfBuzz and FreeType, where a distribution's OpenJDK, Ubuntu's among them, links the
- * system's, and the packages would then need that distribution's. Gradle downloads it where this machine has none.
+ * The JDK the tar.gz's runtime is linked from and jpackage runs from: Temurin, which brings its own libjpeg, giflib,
+ * libpng, lcms2, HarfBuzz and FreeType, where a distribution's OpenJDK, Ubuntu's among them, links the system's, and
+ * the tar.gz would then need that distribution's. Gradle downloads it where this machine has none.
  */
 val packagingJdk = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(25)
@@ -112,92 +114,153 @@ val packagingJdk = javaToolchains.launcherFor {
 }
 
 // packageUberJarForCurrentOS writes build/compose/jars/dog-vision-linux-x64-<version>.jar, which runs alone on a JDK
-// 17 or newer, with this machine's natives in it. packageDeb and packageRpm write jpackage's packages for Linux, with a
-// runtime of their own, under build/compose/binaries/main/{deb,rpm}; Windows's MSI is tools/package_msi_on_linux.sh's.
+// 17 or newer, with this machine's natives in it. createDistributable writes jpackage's app image, with a runtime of
+// its own, which packageTarGz packs; Windows's MSI is tools/package_msi_on_linux.sh's.
 compose.desktop {
     application {
         mainClass = mainClassName
         javaHome = packagingJdk.get().metadata.installationPath.asFile.path
         nativeDistributions {
-            targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "dog-vision"
             packageVersion = providers.gradleProperty("appVersion").get()
             description = "How a dog or another animal sees a photo, a video or the camera"
             vendor = "Martin Lopatář"
-            licenseFile = rootProject.file("LICENSE")
             // Beyond the modules Compose always takes: what suggestRuntimeModules finds the classes using.
             modules("java.instrument", "jdk.unsupported")
             linux {
                 iconFile = packaging.file("dog-vision.png")
-                shortcut = true
-                menuGroup = "Graphics"
-                appCategory = "graphics"
-                debMaintainer = "lopin.git@loplex.cz"
-                rpmLicenseType = "GPL-3.0-or-later"
             }
         }
     }
 }
 
-val rpmLibraryRequires = tasks.register<RpmLibraryRequires>("rpmLibraryRequires") {
-    image = tasks.named<AbstractJPackageTask>("createDistributable").flatMap { it.destinationDir }
-    requires = layout.buildDirectory.file("compose/tmp/rpmLibraryRequires.txt")
-}
-
-val debDepends = tasks.register<DebDepends>("debDepends") {
-    image = tasks.named<AbstractJPackageTask>("createDistributable").flatMap { it.destinationDir }
-    packages = debianPackages
-    // What the image's ELF files do not name: LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video or
-    // the camera.
-    others = listOf("libegl1", "ffmpeg")
-    depends = layout.buildDirectory.file("compose/tmp/debDepends.txt")
-}
-
-// dog-vision-cli beside dog-vision, in the app image and in each package: Compose runs jpackage for each of them from
-// the JARs, not the packages from the app image.
+// dog-vision-cli beside dog-vision in the app image: Compose runs jpackage for it from the JARs.
 tasks.withType<AbstractJPackageTask>().configureEach {
     val launcher = packaging.file("dog-vision-cli.properties")
     freeArgs.addAll("--add-launcher", "dog-vision-cli=${launcher.asFile}")
-    // freeArgs holds only its path, so that the packages are made again when the file changes.
+    // freeArgs holds only its path, so that the app image is made again when the file changes.
     inputs.file(launcher)
-    // The deb's Depends is debDepends'. The rpm adds what jpackage cannot find through ldd: LWJGL opens libEGL once it
-    // runs, and ffmpeg runs apart for a video or the camera. It names what it needs rather than a package, as Fedora's
-    // and openSUSE's names differ, and Fedora has two ffmpeg packages; it takes the libraries rpmLibraryRequires lists
-    // as well. No spaces: Compose writes freeArgs into jpackage's argument file unquoted.
-    when {
-        name.endsWith("Deb") -> {
-            inputs.files(debDepends)
-            val packageName = compose.desktop.application.nativeDistributions.packageName
-            doLast(
-                RepackDeb(
-                    destinationDir,
-                    debDepends.flatMap { it.depends },
-                    jpackageEntry = "opt/$packageName/lib/$packageName-$packageName.desktop",
-                    entry = "usr/share/applications/cz.loplex.dogvision.desktop",
-                ),
-            )
-        }
+}
 
-        name.endsWith("Rpm") -> {
-            freeArgs.add("--linux-package-deps")
-            val libraries = rpmLibraryRequires.flatMap { it.requires }.map { it.asFile.readText() }
-            freeArgs.add(libraries.map { "$it,libEGL.so.1()(64bit),/usr/bin/ffmpeg" })
-            // jpackage's --temp, which it wants empty, for RepackRpm to build the rpm again from.
-            val temp = layout.buildDirectory.dir("compose/tmp/$name-jpackage")
-            freeArgs.add("--temp")
-            freeArgs.add(temp.map { it.asFile.path })
-            doFirst(DeleteDirectory(temp))
-            val packageName = compose.desktop.application.nativeDistributions.packageName
-            doLast(
-                RepackRpm(
-                    destinationDir,
-                    temp,
-                    jpackageEntry = "opt/$packageName/lib/$packageName-$packageName.desktop",
-                    entry = "usr/share/applications/cz.loplex.dogvision.desktop",
-                ),
-            )
-        }
+// The deb and the rpm, dog-vision, on the system's Java: the window's JARs in /usr/share/dog-vision/lib, the natives
+// they load unpacked in /usr/lib/dog-vision, where the FHS puts what depends on the architecture, a launcher in
+// /usr/bin, which finds a Java 17 or newer, and the desktop entry and icons. The command line is the package
+// dog-vision-cli, which each recommends.
+val linuxPackage = "dog-vision"
+val linuxHome = "/usr/share/$linuxPackage"
+val linuxNativesHome = "/usr/lib/$linuxPackage"
+val linuxJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
+
+/** The desktop entry's and the icons' name: the application's ID, which the Windows MSI does not use. */
+val applicationId = "cz.loplex.dogvision"
+
+// Every native library in the JARs, which skiko and LWJGL would otherwise unpack at run time into the user's home or
+// /tmp: skiko's, and LWJGL's for this machine.
+val linuxNatives = tasks.register<UnpackNatives>("linuxNatives") {
+    jars.from(linuxJars)
+    natives = layout.buildDirectory.dir("packages/natives")
+}
+
+val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
+    commandName = linuxPackage
+    mainClass = mainClassName
+    jars.from(linuxJars)
+    jarDirectory = "$linuxHome/lib"
+    // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
+    jvmOptions = listOf(
+        "-Dcompose.application.configure.swing.globals=true",
+        "-Dskiko.library.path=$linuxNativesHome",
+        "-Dorg.lwjgl.librarypath=$linuxNativesHome",
+    )
+    minimumJava = 17
+    opensWindow = true
+    script = layout.buildDirectory.file("packages/launcher/$linuxPackage")
+}
+
+val linuxDesktopEntry = tasks.register<DesktopEntry>("linuxDesktopEntry") {
+    strings = rootProject.layout.projectDirectory.dir("texts/strings")
+    nameString = "app_name"
+    commentString = "desktop_comment"
+    exec = linuxPackage
+    icon = applicationId
+    categories = listOf("Graphics")
+    entry = layout.buildDirectory.file("packages/$applicationId.desktop")
+}
+
+val linuxTree = tasks.register<Sync>("linuxTree") {
+    into(layout.buildDirectory.dir("packages/tree"))
+    from(linuxJars) {
+        into(linuxHome.removePrefix("/") + "/lib")
+        exclude(NativesOnly)
     }
+    from(linuxNatives) { into(linuxNativesHome.removePrefix("/")) }
+    from(linuxLauncher) { into("usr/bin") }
+    from(linuxDesktopEntry) { into("usr/share/applications") }
+    from(packaging.file("dog-vision.png")) {
+        into("usr/share/icons/hicolor/256x256/apps")
+        rename("dog-vision.png", "$applicationId.png")
+    }
+    from(packaging.file("dog-vision.svg")) {
+        into("usr/share/icons/hicolor/scalable/apps")
+        rename("dog-vision.svg", "$applicationId.svg")
+    }
+}
+
+val rpmLibraryRequires = tasks.register<RpmLibraryRequires>("rpmLibraryRequires") {
+    image = linuxNatives.flatMap { it.natives }
+    requires = layout.buildDirectory.file("packages/rpmLibraryRequires.txt")
+}
+
+val debDepends = tasks.register<DebDepends>("debDepends") {
+    image = linuxNatives.flatMap { it.natives }
+    packages = debianPackages
+    // What the natives do not name: a Java that can open a window, the distribution's default where it is 17 or
+    // newer, as the Debian Java Policy has it; LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video or
+    // the camera.
+    others = listOf("default-jre (>= 2:1.17) | java17-runtime", "libegl1", "ffmpeg")
+    depends = layout.buildDirectory.file("packages/debDepends.txt")
+}
+
+/** What the deb and the rpm are listed with, in a package manager's search and its details. */
+val linuxSummary = "How a dog or another animal sees colours (Kotlin Compose GUI)"
+val linuxDescription = """
+    dog-vision shows a photo, a video or the camera with the colours a dog,
+    a cat or another animal can tell apart, beside the original.
+
+    This package is the desktop window, in Compose.
+
+    Given a photo alone, it converts it as the command line does, which is
+    the package dog-vision-cli.
+""".trimIndent()
+
+tasks.register<DebPackage>("packageDeb") {
+    description = "Packs build/packages/deb/dog-vision_<version>_amd64.deb, on the system's Java."
+    group = "distribution"
+    tree = layout.dir(linuxTree.map { it.destinationDir })
+    packageName = linuxPackage
+    architecture = "amd64"
+    summary = linuxSummary
+    longDescription = linuxDescription
+    depends = debDepends.flatMap { it.depends }.map { it.asFile.readText().split(", ") }
+    recommends = listOf("dog-vision-cli")
+}
+
+tasks.register<RpmPackage>("packageRpm") {
+    description = "Packs build/packages/rpm/dog-vision-<version>-1.x86_64.rpm, on the system's Java."
+    group = "distribution"
+    tree = layout.dir(linuxTree.map { it.destinationDir })
+    packageName = linuxPackage
+    architecture = "x86_64"
+    summary = linuxSummary
+    longDescription = linuxDescription
+    // The libraries the natives need, as rpm's own generator names them, since Fedora's and openSUSE's package names
+    // differ; a Java that can open a window, as cli's rpm says why; libEGL, which LWJGL opens once it runs; and
+    // ffmpeg's command rather than a package, as Fedora has two ffmpeg packages.
+    requires = rpmLibraryRequires.flatMap { it.requires }.map { file ->
+        file.asFile.readText().split(',') +
+            listOf("/bin/sh", "(jre-17 or jre-21 or jre-25)", "libEGL.so.1()(64bit)", "/usr/bin/ffmpeg")
+    }
+    recommends = listOf("dog-vision-cli")
 }
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
