@@ -2,7 +2,7 @@ package cz.loplex.dogvision.gl
 
 /**
  * The GLSL ES 3.00 programs that render a view on the GPU, the same on every platform:
- * OpenGL ES 3.0 on Android and in the desktop window,
+ * OpenGL ES 3.0 on Android and in the desktop windows,
  * or there desktop OpenGL 3.3, which takes them with another #version line,
  * and WebGL 2, which runs GLSL ES 3.00 as it is, in a browser.
  *
