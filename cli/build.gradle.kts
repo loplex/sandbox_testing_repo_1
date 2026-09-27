@@ -94,8 +94,8 @@ val linuxDescription = """
     This package is the command line, which converts a photo to those
     colours, as a PNG beside it, with no window and no display.
 
-    The desktop window, which shows a video or the camera as well, is the
-    package dog-vision.
+    The desktop windows, which show a video or the camera as well, are
+    the packages dog-vision and dog-vision-swing.
 """.trimIndent()
 
 tasks.register<DebPackage>("packageDeb") {
