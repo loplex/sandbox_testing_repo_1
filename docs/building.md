@@ -135,6 +135,13 @@ How the build rewrites jpackage's deb and rpm for each of these is in the commen
 - **[`tools/test_rpm.sh`](../tools/test_rpm.sh) does for the rpm what `test_deb.sh` does**, with
   dnf, zypper or microdnf; it holds on Fedora 42, its minimal image, openSUSE Leap 15.6 and
   Tumbleweed, and on Rocky Linux 9's and UBI 9's minimal images, whose repositories lack ffmpeg.
+- **With `--upgrade <a later package>`, each installs that one over the first** before removing
+  it, as an update does, and checks that the later version is the one installed and that the menu
+  entry is still there.
+  The later package is the same build with `-PappVersion=0.1.1`, and each build empties the folder
+  it writes to, so the first package goes aside before.
+  The upgrade holds on Ubuntu 20.04 and 24.04, Fedora 42, openSUSE Leap 15.6 and Rocky Linux 9's
+  minimal image.
 
 ### The MSI, built under Wine or on Windows
 
