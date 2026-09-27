@@ -1,0 +1,108 @@
+# The checks on Linux, and on Windows what Linux cannot show: the window's GL contexts, ANGLE's and
+# WGL's, and its MSI, built with jpackage and installed, upgraded and removed.
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      # ffmpeg for the window's feed; Mesa's EGL and llvmpipe for its GL tests, as the runner has no GPU.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
+      - run: ./gradlew check
+      - if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: linux-reports
+          path: |
+            **/build/reports/
+            **/hs_err_pid*.log
+
+  windows-gl:
+    name: Windows GL tests
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      # opengl32.dll hands WGL to the GPU's driver; with none, as on the runner, it has only Windows's own
+      # OpenGL 1.1, where WglContext asks for 3.3 core. The window draws through ANGLE first, on
+      # Direct3D 11, which Windows has without a driver too; WGL is its fallback. Mesa's llvmpipe is
+      # installed as the system's OpenGL driver, by Mesa's own systemwidedeploy.cmd, choice 1,
+      # unattended, so that WGL reaches it whatever loads opengl32.dll first, as Windows's shell does
+      # behind a JFileChooser. Its WGL alone: Mesa's libEGL and libGLESv2 are not installed, as they
+      # could be taken for ANGLE's.
+      - name: Install Mesa's OpenGL as the system's driver
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo pal1000/mesa-dist-win --pattern "*release-msvc.7z" --output mesa.7z
+          7z x mesa.7z -omesa | Out-Null
+          $deploy = Get-ChildItem mesa -Recurse -Filter systemwidedeploy.cmd | Select-Object -First 1
+          if (-not $deploy) { throw "Mesa's package has no systemwidedeploy.cmd" }
+          cmd /c "`"$($deploy.FullName)`" 1"
+          $driver = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\OpenGLDrivers\MSOGL"
+          Write-Host "The system's OpenGL driver: $($driver.DLL)"
+          if ($driver.DLL -ne "mesadrv.dll" -or -not (Test-Path "$env:windir\System32\mesadrv.dll")) {
+            throw "Mesa is not the system's OpenGL driver"
+          }
+      # ANGLE runs on Direct3D 11's software rasteriser, WARP, as the runner has no GPU. Mesa would
+      # take its Direct3D 12 driver, which needs Mesa's dxil.dll, over llvmpipe.
+      - run: ./gradlew :gui-compose:jvmTest
+        env:
+          GALLIUM_DRIVER: llvmpipe
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-gl-reports
+          path: |
+            gui-compose/build/reports/
+            gui-compose/build/test-results/
+            gui-compose/hs_err_pid*.log
+
+  windows-msi:
+    name: Windows MSI
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      # WiX Toolset 3.14 comes with the runner's image, which names it by WIX.
+      - name: Build the MSI and a later version of it
+        shell: pwsh
+        run: |
+          ./tools/package_msi_on_windows.ps1
+          ./tools/package_msi_on_windows.ps1 -AppVersion 0.1.1
+      - name: Install, upgrade and remove it
+        shell: pwsh
+        run: >-
+          ./tools/test_msi_on_windows.ps1
+          -Msi gui-compose/build/compose/binaries/main/msi/0.1.0/dog-vision-0.1.0.msi -Version 0.1.0
+          -UpgradeMsi gui-compose/build/compose/binaries/main/msi/0.1.1/dog-vision-0.1.1.msi -UpgradeVersion 0.1.1
+          -LogDir msi-logs
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-msi
+          path: |
+            gui-compose/build/compose/binaries/main/msi/
+            msi-logs/
