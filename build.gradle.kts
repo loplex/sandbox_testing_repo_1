@@ -57,6 +57,8 @@ val checkLineLength = tasks.register("checkLineLength") {
         if (tooLong.isNotEmpty()) throw GradleException(tooLong.joinToString("\n"))
     }
 }
+// build-logic is a build of its own, which `check` here does not reach otherwise: its ktlint, in each module's `check`.
+val buildLogicCheck = gradle.includedBuild("build-logic").task(":check")
 subprojects {
-    tasks.matching { it.name == "check" }.configureEach { dependsOn(checkLineLength) }
+    tasks.matching { it.name == "check" }.configureEach { dependsOn(checkLineLength, buildLogicCheck) }
 }
