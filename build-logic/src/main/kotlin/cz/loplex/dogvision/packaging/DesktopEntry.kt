@@ -17,8 +17,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 /**
  * Writes an application's desktop entry, which puts it in the desktop's menu, named in each language [strings] has:
  * `Name=` from values/strings.xml, and `Name[cs]=` and the like from values-cs/strings.xml, so that the menu names the
- * application in the system's language, as the window's title does. Its `Comment=`, which the menu shows beside the
- * name, comes from [commentString] in each language alike.
+ * application in the system's language, as the window's title does, each with [nameSuffix] after it. Its
+ * `Comment=`, which the menu shows beside the name, comes from [commentString] in each language alike.
  */
 abstract class DesktopEntry : DefaultTask() {
     /** Android's strings.xml files, as texts has them: values/ in English, values-<language>/ in each other one. */
@@ -29,6 +29,10 @@ abstract class DesktopEntry : DefaultTask() {
     /** The string the name is, such as app_name. */
     @get:Input
     abstract val nameString: Property<String>
+
+    /** What follows the name in every language, such as " (Swing)", where two packages share one; none by default. */
+    @get:Input
+    abstract val nameSuffix: Property<String>
 
     /** The string the comment is, such as desktop_comment. */
     @get:Input
@@ -48,6 +52,10 @@ abstract class DesktopEntry : DefaultTask() {
     @get:OutputFile
     abstract val entry: RegularFileProperty
 
+    init {
+        nameSuffix.convention("")
+    }
+
     @TaskAction
     fun write() {
         val folders = strings.get().asFile.listFiles { file -> file.isDirectory && file.name.startsWith("values") }
@@ -59,7 +67,7 @@ abstract class DesktopEntry : DefaultTask() {
             // values-pt-rBR is pt_BR in a desktop entry's key.
             val language = folder.name.removePrefix("values").removePrefix("-").replace("-r", "_")
             val key = if (language.isEmpty()) "" else "[$language]"
-            androidString(file, nameString.get())?.let { names += "Name$key=$it" }
+            androidString(file, nameString.get())?.let { names += "Name$key=$it${nameSuffix.get()}" }
             androidString(file, commentString.get())?.let { comments += "Comment$key=$it" }
         }
         check(names.any { it.startsWith("Name=") }) { "values/strings.xml has no ${nameString.get()}" }
