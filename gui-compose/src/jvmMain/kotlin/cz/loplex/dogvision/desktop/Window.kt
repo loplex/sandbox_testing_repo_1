@@ -35,6 +35,7 @@ import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -81,11 +82,13 @@ fun showWindow(arguments: Arguments): Int {
         }
         val state by session.state.collectAsState()
         val dialogs = remember { Dialogs() }
+        val icon = remember { BitmapPainter(windowIcon().toComposeImageBitmap()) }
         val open = { dialogs.open(state.texts, state.source)?.let(session::openFile) }
         CompositionLocalProvider(LocalTexts provides state.texts) {
             Window(
                 onCloseRequest = ::exitApplication,
                 title = state.texts.get(Str.APP_NAME),
+                icon = icon,
                 state = rememberWindowState(width = 1280.dp, height = 800.dp),
                 onKeyEvent = { event ->
                     val down = event.type == KeyEventType.KeyDown
