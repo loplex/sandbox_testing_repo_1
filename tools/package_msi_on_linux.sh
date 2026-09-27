@@ -60,6 +60,14 @@ windows_path() {
     winepath -w "$1"
 }
 
+# Notes a command this runs that the system lacks, with the Debian or Ubuntu package and the Fedora
+# package that have it.
+missing=()
+require() {
+    local command="$1" apt="$2" dnf="$3"
+    command -v "$command" >/dev/null || missing+=("$command: apt install $apt, or dnf install $dnf")
+}
+
 
 # The arguments.
 
@@ -73,6 +81,13 @@ while (( $# > 0 )); do
     esac
 done
 [[ -n "$jdk" && -n "$jmods" && -n "$wix" ]] || usage
+
+require "wine" "wine" "wine"
+require "winepath" "wine" "wine"
+require "jlink" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
+if (( ${#missing[@]} > 0 )); then
+    die "$(printf '%s\n' "Missing commands:" "${missing[@]/#/  }")"
+fi
 
 jpackage="$(realpath "$jdk")/bin/jpackage.exe"
 [[ -f "$jpackage" ]] || die "$jpackage does not exist" 2
@@ -152,6 +167,9 @@ fi
 # light.exe a second time, where jpackage's failed.
 
 if (( status != 0 )); then
+    if [[ "$log" == *"Download WiX"* ]]; then
+        die "jpackage finds no WiX: the prefix needs .NET Framework 4.8 (winetricks dotnet48)"
+    fi
     if [[ "$log" != *"light.exe"* ]]; then
         printf '%s\n' "$log" >&2
         die "jpackage failed with $status before light.exe"
