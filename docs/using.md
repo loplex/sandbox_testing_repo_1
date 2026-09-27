@@ -13,6 +13,9 @@ What each program shows and how it is driven. Building them is [Building it](bui
 
 The app opens on the back camera, with the scene as it is and as a dog sees it.
 
+![The app on a phone held upright, with the apples as they are above the apples as a dog sees them,
+and under them the species chosen and the facts about the dog](images/android.png)
+
 - **The button with two arrows switches to the front camera**, and back; the front camera's image
   is shown mirrored, as a mirror shows a face, and saved and recorded as shown.
 - **The images are laid out to show them largest**: side by side on a wide screen, one above another
@@ -123,6 +126,9 @@ Before Android 10, saving asks for the storage permission.
 
 ## The web page
 
+![The web page in a browser: the apples as they are and as a dog sees them side by side, the
+buttons above them, and the controls on the right](images/web.png)
+
 - **The built `index.html` opens as it is**, from the folder or from any static server: the page
   fetches nothing, and its wording is compiled into `dog-vision.js`.
 - **The browser needs WebGL 2**; without it the page says so.
@@ -215,6 +221,9 @@ dog-vision --species cat photo.jpg  # converts it, as the command line does
 It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
 program's.
 
+![The Compose window: the apples as they are and as a dog sees them side by side, and the controls
+on the right](images/window.png)
+
 - **On Linux it installs from the deb or the rpm `dog-vision`**, as `dog-vision` on the `PATH` and
   *Dog vision* in the desktop's menu (*Psí vidění* in Czech), on the system's Java 17 or newer,
   which the package manager installs with it where there is none.
@@ -238,6 +247,9 @@ program's.
 ```sh
 dog-vision-swing --window photo.jpg   # as dog-vision, with the same options, keys and dialog
 ```
+
+![The Swing window: the same images and controls as the Compose window's, in Swing's own
+widgets](images/window-swing.png)
 
 - **It shows what the Compose window shows, from the same state**, the `LiveSession` in
   [`gui-core`](../gui-core): the same images, drawn by the same passes, and the same
