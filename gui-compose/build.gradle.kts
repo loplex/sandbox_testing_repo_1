@@ -171,6 +171,8 @@ val linuxDesktopEntry = tasks.register<DesktopEntry>("linuxDesktopEntry") {
     exec = linuxPackage
     icon = applicationId
     categories = listOf("Graphics")
+    // Java names each window's WM_CLASS after the class its main is in, the dots as dashes.
+    startupWmClass = mainClassName.replace('.', '-')
     entry = layout.buildDirectory.file("packages/$applicationId.desktop")
 }
 
