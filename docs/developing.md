@@ -114,6 +114,11 @@ in [`.editorconfig`](../.editorconfig):
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and
   tried by `test_msi_on_windows.ps1`; the MSIs are the run's artifacts.
 
+[`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs when started
+by hand, as it installs Wine and .NET Framework 4.8 each time: the MSI that
+`package_msi_on_linux.sh` builds under Wine, validated by `smoke.exe` and tried by
+`test_msi_on_windows.ps1` on Windows Server 2022.
+
 ## Caveat: the emulator fails the video tests' colour checks
 
 On the emulator, a BT.709 video comes out as BT.601's matrix decodes it, so a red of 200 comes out
