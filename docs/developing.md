@@ -5,8 +5,8 @@ Building the programs is [Building it](building.md)'s.
 
 - [How the code is laid out](#how-the-code-is-laid-out) — the modules, and the GPU renderer they
   share.
-- [Checking it](#checking-it) — what each Gradle task tests, the Kotlin style, and what GitHub
-  Actions runs.
+- [Checking it](#checking-it) — what each Gradle task tests, the documents held to `core`, the
+  Kotlin style, and what GitHub Actions runs.
 - The caveats: [the emulator's colours](#caveat-the-emulator-fails-the-video-tests-colour-checks),
   [Windows without a GPU and under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine),
   and [the libraries waiting for SDK 37](#caveat-the-libraries-wait-for-a-stable-sdk-37).
@@ -85,7 +85,7 @@ The test classes' comments say what each of them holds.
 | `./gradlew :core:allTests`                     | the same, and the JVM and Node.js agreeing           |
 | `./gradlew :texts:allTests`                    | every language having every string, and plurals      |
 | `./gradlew :ui:jvmTest`                        | the shared controls, in Compose's test scene         |
-| `./gradlew :cli:jvmTest`                       | the options, the EXIF orientation, a conversion      |
+| `./gradlew :cli:jvmTest`                       | the options, EXIF, a conversion, the figures         |
 | `./gradlew :gui-core:jvmTest`                  | the window's passes, GL contexts, ffmpeg, session    |
 | `./gradlew :gui-swing:jvmTest`                 | the Swing window's image, theme and a dropped file   |
 | `./gradlew :web:jsTest`                        | the page's passes, snapshot and recording            |
@@ -104,6 +104,14 @@ The test classes' comments say what each of them holds.
   codecs.
 - **`python3 tools/check_links.py` checks the Markdown**, which `check` does not: every relative
   link resolves, down to its anchor.
+
+### The documents are checked against core
+
+- **`FiguresTest`, in `:cli:jvmTest`, holds the figures in [`docs/images`](images) to what `core`
+  renders**, within 2 in each channel; the captions are left out, as fonts differ between systems.
+- **`./gradlew :cli:renderFigures` renders the figures again**, from the apple photo beside them;
+  [`Figures.kt`](../cli/src/jvmTest/kotlin/cz/loplex/dogvision/cli/Figures.kt) says what each
+  shows.
 
 ### The Kotlin style is ktlint's
 
