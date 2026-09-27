@@ -323,7 +323,7 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     jpackage from a JDK 17 with the runtime linked on Linux,
     WiX's light run a second time without validating the MSI, and Microsoft's .NET Framework 4.8 in the prefix.
   - **The MSI's code page is Windows-1250**,
-    from [`gui-compose/packaging/windows`](gui-compose/packaging/windows/MsiInstallerStrings_en.wxl), as the vendor's name has a ř that jpackage's Windows-1252 lacks.
+    from [`gui-compose/packaging/windows`](gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl), as the vendor's name has a ř that jpackage's Windows-1252 lacks.
   - **The Start menu and the desktop get `dog-vision-cli` as well**,
     which started from there only says that the window is the desktop app's:
     JDK 17's jpackage cannot leave one launcher out.
