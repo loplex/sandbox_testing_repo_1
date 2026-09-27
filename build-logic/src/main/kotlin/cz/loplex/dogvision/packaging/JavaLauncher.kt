@@ -1,16 +1,19 @@
 package cz.loplex.dogvision.packaging
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 /**
  * Writes the POSIX sh script a deb or an rpm starts [mainClass] with, on the system's Java rather than one of the
- * package's own: it finds a Java [minimumJava] or newer as launcher.sh, beside this class, says.
+ * package's own: it finds a Java [minimumJava] or newer, and one with AWT's X11 library where the program
+ * [opensWindow], as launcher.sh, beside this class, says.
  */
 abstract class JavaLauncher : DefaultTask() {
     /** The command's name, which it is installed as and says in its error. */
@@ -20,9 +23,13 @@ abstract class JavaLauncher : DefaultTask() {
     @get:Input
     abstract val mainClass: Property<String>
 
-    /** Each JAR's path where the package installs it, in the order the classpath takes them. */
+    /** The JARs, in the order the classpath takes them; those that hold natives only ([nativesOnly]) are left out. */
+    @get:Classpath
+    abstract val jars: ConfigurableFileCollection
+
+    /** Where the package installs [jars]. */
     @get:Input
-    abstract val classpath: ListProperty<String>
+    abstract val jarDirectory: Property<String>
 
     @get:Input
     abstract val jvmOptions: ListProperty<String>
@@ -30,19 +37,32 @@ abstract class JavaLauncher : DefaultTask() {
     @get:Input
     abstract val minimumJava: Property<Int>
 
+    /** Whether the program opens a window, so that a headless Java will not do; false by default. */
+    @get:Input
+    abstract val opensWindow: Property<Boolean>
+
     @get:OutputFile
     abstract val script: RegularFileProperty
 
+    init {
+        opensWindow.convention(false)
+    }
+
     @TaskAction
     fun write() {
-        val unquotable = (classpath.get() + jvmOptions.get()).filter { '\'' in it }
+        val classpath = jars.files.filterNot(::nativesOnly).map { "${jarDirectory.get()}/${it.name}" }
+        check(classpath.distinct().size == classpath.size) { "Two JARs of one name in $classpath" }
+        val unquotable = (classpath + jvmOptions.get()).filter { '\'' in it }
         check(unquotable.isEmpty()) { "The launcher cannot put $unquotable in single quotes" }
+        val window = opensWindow.get()
         val template = checkNotNull(javaClass.getResource("launcher.sh")) { "No launcher.sh beside JavaLauncher" }
         val text = template.readText()
             .replace("@NAME@", commandName.get())
+            .replace("@JAVA@", "Java ${minimumJava.get()} or newer" + if (window) ", not a headless one" else "")
             .replace("@MINIMUM@", minimumJava.get().toString())
+            .replace("@WINDOW@", if (window) "yes" else "no")
             .replace("@JVM_OPTIONS@", jvmOptions.get().joinToString("") { "'$it' " })
-            .replace("@CLASSPATH@", classpath.get().joinToString(":"))
+            .replace("@CLASSPATH@", classpath.joinToString(":"))
             .replace("@MAIN_CLASS@", mainClass.get())
         val file = script.get().asFile
         file.writeText(text)

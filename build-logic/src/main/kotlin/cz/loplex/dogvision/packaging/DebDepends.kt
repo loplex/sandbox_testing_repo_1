@@ -12,9 +12,9 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * The Debian package of each library the app image links against, by soname, as Ubuntu 20.04, the oldest release the
- * debs are for, names them: later releases keep the names or provide them (Ubuntu 24.04's libasound2t64 provides
- * libasound2). [DebDepends] fails on a library missing here.
+ * The Debian package of each library the packaged ELF files link against, by soname, as Ubuntu 20.04, the oldest
+ * release the debs are for, names them: later releases keep the names or provide them (Ubuntu 24.04's libasound2t64
+ * provides libasound2). [DebDepends] fails on a library missing here.
  */
 val debianPackages = mapOf(
     "ld-linux-x86-64.so.2" to "libc6",
@@ -35,10 +35,10 @@ val debianPackages = mapOf(
 )
 
 /**
- * Writes the deb's Depends from the app image alone, so that it is the same wherever the deb is built: jpackage looks
- * the libraries up in the build machine's dpkg database, and so names its release's packages, such as Ubuntu 24.04's
- * libasound2t64, which older releases lack. Each library the image's ELF files need and do not bring is named by
- * [packages], libc6 with the newest glibc version they ask for; [others] follow.
+ * Writes the deb's Depends from the ELF files under [image] alone, so that it is the same wherever the deb is built:
+ * the build machine's dpkg database would name its own release's packages, such as Ubuntu 24.04's libasound2t64, which
+ * older releases lack. Each library the files need and do not bring is named by [packages], libc6 with the newest glibc
+ * version they ask for; [others] follow.
  */
 abstract class DebDepends : DefaultTask() {
     @get:InputDirectory
