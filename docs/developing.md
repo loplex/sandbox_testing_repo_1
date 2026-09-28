@@ -3,8 +3,8 @@
 How the code is laid out, and how a change is checked.
 Building the programs is [Building it](building.md)'s.
 
-- [How the code is laid out](#how-the-code-is-laid-out) — the modules, and the GPU renderer they
-  share.
+- [How the code is laid out](#how-the-code-is-laid-out) — the modules, their layers and which uses
+  which, and the GPU renderer they share.
 - [Checking it](#checking-it) — what each Gradle task tests, the documents held to `core`, the
   Kotlin style, and what GitHub Actions runs.
 - The caveats: [the emulator's colours](#caveat-the-emulator-fails-the-video-tests-colour-checks),
@@ -60,6 +60,129 @@ the tasks the Linux packages are made with, which a module takes by applying the
   Its `LiveSession` holds what a window shows, as the Python program's does, so that the Compose
   window and the Swing one only lay it out.
 
+### Which module uses which
+
+The modules stand in four layers, and a module's code uses only those below it or beside it in its
+own.
+An arrow points from a module to one it uses:
+
+- **a thick arrow is `api`**: whatever uses the module gets the one it points at too;
+- **a thin arrow is `implementation`**: the module keeps the one it points at to itself;
+- **a dotted arrow is for tests alone**: the module's tests use it, and its code does not.
+
+A module in bold is a program: its build makes something to run, the app's APK, the web page, or
+the packages of the command line and the windows.
+
+What each module uses, less `texts` and the tests:
+
+```mermaid
+graph TD
+    subgraph programs [the programs]
+        android
+        gui-compose
+        gui-swing
+        web
+    end
+    subgraph shared [what the programs share]
+        ui
+        gui-core
+        cli
+    end
+    subgraph base [built on core]
+        testing
+        gl
+    end
+    subgraph model [the model]
+        core
+    end
+    cli ==> core
+    android --> gl
+    gl --> core
+    gui-core --> gl
+    gui-swing --> gui-core
+    gui-compose --> gui-core
+    testing ==> core
+    gui-core ==> cli
+    gui-compose --> ui
+    web --> gl
+    android --> core
+    web --> core
+    android --> ui
+    classDef program font-weight:bold
+    class android,gui-compose,gui-swing,web,cli program
+```
+
+What uses `texts`:
+
+```mermaid
+graph TD
+    subgraph programs [the programs]
+        web
+        android
+    end
+    subgraph shared [what the programs share]
+        ui
+        cli
+    end
+    subgraph base [built on core]
+        texts
+    end
+    subgraph model [the model]
+        core
+    end
+    android --> texts
+    web --> texts
+    cli ==> texts
+    ui ==> texts
+    texts ==> core
+    programs ~~~ shared
+    classDef program font-weight:bold
+    class android,web,cli program
+```
+
+What uses `testing`, in tests alone:
+
+```mermaid
+graph TD
+    subgraph programs [the programs]
+        android
+        web
+    end
+    subgraph shared [what the programs share]
+        gui-core
+    end
+    subgraph base [built on core]
+        testing
+    end
+    subgraph model [the model]
+        core
+    end
+    android -.-> testing
+    web -.-> testing
+    gui-core -.-> testing
+    testing ==> core
+    core -.-> testing
+    programs ~~~ shared
+    classDef program font-weight:bold
+    class android,web program
+```
+
+- **`texts` has a graph of its own, as with it in the first one lines have to cross**, however the
+  modules are placed:
+  `android`, `web`, and `cli` with `gui-core`, are three that each reach the same three, `core`,
+  `gl` and `texts`, and no drawing on a plane joins three to three without a crossing.
+  Without `texts` the first graph could be drawn with none, but its layers still cost it one.
+- **`cli` is a program, in bold, and stands among what the programs share**, as `gui-core`
+  uses it: the window's `main` is `cli`'s.
+- **`gui-compose` and `gui-swing` reach `core` and `texts` through `gui-core`**, which passes on
+  `cli` and, through it, the two `cli` uses.
+- **`ui` passes on `texts`**, as its `text` and `InfoButton` take an entry of `texts`' `Str`.
+- **Only tests use `testing`**, so no program ships it.
+  `core`'s tests use `testing`, which in turn uses `core`; Gradle builds `core` itself first, as
+  its code does not use `testing`.
+- **`./gradlew checkModuleGraph` holds the three graphs together to the modules' build files**, and
+  runs in `check`: every arrow declared is drawn in one of them, and none is drawn that is not.
+
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
 - **The view is drawn by `gl`'s shaders**, which apply `core`'s matrix and blur, and decode and
@@ -75,8 +198,8 @@ the tasks the Linux packages are made with, which a module takes by applying the
 
 ## Checking it
 
-`./gradlew check` runs every test task below that needs no phone, Android Lint, and the Kotlin
-style.
+`./gradlew check` runs every test task below that needs no phone, Android Lint, the Kotlin style,
+and the check of [the modules' graphs](#which-module-uses-which).
 The test classes' comments say what each of them holds.
 
 | Task                                           | Tests                                                |
