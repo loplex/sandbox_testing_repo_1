@@ -31,11 +31,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -157,6 +160,7 @@ private fun LanguageChoice(current: String, onChoose: (String) -> Unit) {
     val languages = listOf("" to text(Str.SYSTEM_LANGUAGE)) +
         Texts.LANGUAGES.map { it to Texts.of(it).get(Str.LANGUAGE_NAME) }
     var expanded by rememberSaveable { mutableStateOf(false) }
+    CountedWhileOpen(expanded)
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = languages.firstOrNull { it.first == current }?.second ?: languages.first().second,
@@ -222,6 +226,7 @@ private fun SpeciesChoice(
     val original = text(Str.ORIGINAL)
     val name = { species: Species? -> species?.let(texts::speciesLabel) ?: original }
     var expanded by rememberSaveable { mutableStateOf(false) }
+    CountedWhileOpen(expanded && enabled)
     Row(verticalAlignment = Alignment.CenterVertically) {
         ExposedDropdownMenuBox(
             expanded = expanded && enabled,
@@ -254,6 +259,32 @@ private fun SpeciesChoice(
             }
         }
         InfoButton(label, about)
+    }
+}
+
+/**
+ * How many of the controls' lists are dropped down: the desktop window leaves its keys to a list while one is, as a
+ * list's keys reach the window whether or not the list takes them.
+ */
+class OpenLists {
+    var count by mutableIntStateOf(0)
+        private set
+
+    internal fun opened() = count++
+
+    internal fun closed() = count--
+}
+
+/** The lists the controls count in, none but the desktop window's reads. */
+val LocalOpenLists = staticCompositionLocalOf { OpenLists() }
+
+/** Counts a list in [LocalOpenLists] for as long as it is [open]. */
+@Composable
+private fun CountedWhileOpen(open: Boolean) {
+    val lists = LocalOpenLists.current
+    DisposableEffect(open) {
+        if (open) lists.opened()
+        onDispose { if (open) lists.closed() }
     }
 }
 
