@@ -2,6 +2,7 @@ package cz.loplex.dogvision.desktop
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -34,6 +37,7 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -54,6 +58,7 @@ import cz.loplex.dogvision.cli.Arguments
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import cz.loplex.dogvision.ui.Controls
+import cz.loplex.dogvision.ui.EXPAND_ICON
 import cz.loplex.dogvision.ui.LocalOpenLists
 import cz.loplex.dogvision.ui.LocalTexts
 import cz.loplex.dogvision.ui.OpenLists
@@ -73,7 +78,8 @@ private val GAP = 6.dp
 /**
  * Opens the window on what [arguments] ask for: the file given with --window, a photo or else a video, or the camera
  * --camera names; returns once the window is closed. Another file is opened from the system's dialog, from the o key
- * as in the Python program's window, or dropped onto the window; q or Escape closes it, as in the Python program's.
+ * as in the Python program's window, or dropped onto the window; F9 or the button at the images' edge hides the
+ * controls, and q or Escape closes it, as in the Python program's.
  * What it shows is a [LiveSession]'s, which the window only lays out.
  */
 fun showWindow(arguments: Arguments): Int {
@@ -98,6 +104,7 @@ fun showWindow(arguments: Arguments): Int {
                     when {
                         down && (event.key == Key.Escape || event.key == Key.Q) -> exitApplication().let { true }
                         down && event.key == Key.O -> true.also { open() }
+                        down && event.key == Key.F9 -> true.also { session.togglePanel() }
                         else -> false
                     }
                 },
@@ -147,23 +154,44 @@ private fun Screen(session: LiveSession<ImageBitmap>, state: LiveSession.State, 
     }
     Row(Modifier.dragAndDropTarget(shouldStartDragAndDrop = { droppedFiles(it).isNotEmpty() }, target = drop)) {
         Preview(picture, state, Modifier.weight(1f).fillMaxHeight(), session::setArea, session::installFfmpeg)
-        Column(Modifier.width(380.dp).fillMaxHeight()) {
-            Row(
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(onClick = onOpen) { Text(texts.get(Str.OPEN_MEDIA)) }
-                OutlinedButton(onClick = session::openCamera) { Text(texts.get(Str.SHOW_CAMERA)) }
+        PanelToggle(state.panelShown, session::togglePanel)
+        if (state.panelShown) {
+            Column(Modifier.width(380.dp).fillMaxHeight()) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(onClick = onOpen) { Text(texts.get(Str.OPEN_MEDIA)) }
+                    OutlinedButton(onClick = session::openCamera) { Text(texts.get(Str.SHOW_CAMERA)) }
+                }
+                Controls(
+                    view = state.view,
+                    recording = false,
+                    onChange = session::changeView,
+                    onReset = session::reset,
+                    language = state.language,
+                    onLanguage = session::setLanguage,
+                    modifier = Modifier.weight(1f),
+                )
             }
-            Controls(
-                view = state.view,
-                recording = false,
-                onChange = session::changeView,
-                onReset = session::reset,
-                language = state.language,
-                onLanguage = session::setLanguage,
-                modifier = Modifier.weight(1f),
-            )
+        }
+    }
+}
+
+/** The button at the images' edge that hides the controls if [shown], else shows them, through [onToggle]. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PanelToggle(shown: Boolean, onToggle: () -> Unit) {
+    val words = LocalTexts.current.get(if (shown) Str.HIDE_PANEL else Str.SHOW_PANEL)
+    TooltipArea(
+        tooltip = {
+            Surface(shape = MaterialTheme.shapes.small, tonalElevation = 4.dp, shadowElevation = 4.dp) {
+                Text(words, Modifier.padding(8.dp), style = MaterialTheme.typography.bodySmall)
+            }
+        },
+    ) {
+        IconButton(onClick = onToggle) {
+            Icon(EXPAND_ICON, contentDescription = words, modifier = Modifier.rotate(if (shown) -90f else 90f))
         }
     }
 }
