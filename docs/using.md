@@ -238,6 +238,9 @@ on the right](images/window.png)
 - **Open a photo or a video opens another one** from the system's dialog, which starts in the folder
   of the file shown; the o key opens the dialog too, as it opens the desktop program's, and a file
   dropped anywhere on the window opens as well.
+- **On Linux the dialog is kdialog's on KDE and zenity's elsewhere**, whichever of the two is
+  installed, and Java's own where neither is: Java's comes up behind the window on KDE from its
+  second opening on.
 - **Camera goes back to the camera** the command line names.
 - **F9 or the arrow at the images' edge hides the controls**, and the images take their room, as F9
   does in the desktop program's window; the same again shows them.
