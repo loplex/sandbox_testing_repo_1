@@ -1,5 +1,6 @@
 package cz.loplex.dogvision.swing
 
+import com.formdev.flatlaf.FlatClientProperties
 import com.formdev.flatlaf.FlatDarkLaf
 import com.formdev.flatlaf.FlatLightLaf
 import com.formdev.flatlaf.util.UIScale
@@ -43,7 +44,8 @@ import javax.swing.TransferHandler
  * Opens the Swing window on what [arguments] ask for, as the Compose window does:
  * the file given with --window, a photo or else a video, or the camera --camera names;
  * returns once the window is closed.\
- * Another file is opened from the system's dialog, from the o key, or dropped onto the window; q or Escape closes it.\
+ * Another file is opened from the system's dialog, from the o key, or dropped onto the window;
+ * F9 or the button at the images' edge hides the controls; q or Escape closes it.\
  * What it shows is a [LiveSession]'s, which the window only lays out.
  */
 fun showWindow(arguments: Arguments): Int {
@@ -75,14 +77,34 @@ private fun openWindow(arguments: Arguments, onClosed: () -> Unit) {
         )
         add(scrolled(controls), BorderLayout.CENTER)
     }
+    val panelToggle = JButton().apply {
+        putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_TOOLBAR_BUTTON)
+        addActionListener { session.togglePanel() }
+    }
+    val edge = JPanel(BorderLayout()).apply {
+        border = BorderFactory.createEmptyBorder(UIScale.scale(8), 0, 0, 0)
+        add(panelToggle, BorderLayout.NORTH)
+    }
+    val east = JPanel(BorderLayout()).apply {
+        add(edge, BorderLayout.WEST)
+        add(column, BorderLayout.CENTER)
+    }
     frame.iconImage = windowIcon()
     frame.contentPane.add(preview, BorderLayout.CENTER)
-    frame.contentPane.add(column, BorderLayout.EAST)
+    frame.contentPane.add(east, BorderLayout.EAST)
 
     fun show(state: LiveSession.State) {
         frame.title = state.texts.get(Str.APP_NAME)
         open.text = state.texts.get(Str.OPEN_MEDIA)
         camera.text = state.texts.get(Str.SHOW_CAMERA)
+        val toggleText = state.texts.get(if (state.panelShown) Str.HIDE_PANEL else Str.SHOW_PANEL)
+        panelToggle.icon = ShapeIcon(ShapeIcon.CHEVRON, if (state.panelShown) -90.0 else 90.0)
+        panelToggle.toolTipText = toggleText
+        panelToggle.accessibleContext.accessibleName = toggleText
+        if (column.isVisible != state.panelShown) {
+            column.isVisible = state.panelShown
+            east.revalidate()
+        }
         controls.show(state)
         preview.show(state)
     }
@@ -91,7 +113,13 @@ private fun openWindow(arguments: Arguments, onClosed: () -> Unit) {
     scope.launch { session.state.collect(::show) }
     scope.launch { session.picture.collect { preview.picture = it } }
 
-    keys(frame.rootPane, "O" to { openFromDialog(frame, session) }, "Q" to frame::dispose, "ESCAPE" to frame::dispose)
+    keys(
+        frame.rootPane,
+        "O" to { openFromDialog(frame, session) },
+        "F9" to session::togglePanel,
+        "Q" to frame::dispose,
+        "ESCAPE" to frame::dispose,
+    )
     frame.transferHandler = FileDrop(session::openFile)
     frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
     frame.addWindowListener(
