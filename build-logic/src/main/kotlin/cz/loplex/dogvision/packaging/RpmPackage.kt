@@ -132,6 +132,7 @@ abstract class RpmPackage : DefaultTask() {
             )
             val rpm = rpm.get().asFile
             rpm.parentFile.mkdirs()
+            @Suppress("ktlint:standard:argument-list-wrapping")
             run(
                 "rpmbuild", "-bb", spec.path,
                 "--define", "_topdir $top",

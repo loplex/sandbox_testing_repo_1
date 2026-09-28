@@ -93,26 +93,18 @@ abstract class AppImage : DefaultTask() {
         check(input.resolve(mainJar.get()).isFile) { "${mainJar.get()} is not among the JARs" }
         // jpackage refuses a destination that holds the image already.
         files.delete { delete(destination) }
+        @Suppress("ktlint:standard:argument-list-wrapping")
         val command = mutableListOf(
             "${jdkHome.get()}/bin/jpackage",
-            "--type",
-            "app-image",
-            "--input",
-            input.path,
-            "--main-jar",
-            mainJar.get(),
-            "--main-class",
-            mainClass.get(),
-            "--name",
-            imageName.get(),
-            "--app-version",
-            appVersion.get(),
-            "--icon",
-            icon.get().asFile.path,
-            "--add-modules",
-            modules.get().joinToString(","),
-            "--dest",
-            destination.get().asFile.path,
+            "--type", "app-image",
+            "--input", input.path,
+            "--main-jar", mainJar.get(),
+            "--main-class", mainClass.get(),
+            "--name", imageName.get(),
+            "--app-version", appVersion.get(),
+            "--icon", icon.get().asFile.path,
+            "--add-modules", modules.get().joinToString(","),
+            "--dest", destination.get().asFile.path,
         )
         for (option in javaOptions.get()) command += listOf("--java-options", option)
         for ((launcher, properties) in launchers.get()) command += listOf("--add-launcher", "$launcher=$properties")
