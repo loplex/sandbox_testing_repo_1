@@ -8,6 +8,7 @@ import org.gradle.api.Project
  * classpath, and gives each [DebPackage] and [RpmPackage] what every package of the project shares, which the module's
  * script registers with what is its own.
  */
+@Suppress("unused", "RedundantSuppression") // named only by implementationClass in build.gradle.kts
 class PackagingPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val appVersion = project.providers.gradleProperty("appVersion")
