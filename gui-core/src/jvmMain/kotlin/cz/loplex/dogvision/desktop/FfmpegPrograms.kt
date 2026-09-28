@@ -28,16 +28,14 @@ object FfmpegPrograms {
     private val PROGRAMS = listOf("ffmpeg", "ffprobe")
 
     /** winget's package of Gyan's build of ffmpeg, installed for this user, with nothing asked on the way. */
+    @Suppress("ktlint:standard:argument-list-wrapping")
     private val WINGET = listOf(
         "winget",
         "install",
-        "--id",
-        "Gyan.FFmpeg",
+        "--id", "Gyan.FFmpeg",
         "--exact",
-        "--source",
-        "winget",
-        "--scope",
-        "user",
+        "--source", "winget",
+        "--scope", "user",
         "--disable-interactivity",
         "--accept-package-agreements",
         "--accept-source-agreements",
