@@ -206,6 +206,8 @@ It runs on Linux and Windows on x86-64.
 - **A photo is scaled down to 1280 pixels** for the view, as the app's is.
 - **Open a photo or a video opens another one** from the system's dialog, which starts in the folder of the file shown;
   the o key opens the dialog too, and a file dropped anywhere on the window opens as well.
+- **On Linux the dialog is kdialog's on KDE and zenity's elsewhere**, whichever of the two is installed,
+  and Java's own where neither is: Java's comes up behind the window on KDE from its second opening on.
 - **Camera goes back to the camera** the command line names.
 - **F9 or the arrow at the images' edge hides the controls**, and the images take their room; the same again shows them.
 - **q or Escape closes it**, but for while a list is dropped down, which then takes the key.
