@@ -54,7 +54,8 @@ the tasks the Linux packages are made with, which a module takes by applying the
   [`runCommandLine`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
   a command line it cannot read itself, converts a photo, and hands anything else to a window given
   to it.
-- **`gui-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
+- **`gui-core` has neither Compose nor skiko in it**: Java's own AWT is its only toolkit.
+  It holds the GL contexts, the passes'
   renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
   image of them.
   Its `LiveSession` holds what a window shows, as the Python program's does, so that the Compose

@@ -65,7 +65,6 @@ import cz.loplex.dogvision.ui.OpenLists
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
-import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
 import java.net.URI
@@ -91,7 +90,7 @@ fun showWindow(arguments: Arguments): Int {
         val state by session.state.collectAsState()
         val dialogs = remember { Dialogs() }
         val icon = remember { BitmapPainter(windowIcon().toComposeImageBitmap()) }
-        val open = { dialogs.open(state.texts, state.source)?.let(session::openFile) }
+        val open = { dialogs.open(state.texts, state.source, session::openFile) }
         val lists = remember { OpenLists() }
         CompositionLocalProvider(LocalTexts provides state.texts, LocalOpenLists provides lists) {
             Window(
@@ -124,16 +123,14 @@ fun showWindow(arguments: Arguments): Int {
 /** The system's dialogs, over the window [parent] once it is shown. */
 private class Dialogs {
     var parent: Frame? = null
+    private val openDialog = OpenDialog()
 
     /**
-     * A photo or a video picked in the system's dialog, which starts in the folder of the file [shown], if one is; null
-     * if none is picked.
+     * Tells [onPicked] a photo or a video picked in the system's dialog, which starts in the folder of the file
+     * [shown], if one is.
      */
-    fun open(texts: Texts, shown: Source): File? {
-        val dialog = FileDialog(parent, texts.get(Str.OPEN_MEDIA), FileDialog.LOAD)
-        if (shown is Source.Media) dialog.directory = shown.file.absoluteFile.parent
-        dialog.isVisible = true
-        return dialog.files.firstOrNull()
+    fun open(texts: Texts, shown: Source, onPicked: (File) -> Unit) {
+        openDialog.show(parent, texts.get(Str.OPEN_MEDIA), (shown as? Source.Media)?.file, onPicked)
     }
 }
 
