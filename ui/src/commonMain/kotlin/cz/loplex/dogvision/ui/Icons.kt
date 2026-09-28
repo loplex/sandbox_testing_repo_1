@@ -6,8 +6,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
 
-/** A chevron pointing down: a section that opens. */
-internal val EXPAND_ICON = icon("M16.59,8.59L12,13.17 7.41,8.59 6,10l6,6 6,-6z")
+/** A chevron pointing down: a section that opens, and turned, the desktop window's panel that hides or shows. */
+val EXPAND_ICON = icon("M16.59,8.59L12,13.17 7.41,8.59 6,10l6,6 6,-6z")
 
 /** An i in a circle: what a control or a fact means. */
 internal val INFO_ICON = icon(
