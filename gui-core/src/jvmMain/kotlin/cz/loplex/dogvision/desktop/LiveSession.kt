@@ -38,7 +38,7 @@ class LiveSession<I>(
     /**
      * What the window shows besides the picture: [source], [view], [language], a tag or "" for the system's, and
      * [texts] in it; why the source cannot be shown, [sourceFailure], which another source clears, and why nothing can
-     * be drawn, [drawFailure], which stays; and how installing ffmpeg is going.
+     * be drawn, [drawFailure], which stays; how installing ffmpeg is going; and whether the controls are shown.
      */
     data class State(
         val source: Source,
@@ -51,6 +51,8 @@ class LiveSession<I>(
         val installingFfmpeg: Boolean = false,
         /** Why ffmpeg was not installed, the last time it was tried. */
         val ffmpegFailure: Failure? = null,
+        /** Whether the panel of controls is shown, or the images have the whole window, as F9 toggles it. */
+        val panelShown: Boolean = true,
         private val canInstallFfmpeg: Boolean = false,
     ) {
         /** Why nothing is shown, if something is why: that nothing can be drawn goes before the source's failure. */
@@ -108,6 +110,9 @@ class LiveSession<I>(
 
     /** Words the window in [language], a language tag, or in the system's language for "". */
     fun setLanguage(language: String) = change { copy(language = language, texts = textsIn(language)) }
+
+    /** Hides the panel of controls if it is shown, and shows it if not, as the Python window's F9 does. */
+    fun togglePanel() = change { copy(panelShown = !panelShown) }
 
     /** The area the pictures are laid out on, which the window has given the images. */
     fun setArea(area: Area) = renderer.setArea(area)
