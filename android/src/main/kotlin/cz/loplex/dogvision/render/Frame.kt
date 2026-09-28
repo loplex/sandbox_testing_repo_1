@@ -103,15 +103,6 @@ class FrameExchange {
     @Synchronized
     fun current(): Frame? = shown
 
-    /** Forgets every frame, as when the source changes to one of another size. */
-    @Synchronized
-    fun clear() {
-        free.clear()
-        latest = null
-        shown = null
-        allocated = 0
-    }
-
     private companion object {
         const val MAX_FRAMES = 3
     }
