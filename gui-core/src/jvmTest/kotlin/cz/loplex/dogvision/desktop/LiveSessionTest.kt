@@ -219,6 +219,18 @@ class LiveSessionTest {
     }
 
     @Test
+    fun thePanelIsShownUntilToggledAndResetLeavesIt() {
+        val session = session()
+        assertTrue(session.state.value.panelShown)
+        session.togglePanel()
+        assertFalse(session.state.value.panelShown)
+        session.reset()
+        assertFalse(session.state.value.panelShown)
+        session.togglePanel()
+        assertTrue(session.state.value.panelShown)
+    }
+
+    @Test
     fun aDrawFailureStaysWhenTheSourceChanges() {
         var failDrawing: (String) -> Unit = {}
         val session = LiveSession<Unit>(

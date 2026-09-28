@@ -219,6 +219,8 @@ on the right](images/window.png)
   of the file shown; the o key opens the dialog too, and a file dropped anywhere on the window opens
   as well.
 - **Camera goes back to the camera** the command line names.
+- **F9 or the arrow at the images' edge hides the controls**, and the images take their room; the
+  same again shows them.
 - **q or Escape closes it**, but for while a list is dropped down, which then takes the key.
 - **It has no menus, no settings, no snapshots and no recording yet.**
 
