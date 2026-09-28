@@ -6,6 +6,7 @@ import com.formdev.flatlaf.FlatLightLaf
 import com.formdev.flatlaf.util.UIScale
 import cz.loplex.dogvision.cli.Arguments
 import cz.loplex.dogvision.desktop.LiveSession
+import cz.loplex.dogvision.desktop.OpenDialog
 import cz.loplex.dogvision.desktop.Source
 import cz.loplex.dogvision.desktop.windowIcon
 import cz.loplex.dogvision.texts.Str
@@ -17,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.FileDialog
 import java.awt.FlowLayout
 import java.awt.KeyboardFocusManager
 import java.awt.datatransfer.DataFlavor
@@ -62,7 +62,8 @@ private fun openWindow(arguments: Arguments, onClosed: () -> Unit) {
     val frame = JFrame()
     val preview = Preview(session)
     val controls = Controls(session)
-    val open = JButton().apply { addActionListener { openFromDialog(frame, session) } }
+    val dialog = OpenDialog()
+    val open = JButton().apply { addActionListener { openFromDialog(frame, dialog, session) } }
     val camera = JButton().apply { addActionListener { session.openCamera() } }
     val column = JPanel(BorderLayout()).apply {
         preferredSize = Dimension(UIScale.scale(COLUMN_WIDTH), 0)
@@ -114,7 +115,7 @@ private fun openWindow(arguments: Arguments, onClosed: () -> Unit) {
 
     keys(
         frame.rootPane,
-        "O" to { openFromDialog(frame, session) },
+        "O" to { openFromDialog(frame, dialog, session) },
         "F9" to session::togglePanel,
         "Q" to frame::dispose,
         "ESCAPE" to frame::dispose,
@@ -135,14 +136,11 @@ private fun openWindow(arguments: Arguments, onClosed: () -> Unit) {
     frame.isVisible = true
 }
 
-/** Opens the photo or the video picked in the system's dialog, which starts in the folder of the file shown, if any. */
-private fun openFromDialog(frame: JFrame, session: LiveSession<*>) {
+/** Opens the photo or the video picked in [dialog], which starts in the folder of the file shown, if any. */
+private fun openFromDialog(frame: JFrame, dialog: OpenDialog, session: LiveSession<*>) {
     val state = session.state.value
-    val dialog = FileDialog(frame, state.texts.get(Str.OPEN_MEDIA), FileDialog.LOAD)
-    val shown = state.source
-    if (shown is Source.Media) dialog.directory = shown.file.absoluteFile.parent
-    dialog.isVisible = true
-    dialog.files.firstOrNull()?.let(session::openFile)
+    val shown = (state.source as? Source.Media)?.file
+    dialog.show(frame, state.texts.get(Str.OPEN_MEDIA), shown, session::openFile)
 }
 
 /**
