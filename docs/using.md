@@ -219,7 +219,7 @@ on the right](images/window.png)
   of the file shown; the o key opens the dialog too, and a file dropped anywhere on the window opens
   as well.
 - **Camera goes back to the camera** the command line names.
-- **q or Escape closes it.**
+- **q or Escape closes it**, but for while a list is dropped down, which then takes the key.
 - **It has no menus, no settings, no snapshots and no recording yet.**
 
 ### The same window in Swing: `dog-vision-swing`
