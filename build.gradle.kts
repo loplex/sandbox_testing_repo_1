@@ -57,8 +57,84 @@ val checkLineLength = tasks.register("checkLineLength") {
         if (tooLong.isNotEmpty()) throw GradleException(tooLong.joinToString("\n"))
     }
 }
+
+// docs/developing.md draws which module uses which, in Mermaid's graphs, split so that fewer lines cross; together
+// they are held here to the dependencies the modules declare on each other, in each module's `check`. An arrow is `==>`
+// for api, `-->` for implementation, and `-.->` for a dependency that only tests have; `~~~`, which only places a
+// layer, is no dependency. The modules' dependencies are read once all of them are evaluated.
+val moduleUses = objects.setProperty<String>()
+// A graph's `class ... program` line makes bold the programs it draws: the modules whose build makes something to
+// run, an APK, a desktop package or a web page.
+val programs = objects.setProperty<String>()
+gradle.projectsEvaluated {
+    moduleUses.set(
+        subprojects.flatMap { module ->
+            module.configurations.flatMap { configuration ->
+                val name = configuration.name
+                val arrow = when {
+                    "test" in name.lowercase() -> "-.->"
+                    name == "api" || name.endsWith("Api") -> "==>"
+                    else -> "-->"
+                }
+                // The Android app's instrumented tests depend on the app itself, which is no use of another module.
+                configuration.dependencies.withType<ProjectDependency>().filter { it.path != module.path }
+                    .map { "${module.name} $arrow ${it.path.removePrefix(":")}" }
+            }
+        }.toSet(),
+    )
+    programs.set(
+        subprojects.filter { module ->
+            val jsTargets = module.extensions
+                .findByType<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension>()?.targets
+                ?.withType<org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget>().orEmpty()
+            val webPage = jsTargets.any { target ->
+                target.binaries.withType<org.jetbrains.kotlin.gradle.targets.js.ir.Executable>().isNotEmpty()
+            }
+            module.pluginManager.hasPlugin("com.android.application") ||
+                module.pluginManager.hasPlugin("cz.loplex.dogvision.packaging") ||
+                webPage
+        }.map { it.name }.toSet(),
+    )
+}
+val checkModuleGraph = tasks.register("checkModuleGraph") {
+    description = "Fails when the graphs of the modules in docs/developing.md differ from their dependencies."
+    val doc = file("docs/developing.md")
+    val uses = moduleUses
+    val runnable = programs
+    inputs.file(doc)
+    inputs.property("moduleUses", uses)
+    inputs.property("programs", runnable)
+    doLast {
+        val graphs = Regex("^```mermaid\n(.*?)^```", setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL))
+            .findAll(doc.readText()).map { it.groupValues[1] }.toList()
+        if (graphs.isEmpty()) throw GradleException("docs/developing.md: no ```mermaid block")
+        val arrows = graphs.map { graph ->
+            graph.lines().mapNotNull { Regex("""\s*([\w-]+) (==>|-->|-\.->) ([\w-]+)""").matchEntire(it)?.groupValues }
+        }
+        val drawn = arrows.flatten().map { it.drop(1).joinToString(" ") }.toSet()
+        val declared = uses.get()
+        val problems = (declared - drawn).sorted().map { "not drawn: $it" } +
+            (drawn - declared).sorted().map { "drawn, not declared: $it" } +
+            graphs.zip(arrows).withIndex().flatMap { (i, graphAndArrows) ->
+                val (graph, graphArrows) = graphAndArrows
+                val modules = graphArrows.flatMap { listOf(it[1], it[3]) }.toSet()
+                val bold = graph.lines()
+                    .mapNotNull { Regex("""\s*class ([\w,-]+) program""").matchEntire(it)?.groupValues?.get(1) }
+                    .flatMap { it.split(",") }.toSet()
+                val shouldBe = modules intersect runnable.get()
+                (shouldBe - bold).sorted().map { "graph ${i + 1}: not bold: $it" } +
+                    (bold - shouldBe).sorted().map { "graph ${i + 1}: bold, but no program drawn there: $it" }
+            }
+        if (problems.isNotEmpty()) {
+            throw GradleException("docs/developing.md's graphs of the modules:\n" + problems.joinToString("\n"))
+        }
+    }
+}
+
 // build-logic is a build of its own, which `check` here does not reach otherwise: its ktlint, in each module's `check`.
 val buildLogicCheck = gradle.includedBuild("build-logic").task(":check")
 subprojects {
-    tasks.matching { it.name == "check" }.configureEach { dependsOn(checkLineLength, buildLogicCheck) }
+    tasks.matching { it.name == "check" }.configureEach {
+        dependsOn(checkLineLength, checkModuleGraph, buildLogicCheck)
+    }
 }
