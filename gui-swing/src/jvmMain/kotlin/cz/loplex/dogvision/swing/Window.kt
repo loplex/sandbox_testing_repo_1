@@ -18,6 +18,7 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FileDialog
 import java.awt.FlowLayout
+import java.awt.KeyboardFocusManager
 import java.awt.datatransfer.DataFlavor
 import java.awt.event.ActionEvent
 import java.awt.event.WindowAdapter
@@ -30,6 +31,7 @@ import java.util.concurrent.CountDownLatch
 import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -115,7 +117,10 @@ private fun openFromDialog(frame: JFrame, session: LiveSession<*>) {
     dialog.files.firstOrNull()?.let(session::openFile)
 }
 
-/** Runs each action when its key is pressed anywhere in the window [root] is of, as the Compose window's onKeyEvent. */
+/**
+ * Runs each action when its key is pressed anywhere in the window [root] is of, as the Compose window's onKeyEvent,
+ * but for while a list is dropped down, which then takes the key.
+ */
 private fun keys(root: JComponent, vararg actions: Pair<String, () -> Unit>) {
     for ((key, action) in actions) {
         root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key), key)
@@ -123,10 +128,16 @@ private fun keys(root: JComponent, vararg actions: Pair<String, () -> Unit>) {
             key,
             object : AbstractAction() {
                 override fun actionPerformed(event: ActionEvent) = action()
+
+                override fun isEnabled() = !listDroppedDown()
             },
         )
     }
 }
+
+/** Whether the list of the combo box that has the focus is dropped down. */
+private fun listDroppedDown(): Boolean =
+    (KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner as? JComboBox<*>)?.isPopupVisible == true
 
 /** Opens the first file dropped onto the window through [open], and takes nothing else. */
 internal class FileDrop(private val open: (File) -> Unit) : TransferHandler() {

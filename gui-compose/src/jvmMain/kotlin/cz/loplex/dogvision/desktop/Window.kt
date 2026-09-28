@@ -54,7 +54,9 @@ import cz.loplex.dogvision.cli.Arguments
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import cz.loplex.dogvision.ui.Controls
+import cz.loplex.dogvision.ui.LocalOpenLists
 import cz.loplex.dogvision.ui.LocalTexts
+import cz.loplex.dogvision.ui.OpenLists
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
@@ -84,14 +86,15 @@ fun showWindow(arguments: Arguments): Int {
         val dialogs = remember { Dialogs() }
         val icon = remember { BitmapPainter(windowIcon().toComposeImageBitmap()) }
         val open = { dialogs.open(state.texts, state.source)?.let(session::openFile) }
-        CompositionLocalProvider(LocalTexts provides state.texts) {
+        val lists = remember { OpenLists() }
+        CompositionLocalProvider(LocalTexts provides state.texts, LocalOpenLists provides lists) {
             Window(
                 onCloseRequest = ::exitApplication,
                 title = state.texts.get(Str.APP_NAME),
                 icon = icon,
                 state = rememberWindowState(width = 1280.dp, height = 800.dp),
                 onKeyEvent = { event ->
-                    val down = event.type == KeyEventType.KeyDown
+                    val down = event.type == KeyEventType.KeyDown && lists.count == 0
                     when {
                         down && (event.key == Key.Escape || event.key == Key.Q) -> exitApplication().let { true }
                         down && event.key == Key.O -> true.also { open() }
