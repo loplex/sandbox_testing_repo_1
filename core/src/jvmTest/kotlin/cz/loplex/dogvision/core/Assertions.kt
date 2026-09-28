@@ -28,7 +28,4 @@ fun assertAllClose(expected: Matrix, actual: Matrix, rtol: Double = 1e-7, atol: 
     assertAllClose(expected.flatten(), actual.flatten(), rtol, atol, what)
 }
 
-fun assertAllClose(expected: Double, actual: Matrix, rtol: Double = 1e-7, atol: Double = 0.0, what: String = "") =
-    assertAllClose(DoubleArray(actual.rows * actual.cols) { expected }, actual.flatten(), rtol, atol, what)
-
 fun Matrix.flatten(): DoubleArray = DoubleArray(rows * cols) { this[it / cols, it % cols] }
