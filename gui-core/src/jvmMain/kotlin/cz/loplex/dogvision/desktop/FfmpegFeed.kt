@@ -240,13 +240,11 @@ class FfmpegFeed private constructor(
          * Throws IOException with what ffprobe says if it cannot read one.
          */
         internal fun probe(options: List<String>, input: String): Pair<Int, Int> {
+            @Suppress("ktlint:standard:argument-list-wrapping")
             val command = listOf("ffprobe", "-v", "error") + options + listOf(
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=width,height:stream_side_data=rotation",
-                "-of",
-                "default=noprint_wrappers=1",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height:stream_side_data=rotation",
+                "-of", "default=noprint_wrappers=1",
                 input,
             )
             val process = start(command)
