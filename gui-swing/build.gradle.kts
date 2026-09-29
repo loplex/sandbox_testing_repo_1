@@ -188,11 +188,15 @@ val applicationId = "cz.loplex.dogvision.swing"
 // JAR: it loads them on Linux only for window decorations of its own, which the window does not use, and they link
 // GTK 3.
 val linuxNatives = tasks.register<UnpackNatives>("linuxNatives") {
+    description = "Unpacks LWJGL's Linux natives out of the JARs into build/packages/natives, for the deb and the " +
+        "rpm to install in /usr/lib/dog-vision-swing. FlatLaf's stay in its JAR."
     jars.from(runtimeJars.filter { !it.name.startsWith("flatlaf-") })
     natives = layout.buildDirectory.dir("packages/natives")
 }
 
 val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
+    description = "Writes build/packages/launcher/dog-vision-swing, the script the deb and the rpm install in " +
+        "/usr/bin, which starts the window on the system's Java 17 or newer, not a headless one."
     commandName = linuxPackage
     mainClass = mainClassName
     jars.from(runtimeJars)
@@ -204,6 +208,8 @@ val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
 }
 
 val linuxDesktopEntry = tasks.register<DesktopEntry>("linuxDesktopEntry") {
+    description = "Writes build/packages/cz.loplex.dogvision.swing.desktop, the desktop entry that puts the window " +
+        "in the desktop's menu, named in each language of texts/strings with \" (Swing)\" after it."
     strings = rootProject.layout.projectDirectory.dir("texts/strings")
     nameString = "app_name"
     nameSuffix = " (Swing)"
@@ -217,6 +223,8 @@ val linuxDesktopEntry = tasks.register<DesktopEntry>("linuxDesktopEntry") {
 }
 
 val linuxTree = tasks.register<Sync>("linuxTree") {
+    description = "Lays out in build/packages/tree the files the deb and the rpm install: the JARs, the natives, the " +
+        "launcher, the desktop entry and the icons."
     into(layout.buildDirectory.dir("packages/tree"))
     from(runtimeJars) {
         into(linuxHome.removePrefix("/") + "/lib")
@@ -236,11 +244,15 @@ val linuxTree = tasks.register<Sync>("linuxTree") {
 }
 
 val rpmLibraryRequires = tasks.register<RpmLibraryRequires>("rpmLibraryRequires") {
+    description = "Lists in build/packages/rpmLibraryRequires.txt the libraries the natives link against and do not " +
+        "bring themselves, which the rpm requires."
     image = linuxNatives.flatMap { it.natives }
     requires = layout.buildDirectory.file("packages/rpmLibraryRequires.txt")
 }
 
 val debDepends = tasks.register<DebDepends>("debDepends") {
+    description = "Writes the deb's Depends into build/packages/debDepends.txt: the packages of the libraries the " +
+        "natives link against and do not bring, then a Java that can open a window, libEGL and ffmpeg."
     image = linuxNatives.flatMap { it.natives }
     packages = debianPackages
     // As the Compose window's: a Java that can open a window, libEGL, which LWJGL opens once it runs, and ffmpeg.
