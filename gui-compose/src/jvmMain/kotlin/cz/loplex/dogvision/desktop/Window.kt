@@ -80,6 +80,7 @@ private val GAP = 6.dp
  * or dropped onto the window; F9 or the button at the images' edge hides the controls, and q or Escape closes it.
  * What it shows is a [LiveSession]'s, which the window only lays out.
  */
+@Suppress("SameReturnValue")
 fun showWindow(arguments: Arguments): Int {
     application(exitProcessOnExit = false) {
         val session = remember { LiveSession.drawnOnGpu(arguments, ::composeImage) }
