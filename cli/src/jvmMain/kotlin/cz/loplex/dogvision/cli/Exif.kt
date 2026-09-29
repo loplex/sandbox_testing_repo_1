@@ -9,16 +9,15 @@ fun exifOrientation(bytes: ByteArray): Int {
     if (bytes.u8(0) != 0xFF || bytes.u8(1) != 0xD8) return 1
     var position = 2
     while (position + 4 <= bytes.size && bytes.u8(position) == 0xFF) {
-        val marker = bytes.u8(position + 1)
-        when {
+        when (val marker = bytes.u8(position + 1)) {
             // a fill byte before the marker
-            marker == 0xFF -> position++
+            0xFF -> position++
 
             // markers without a segment
-            marker == 0x01 || marker in 0xD0..0xD8 -> position += 2
+            0x01, in 0xD0..0xD8 -> position += 2
 
             // the image data or its end, and no EXIF before it
-            marker == 0xDA || marker == 0xD9 -> return 1
+            0xDA, 0xD9 -> return 1
 
             else -> {
                 val length = bytes.u16(position + 2, bigEndian = true)
