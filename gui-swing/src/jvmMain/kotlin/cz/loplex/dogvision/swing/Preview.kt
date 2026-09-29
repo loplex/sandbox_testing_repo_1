@@ -5,7 +5,6 @@ import cz.loplex.dogvision.desktop.Area
 import cz.loplex.dogvision.desktop.LiveSession
 import cz.loplex.dogvision.desktop.Picture
 import cz.loplex.dogvision.texts.Str
-import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridBagLayout
@@ -43,7 +42,7 @@ internal class Preview(private val session: LiveSession<BufferedImage>) : JPanel
     private val failure = Column().apply {
         val padding = UIScale.scale(24)
         border = BorderFactory.createEmptyBorder(padding, padding, padding, padding)
-        for (part in listOf(message, install, installFailure)) part.alignmentX = Component.CENTER_ALIGNMENT
+        for (part in listOf(message, install, installFailure)) part.alignmentX = CENTER_ALIGNMENT
         addAll(message, Box.createVerticalStrut(UIScale.scale(16)), install, installFailure)
     }
 
