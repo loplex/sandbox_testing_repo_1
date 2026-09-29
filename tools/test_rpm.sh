@@ -153,7 +153,7 @@ install_temurin() {
     if command -v zypper >/dev/null; then
         zypper -q -n addrepo -G "$url" adoptium >/tmp/temurin.log 2>&1
     else
-        printf '[adoptium]\nname=Adoptium\nbaseurl=%s\nenabled=1\ngpgcheck=0\n' "$url" \
+        printf '%s\n' '[adoptium]' 'name=Adoptium' "baseurl=$url" 'enabled=1' 'gpgcheck=0' \
             >/etc/yum.repos.d/adoptium.repo
     fi
     install_packages temurin-25-jre >>/tmp/temurin.log 2>&1
