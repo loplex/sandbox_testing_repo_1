@@ -23,8 +23,7 @@ fun readRotation(file: Blob, onRead: (Int) -> Unit) {
         if (boxes == MAX_TOP_BOXES || offset + 8 > fileSize) return onRead(0)
         read(file, offset, offset + 16, { header ->
             // A top-level box may be larger than an Int, as the media of a long video is.
-            val declared = intAt(header, 0).toLong() and 0xFFFFFFFFL
-            val size = when (declared) {
+            val size = when (val declared = intAt(header, 0).toLong() and 0xFFFFFFFFL) {
                 0L -> fileSize - offset
                 1L -> if (header.size < 16) 0.0 else longAt(header, 8).toDouble()
                 else -> declared.toDouble()
