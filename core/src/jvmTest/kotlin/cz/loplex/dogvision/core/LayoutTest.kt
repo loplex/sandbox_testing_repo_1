@@ -31,6 +31,7 @@ class LayoutTest {
                 val inside = box.left >= 0 && box.top >= 0 && box.right <= width && box.bottom <= height
                 assertTrue(inside, "$box in $width x $height")
             }
+            @Suppress("DestructuringDeclaration")
             for (box in layout.images) assertEquals(640.0 / 480, box.width.toDouble() / box.height, 0.01)
         }
     }
