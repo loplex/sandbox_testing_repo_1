@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /** What is shown: the camera, a photo, or a video. */
 sealed interface Source {
@@ -317,7 +318,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
                 val seconds = elapsed / 1000
                 val time = String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)
                 _message.value = context.texts.get(Str.RECORDING, name, time)
-                delay(1000 - elapsed % 1000)
+                delay((1000 - elapsed % 1000).milliseconds)
             }
         }
     }
