@@ -6,6 +6,7 @@
 # or at a headless one beside a full one.
 # Written by the build from its template in build-logic.
 
+minimum=@MINIMUM@
 # Whether @NAME@ opens a window, which a headless Java, one without AWT's X11 library, cannot.
 window=@WINDOW@
 
@@ -39,7 +40,7 @@ suitable() {
     case $feature in
         '' | *[!0-9]*) return 1 ;;
     esac
-    [ "$feature" -ge @MINIMUM@ ]
+    [ "$feature" -ge "$minimum" ]
 }
 
 java=
