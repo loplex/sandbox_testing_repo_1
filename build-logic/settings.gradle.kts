@@ -1,5 +1,7 @@
 // The build's own Gradle code, which the modules that make packages share: an included build, which the main build's
 // settings take in through pluginManagement, so that its plugins are applied by id as any other.
+@file:Suppress("UnstableApiUsage")
+
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
