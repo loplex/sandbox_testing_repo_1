@@ -270,7 +270,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
         val name = snapshotName(view, now(), suffix = "-full", extension = "mp4")
         startConversion(Dispatchers.Main) {
             _message.value = context.texts.get(Str.CONVERTING, percent(0.0, 0.0, facts))
-            // Transformer writes to a path, which the gallery does not give out; the video is copied there after.
+            // Transformer writes to a path, which the gallery does not give out; the video is copied there afterwards.
             val file = File(context.cacheDir, name)
             _message.value = try {
                 val written = convertVideo(context, video.uri, view, file) { done ->

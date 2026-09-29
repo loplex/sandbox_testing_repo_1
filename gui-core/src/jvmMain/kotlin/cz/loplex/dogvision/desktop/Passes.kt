@@ -36,7 +36,7 @@ internal class Passes(private val gl: DesktopGl) {
     /** An area drawn and being read back: the pixel pack buffer the GPU reads it into, and the fence signalled then. */
     private class Read(val buffer: Int, val fence: Long, val width: Int, val height: Int)
 
-    /** The areas being read back, the one drawn first first, and the buffers no read uses now. */
+    /** The areas being read back, first the one drawn first, and the buffers no read uses now. */
     private val reads = ArrayDeque<Read>()
     private val spareBuffers = ArrayDeque<Int>()
 

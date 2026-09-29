@@ -48,7 +48,7 @@ fun coreImages(image: Image, view: View): Pair<List<Image>, Double?> {
     return images to share
 }
 
-/** The map of differences core draws from [left] and [right], and the share of its pixels that differ noticeably. */
+/** The map of differences `core` draws from [left] and [right], and the share of its pixels that differ noticeably. */
 fun coreMap(left: Image, right: Image): Pair<Image, Double> {
     val map = Image(right.width, right.height)
     val a = IntArray(right.width)
