@@ -47,6 +47,7 @@ import javax.swing.TransferHandler
  * the images' edge hides the controls, as the Python window's F9 does; q or Escape closes it. What it shows is a
  * [LiveSession]'s, which the window only lays out.
  */
+@Suppress("SameReturnValue")
 fun showWindow(arguments: Arguments): Int {
     val closed = CountDownLatch(1)
     SwingUtilities.invokeAndWait { openWindow(arguments, closed::countDown) }

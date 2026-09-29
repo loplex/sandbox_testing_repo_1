@@ -81,6 +81,7 @@ private val GAP = 6.dp
  * controls, and q or Escape closes it, as in the Python program's.
  * What it shows is a [LiveSession]'s, which the window only lays out.
  */
+@Suppress("SameReturnValue")
 fun showWindow(arguments: Arguments): Int {
     application(exitProcessOnExit = false) {
         val session = remember { LiveSession.drawnOnGpu(arguments, ::composeImage) }
