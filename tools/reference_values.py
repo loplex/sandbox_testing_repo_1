@@ -47,23 +47,30 @@ IMAGE_CASES = {
     "deuteranope-dog-difference": (Params("dog"), True, "deuteranope", True),
 }
 
-out = Path(sys.argv[1])
-with open(out / "reference.tsv", "w") as reference:
-    for species in SPECIES:
-        for scale in CHROMA_SCALES:
-            print(row("simulation", species, scale, simulation_matrix(Params(species, chroma_scale=scale))), file=reference)
-            adapted = Params(species, chroma_scale=scale, adaptation=0.5, strength=0.75)
-            print(row("adapted", species, scale, simulation_matrix(adapted, SCENE_MEAN)), file=reference)
-        print(row("rnl-gains", species, "-", rnl_gains(Params(species))), file=reference)
-        if len(SPECIES[species]) == 2:
-            print(row("neutral-point", species, "-", [neutral_point(Params(species))]), file=reference)
-with open(out / "images.tsv", "w") as images:
-    for name, arguments in IMAGE_CASES.items():
-        image, share = compose(pattern(), *arguments)
-        rgb = image[..., ::-1]
-        fields = [name, str(rgb.shape[1]), str(rgb.shape[0]), repr(share), *map(str, rgb.ravel())]
-        print("\t".join(fields), file=images)
-with open(out / "facts.tsv", "w") as facts:
-    for species in SPECIES:
-        for label, value, _description in species_facts(species):
-            print("\t".join([species, label, *value]), file=facts)
+
+def main() -> None:
+    out = Path(sys.argv[1])
+    with open(out / "reference.tsv", "w") as reference:
+        for species in SPECIES:
+            for scale in CHROMA_SCALES:
+                simulation = simulation_matrix(Params(species, chroma_scale=scale))
+                print(row("simulation", species, scale, simulation), file=reference)
+                adapted = Params(species, chroma_scale=scale, adaptation=0.5, strength=0.75)
+                print(row("adapted", species, scale, simulation_matrix(adapted, SCENE_MEAN)), file=reference)
+            print(row("rnl-gains", species, "-", rnl_gains(Params(species))), file=reference)
+            if len(SPECIES[species]) == 2:
+                print(row("neutral-point", species, "-", [neutral_point(Params(species))]), file=reference)
+    with open(out / "images.tsv", "w") as images:
+        for name, arguments in IMAGE_CASES.items():
+            image, share = compose(pattern(), *arguments)
+            rgb = image[..., ::-1]
+            fields = [name, str(rgb.shape[1]), str(rgb.shape[0]), repr(share), *map(str, rgb.ravel())]
+            print("\t".join(fields), file=images)
+    with open(out / "facts.tsv", "w") as facts:
+        for species in SPECIES:
+            for label, value, _description in species_facts(species):
+                print("\t".join([species, label, *value]), file=facts)
+
+
+if __name__ == "__main__":
+    main()
