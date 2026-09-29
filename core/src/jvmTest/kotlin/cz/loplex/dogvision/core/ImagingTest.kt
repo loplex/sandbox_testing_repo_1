@@ -113,7 +113,7 @@ class ImagingTest {
         val kernel = gaussianKernel(2.0)
         assertEquals(17, kernel.size)
         assertEquals(1.0, kernel.sum().toDouble(), 1e-6)
-        assertEquals(kernel.indices.maxBy { kernel[it] }, 8)
+        assertEquals(8, kernel.indices.maxBy { kernel[it] })
     }
 
     @Test
