@@ -389,22 +389,22 @@ internal class Controls(private val session: LiveSession<*>) :
             if (shown != species to state.texts.language) {
                 shown = species to state.texts.language
                 rows.removeAll()
-                for (fact in speciesFacts(species, state.texts.facts)) {
-                    val name = JLabel(state.texts.get(fact.label.nameKey)).apply {
+                for ((label, value) in speciesFacts(species, state.texts.facts)) {
+                    val name = JLabel(state.texts.get(label.nameKey)).apply {
                         putClientProperty(FlatClientProperties.STYLE_CLASS, "semibold")
                         verticalAlignment = SwingConstants.TOP
                         border = BorderFactory.createEmptyBorder(UIScale.scale(4), 0, UIScale.scale(4), 0)
                         preferredSize = Dimension(UIScale.scale(FACT_LABEL_WIDTH), preferredSize.height)
                     }
-                    val value = WrappedText().apply {
-                        pieces = fact.value
+                    val valueText = WrappedText().apply {
+                        pieces = value
                         border = BorderFactory.createEmptyBorder(UIScale.scale(4), 0, UIScale.scale(4), 0)
                     }
                     val row = Row().apply {
                         add(name, BorderLayout.WEST)
-                        add(value, BorderLayout.CENTER)
+                        add(valueText, BorderLayout.CENTER)
                     }
-                    rows.add(withInfo(row, { it.get(fact.label.nameKey) }, { it.get(fact.label.aboutKey) }))
+                    rows.add(withInfo(row, { it.get(label.nameKey) }, { it.get(label.aboutKey) }))
                 }
                 rows.revalidate()
             }
