@@ -15,7 +15,9 @@ class FfmpegProgramsTest {
     fun aPathsFoldersAreReadPastQuotesAndEmptyEntries() {
         val path = """C:\Windows\system32;;"C:\Program Files\ffmpeg\bin"; C:\Users\me\Links ;"""
         val folders = listOf("""C:\Windows\system32""", """C:\Program Files\ffmpeg\bin""", """C:\Users\me\Links""")
+        @Suppress("KotlinMisorderedAssertEqualsArguments")
         assertEquals(folders.map(::File), FfmpegPrograms.folders(path))
+        @Suppress("KotlinMisorderedAssertEqualsArguments")
         assertEquals(emptyList(), FfmpegPrograms.folders(""))
     }
 

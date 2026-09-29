@@ -143,6 +143,7 @@ class FfmpegFeedTest {
             dummy: Immediate exit requested
         """.trimIndent()
         assertEquals(listOf("""@device_pnp_\\?\usb#vid_13d3"""), FfmpegFeed.directShowCameras(listed))
+        @Suppress("KotlinMisorderedAssertEqualsArguments")
         assertEquals(emptyList(), FfmpegFeed.directShowCameras("dummy: Immediate exit requested"))
     }
 
