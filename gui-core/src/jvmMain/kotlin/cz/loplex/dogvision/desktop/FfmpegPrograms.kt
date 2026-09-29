@@ -92,7 +92,7 @@ object FfmpegPrograms {
      * for a program it starts; empty where PowerShell cannot say.
      */
     private fun registryPath(): Pair<String, String> {
-        val script = "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding \$false; " +
+        val script = $$"[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; " +
             "[Environment]::GetEnvironmentVariable('Path', 'Machine'); " +
             "[Environment]::GetEnvironmentVariable('Path', 'User')"
         val lines = try {
