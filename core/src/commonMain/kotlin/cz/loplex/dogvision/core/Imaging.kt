@@ -111,7 +111,7 @@ fun gaussianKernel(sigma: Double): FloatArray {
 fun reflect101(index: Int, size: Int): Int {
     if (size == 1) return 0
     var i = index
-    while (i < 0 || i >= size) i = if (i < 0) -i else 2 * size - 2 - i
+    while (i !in 0..<size) i = if (i < 0) -i else 2 * size - 2 - i
     return i
 }
 
