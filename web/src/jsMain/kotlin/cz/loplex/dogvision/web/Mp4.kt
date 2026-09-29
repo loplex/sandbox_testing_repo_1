@@ -59,6 +59,7 @@ internal fun rotationOfMovie(movie: ByteArray): Int {
     val c = intAt(movie, matrix + 12)
     val d = intAt(movie, matrix + 16)
     val one = 0x10000 // 1.0 in the matrix' 16.16 fixed point
+    @Suppress("IntroduceWhenSubject")
     return when {
         a == 0 && b == one && c == -one && d == 0 -> 90
         a == -one && b == 0 && c == 0 && d == -one -> 180
