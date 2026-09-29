@@ -7,7 +7,7 @@ on:
         required: true
         type: string
       mode:
-        description: success, failure, skipped, or unrelated (publish succeeds, a later step fails)
+        description: success, failure, skipped, or unrelated (publish succeeds, a later step fails), typo
         required: true
         type: string
       outcome-override:
@@ -32,8 +32,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: '[ "${{ inputs.mode }}" != unrelated ]'
       - uses: ./.github/actions/warn-probe
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && inputs.mode != 'typo' }}
         with:
           tag: ${{ inputs.tag }}
           outcome: ${{ inputs.outcome-override != '-' && inputs.outcome-override || steps.publish.outcome }}
+          to: the JetBrains Marketplace
+      - uses: ./.github/actions/warn-probe
+        if: ${{ !cancelled() && inputs.mode == 'typo' }}
+        with:
+          tag: ${{ inputs.tag }}
+          outcome: ${{ steps.pubish.outcome }}
           to: the JetBrains Marketplace

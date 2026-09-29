@@ -4,7 +4,7 @@ description: >-
   has. Given the outcome of the step that publishes, it puts a warning linking this run at the top of the
   release notes where that step failed or did not run, and takes it off where it succeeded; the notes around
   the warning are left as they are, and a run that finds them saying what it would say already leaves them
-  alone. Meant to follow that step in the same job with `if: ${{ !cancelled() }}`, so that it runs whatever
+  alone. Meant to follow that step in the same job, under an `if` of `!cancelled()` so that it runs whatever
   failed before it; needs no checkout, and needs `contents: write` on the job. Needs `gh` and python3 3.10 or
   later, which GitHub-hosted runners carry.
 
