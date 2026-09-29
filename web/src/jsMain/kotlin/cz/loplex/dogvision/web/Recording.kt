@@ -142,7 +142,7 @@ internal class Recording private constructor(
             options.mimeType = type
             options.videoBitsPerSecond = bits
             val recorder = try {
-                js("new MediaRecorder(stream, options)")
+                MediaRecorder(stream, options)
             } catch (error: Throwable) {
                 canvas.remove()
                 throw IllegalStateException(error.message)
@@ -151,3 +151,6 @@ internal class Recording private constructor(
         }
     }
 }
+
+/** Records a media stream, such as a canvas's, with the [options] of the browser's MediaRecorder. */
+private external class MediaRecorder(stream: dynamic, options: dynamic)
