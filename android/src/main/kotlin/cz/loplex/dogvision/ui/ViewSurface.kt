@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLDisplay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The images of [view], drawn by the GPU from the newest of [frames], with room for a caption
@@ -75,7 +76,7 @@ fun ViewSurface(
     LaunchedEffect(recorder) {
         while (recorder != null) {
             surface.requestRender()
-            delay(1000L / REDRAWS_PER_SECOND)
+            delay((1000L / REDRAWS_PER_SECOND).milliseconds)
         }
     }
     DisposableEffect(renderer) {
