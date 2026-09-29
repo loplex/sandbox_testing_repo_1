@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 pluginManagement {
     // The tasks the Linux packages are made with.
     includeBuild("build-logic")
