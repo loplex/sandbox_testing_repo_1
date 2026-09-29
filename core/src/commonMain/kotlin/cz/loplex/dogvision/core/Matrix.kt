@@ -1,3 +1,5 @@
+@file:Suppress("DuplicatedCode")
+
 package cz.loplex.dogvision.core
 
 import kotlin.math.abs
