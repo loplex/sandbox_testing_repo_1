@@ -28,7 +28,7 @@ jobs:
         with:
           python-version-file: .python-version
 
-      - uses: loplex/release-ci/release-flow/merge-back@wip/check-release
+      - uses: loplex/release-ci/release-flow/merge-back@v0.1.0
         with:
           source: gradle.properties
           tag: ${{ github.event.release.tag_name }}

@@ -21,8 +21,8 @@ jobs:
         with:
           python-version-file: .python-version
 
-      # Asked of release-ci rather than of a copy kept here. Pinned to the branch the rules are being worked on,
-      # which is what this sandbox is for: trying them before a plugin depends on them.
-      - uses: loplex/release-ci/check-release@wip/check-release
+      # Asked of release-ci rather than of a copy kept here, pinned to a release tag as its README asks of every
+      # consumer. Trying a change before a plugin depends on it means pointing these at the branch it is on.
+      - uses: loplex/release-ci/check-release@v0.1.0
         with:
           source: gradle.properties
