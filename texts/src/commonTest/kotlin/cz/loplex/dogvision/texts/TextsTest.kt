@@ -50,7 +50,7 @@ class TextsTest {
     fun replacesPlaceholdersOnlyWhenGivenArguments() {
         val texts = Texts.of("en")
         assertEquals("42%", texts.get(Str.PERCENT, "42"))
-        assertEquals("%1\$s%%", texts.get(Str.PERCENT))
+        assertEquals($$"%1$s%%", texts.get(Str.PERCENT))
     }
 
     @Test

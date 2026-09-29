@@ -89,15 +89,19 @@ abstract class WriteStrings : DefaultTask() {
         directory.resolve("Strings.kt").writeText(source)
     }
 
-    /** [text] as a Kotlin string literal. */
+    /**
+     * [text] as a Kotlin string literal. One with a `$` in it, as `%1$s`, gets an interpolation prefix one `$` longer
+     * than its longest run of them, which keeps every `$` of it as it is.
+     */
     private fun literal(text: String): String = buildString {
+        val dollars = Regex("[$]+").findAll(text).maxOfOrNull { it.value.length } ?: 0
+        if (dollars > 0) append("$".repeat(dollars + 1))
         append('"')
         text.forEach { c ->
             append(
                 when (c) {
                     '\\' -> "\\\\"
                     '"' -> "\\\""
-                    '$' -> "\\$"
                     '\n' -> "\\n"
                     '\t' -> "\\t"
                     else -> c
