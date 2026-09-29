@@ -84,6 +84,8 @@ val linuxHome = "/usr/share/$linuxPackage"
 val linuxJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
 
 val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
+    description = "Writes build/packages/launcher/dog-vision-cli, the script the deb and the rpm install in " +
+        "/usr/bin, which starts the command line on the system's Java 17 or newer."
     commandName = linuxPackage
     mainClass = mainClassName
     jars.from(linuxJars)
@@ -94,6 +96,7 @@ val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
 }
 
 val linuxTree = tasks.register<Sync>("linuxTree") {
+    description = "Lays out in build/packages/tree the files the deb and the rpm install: the JARs and the launcher."
     into(layout.buildDirectory.dir("packages/tree"))
     from(linuxJars) { into(linuxHome.removePrefix("/") + "/lib") }
     from(linuxLauncher) { into("usr/bin") }
