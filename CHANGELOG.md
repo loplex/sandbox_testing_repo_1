@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Released through release-ci as rebuilt onto a root that states its intent
+
 ## [0.1.5] - 2026-09-21
 
 ### Changed
