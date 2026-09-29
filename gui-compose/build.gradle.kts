@@ -7,6 +7,8 @@ import cz.loplex.dogvision.packaging.RpmLibraryRequires
 import cz.loplex.dogvision.packaging.RpmPackage
 import cz.loplex.dogvision.packaging.UnpackNatives
 import cz.loplex.dogvision.packaging.debianPackages
+import cz.loplex.dogvision.packaging.installedJarNames
+import cz.loplex.dogvision.packaging.renameJars
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -138,6 +140,11 @@ val linuxHome = "/usr/share/$linuxPackage"
 val linuxNativesHome = "/usr/lib/$linuxPackage"
 val linuxJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
 
+/** The names of the JARs in /usr/share/dog-vision/lib that are not their own, as [installedJarNames] gives them. */
+val linuxJarNames = configurations.named("jvmRuntimeClasspath")
+    .flatMap { it.incoming.artifacts.resolvedArtifacts }
+    .map(::installedJarNames)
+
 /** The desktop entry's and the icons' name: the application's ID, which the Windows MSI does not use. */
 val applicationId = "cz.loplex.dogvision"
 
@@ -157,6 +164,7 @@ val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
     mainClass = mainClassName
     jars.from(linuxJars)
     jarDirectory = "$linuxHome/lib"
+    jarNames = linuxJarNames
     // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
     jvmOptions = listOf(
         "-Dcompose.application.configure.swing.globals=true",
@@ -189,6 +197,7 @@ val linuxTree = tasks.register<Sync>("linuxTree") {
     from(linuxJars) {
         into(linuxHome.removePrefix("/") + "/lib")
         exclude(NativesOnly)
+        renameJars(linuxJarNames)
     }
     from(linuxNatives) { into(linuxNativesHome.removePrefix("/")) }
     from(linuxLauncher) { into("usr/bin") }
