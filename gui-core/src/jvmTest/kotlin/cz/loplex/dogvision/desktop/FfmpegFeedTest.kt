@@ -67,10 +67,8 @@ class FfmpegFeedTest {
             frames.countDown()
         }
         val feed = FfmpegFeed.video(video(90), onFrame, ended::set)
-        try {
+        feed.use {
             assertTrue(frames.await(20, TimeUnit.SECONDS), "only ${25 - frames.count} frames came")
-        } finally {
-            feed.close()
         }
         assertEquals(16 to 32, feed.width to feed.height)
         // Turned counter-clockwise, the left half is at the bottom.
