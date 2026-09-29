@@ -1,6 +1,8 @@
 // Chrome without a GPU it may use renders WebGL 2 with SwiftShader, in software, only when told it may.
 // With -PwebTestsOnGpu it renders on the machine's GPU instead, through ANGLE on Vulkan: ChromeHeadless would add
 // --disable-gpu, so that launcher starts Chrome itself in its headless mode.
+// config is the parameter of the function Kotlin's Gradle plugin puts this file in, process is Node's.
+/* global config, process */
 config.set({
     customLaunchers: {
         ChromeHeadlessWebGl2: {
