@@ -71,7 +71,7 @@ class PngTest {
 
     /** Checks that the browser decodes [rows], encoded, to [image]'s pixels. */
     private fun readsBack(rows: ByteArray): Promise<Unit> = encoded(rows).then { (_, blob) -> blob }.then { blob ->
-        Promise<Unit> { resolve, reject ->
+        Promise { resolve, reject ->
             val options = js("({ colorSpaceConversion: 'none', premultiplyAlpha: 'none' })")
             window.asDynamic().createImageBitmap(blob, options).then({ bitmap: dynamic ->
                 try {
