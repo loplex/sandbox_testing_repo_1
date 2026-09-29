@@ -16,6 +16,9 @@ concurrency:
 
 jobs:
   prepare:
+    # Dispatched on any other branch, it would cut the release from that one, and merge-back would carry it onto
+    # the default branch unreviewed.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
