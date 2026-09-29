@@ -65,7 +65,7 @@ abstract class DebDepends : DefaultTask() {
         check(unknown.isEmpty()) { "debianPackages names no package for ${unknown.sorted()}" }
         val glibc = elfFiles.flatMap { readelf("-V", it) }
             .mapNotNull { Regex("""Name: GLIBC_([0-9.]+)""").find(it)?.groupValues?.get(1) }
-            .maxWith(compareBy<String>({ it.split('.')[0].toInt() }, { it.split('.').getOrElse(1) { "0" }.toInt() }))
+            .maxWith(compareBy({ it.split('.')[0].toInt() }, { it.split('.').getOrElse(1) { "0" }.toInt() }))
         val libraries = needed.map { table.getValue(it) }.distinct().sorted()
             .map { if (it == "libc6") "libc6 (>= $glibc)" else it }
         depends.get().asFile.writeText((libraries + others.get()).joinToString(", "))
