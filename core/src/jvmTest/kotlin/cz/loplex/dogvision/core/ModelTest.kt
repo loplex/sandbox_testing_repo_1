@@ -2,6 +2,7 @@ package cz.loplex.dogvision.core
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.EnumSource
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
@@ -24,11 +25,11 @@ class ModelTest {
         fun withColourAxes() = dichromats() + trichromats()
 
         @JvmStatic
-        fun everyScale() = Species.entries.flatMap { species -> ChromaScale.entries.map { arrayOf(species, it) } }
+        fun everyScale() = Species.entries.flatMap { species -> ChromaScale.entries.map { Arguments.of(species, it) } }
 
         @JvmStatic
         fun dichromatsEveryScale() =
-            dichromats().flatMap { species -> ChromaScale.entries.map { arrayOf(species, it) } }
+            dichromats().flatMap { species -> ChromaScale.entries.map { Arguments.of(species, it) } }
     }
 
     private val ones = DoubleArray(3) { 1.0 }
