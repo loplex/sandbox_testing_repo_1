@@ -8,8 +8,8 @@ Building the programs is [Building it](building.md)'s.
 - [Checking it](#checking-it) — what each Gradle task tests, the documents held to `core`, the
   Kotlin style, and what GitHub Actions runs.
 - The caveats: [the emulator's colours](#caveat-the-emulator-fails-the-video-tests-colour-checks),
-  [Windows without a GPU and under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine),
-  and [the libraries waiting for SDK 37](#caveat-the-libraries-wait-for-a-stable-sdk-37).
+  and [Windows without a GPU and
+  under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine).
 - [Where the test data comes from](#where-the-test-data-comes-from) — the test videos and the
   reference values.
 
@@ -48,7 +48,7 @@ the tasks the Linux packages are made with, which a module takes by applying the
   format, which the build compiles into Kotlin, each named by an entry of the enum `Str` or
   `Plural`.
   The app, the web page, the window and the command line all speak through it.
-- **`ui`'s Compose Multiplatform 1.11 is Jetpack Compose 1.11**, and its Material 3 1.9 is androidx
+- **`ui`'s Compose Multiplatform 1.12 is Jetpack Compose 1.12**, and its Material 3 1.9 is androidx
   Material 3 1.4, the versions of the app's Compose BOM, so that the app runs one of each.
 - **`cli`'s `main` is the window's too**:
   [`runCommandLine`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
@@ -304,13 +304,6 @@ where Direct3D 11 is switched off, and the command line.
 - **The Compose window's button that installs ffmpeg is tried on Linux**, with scripts in place of
   winget and PowerShell, as Wine has neither winget nor a registry that winget writes to.
   winget's install itself ran on GitHub's Windows Server 2025, whose image has winget.
-
-## Caveat: the libraries wait for a stable SDK 37
-
-The Compose BOM stays at 2026.06.01, `androidx.core` at 1.18 and `lifecycle` at 2.10, and the app
-targets API 36: the releases after them need `compileSdk` 37, which has no stable SDK platform yet.
-Android Lint says so in its warnings, beside one that AGP is not the newest, which stays at 9.1.1
-for IntelliJ IDEA's Android plugin.
 
 ## Where the test data comes from
 

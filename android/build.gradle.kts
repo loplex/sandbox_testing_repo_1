@@ -58,7 +58,7 @@ androidComponents {
 
 android {
     namespace = "cz.loplex.dogvision"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "cz.loplex.dogvision"
