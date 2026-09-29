@@ -85,6 +85,8 @@ fun MainScreen(model: MainViewModel) {
         val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         mutableStateOf(permission == PackageManager.PERMISSION_GRANTED)
     }
+
+    @Suppress("UnsupportedChromeOsCameraSystemFeature")
     val bothCameras = remember {
         val features = context.packageManager
         features.hasSystemFeature(PackageManager.FEATURE_CAMERA) &&
