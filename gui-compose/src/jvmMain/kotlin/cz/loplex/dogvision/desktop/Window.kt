@@ -136,7 +136,6 @@ private class Dialogs {
 }
 
 /** The images and the controls, which a file dropped anywhere on them opens in place of what [state] shows. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Screen(session: LiveSession<ImageBitmap>, state: LiveSession.State, onOpen: () -> Unit) {
     val texts = LocalTexts.current
