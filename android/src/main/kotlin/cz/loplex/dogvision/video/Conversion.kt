@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * How a video was written: its format, such as H.265, the encoder, whether it has the original's
@@ -98,7 +99,7 @@ suspend fun convertVideo(
     val exported = try {
         var done: ExportResult? = null
         while (done == null) {
-            done = withTimeoutOrNull(PROGRESS_INTERVAL_MS) { result.await() }
+            done = withTimeoutOrNull(PROGRESS_INTERVAL) { result.await() }
             if (transformer.getProgress(progress) == Transformer.PROGRESS_STATE_AVAILABLE) {
                 onProgress(progress.progress / 100.0)
             }
@@ -128,4 +129,4 @@ internal fun formatName(mimeType: String?): String = when (mimeType) {
     else -> mimeType ?: "?"
 }
 
-private const val PROGRESS_INTERVAL_MS = 250L
+private val PROGRESS_INTERVAL = 250.milliseconds
