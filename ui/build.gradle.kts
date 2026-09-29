@@ -12,7 +12,7 @@ plugins {
 kotlin {
     android {
         namespace = "cz.loplex.dogvision.ui"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 26
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17

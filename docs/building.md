@@ -14,7 +14,7 @@ What each program does is [Using it](using.md)'s.
 
 - **A JDK 17 or newer**; Gradle itself is fetched by the wrapper, and Node.js, which runs `core`'s
   tests in JavaScript, by the Kotlin Gradle plugin.
-- **The Android SDK with platform 36**, found through `ANDROID_HOME` or `sdk.dir` in
+- **The Android SDK with platform 37**, found through `ANDROID_HOME` or `sdk.dir` in
   `local.properties`, which Android Studio and IntelliJ IDEA write when they open the project.
 - **Google Chrome** for the web page's tests, found on the `PATH` as `google-chrome` or through
   `CHROME_BIN`.
