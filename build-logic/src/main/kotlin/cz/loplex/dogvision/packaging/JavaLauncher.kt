@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
@@ -31,6 +32,10 @@ abstract class JavaLauncher : DefaultTask() {
     @get:Input
     abstract val jarDirectory: Property<String>
 
+    /** The names [jars] are installed under where they are not their own, keyed by each JAR's path. */
+    @get:Input
+    abstract val jarNames: MapProperty<String, String>
+
     @get:Input
     abstract val jvmOptions: ListProperty<String>
 
@@ -45,12 +50,14 @@ abstract class JavaLauncher : DefaultTask() {
     abstract val script: RegularFileProperty
 
     init {
+        jarNames.convention(emptyMap())
         opensWindow.convention(false)
     }
 
     @TaskAction
     fun write() {
-        val classpath = jars.files.filterNot(::nativesOnly).map { "${jarDirectory.get()}/${it.name}" }
+        val names = jarNames.get()
+        val classpath = jars.files.filterNot(::nativesOnly).map { "${jarDirectory.get()}/${names[it.path] ?: it.name}" }
         check(classpath.distinct().size == classpath.size) { "Two JARs of one name in $classpath" }
         val unquotable = (classpath + jvmOptions.get()).filter { '\'' in it }
         check(unquotable.isEmpty()) { "The launcher cannot put $unquotable in single quotes" }
