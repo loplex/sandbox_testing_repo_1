@@ -1,0 +1,39 @@
+# The suites that hold this repository to its word, run on every push and pull request. Their Python comes
+# from .python-version so that the version the tests are written against and the one they run on cannot
+# drift apart. The guards take the runner's own python3 instead, as any repository using the action does.
+name: test
+
+on:
+  push:
+  pull_request:
+  # Asked for by release-publish.yml once a release has landed: a push made with GITHUB_TOKEN starts no run.
+  workflow_dispatch:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - run: python3 -m unittest discover -s check-release
+      - run: python3 -m unittest discover -s release-flow
+      - run: python3 -m unittest discover -s intellij
+      - run: python3 -m pip install -r .github/requirements.txt
+      - run: python3 -m unittest discover -s .github
+
+  guards:
+    # The rules run against this repository through the action that offers them, which makes this their first
+    # consumer and the action's. It declares no version in a file, so it is the smallest consumer of the
+    # `tags` source there is. The default checks leave `version` out: it asks what may be released next,
+    # which is a question a release asks and not every push.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # ancestry reads the whole history, and both default checks read the tags.
+      - uses: ./check-release
+        with:
+          source: tags
+          tag-prefix: v

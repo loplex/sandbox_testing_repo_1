@@ -1,0 +1,14 @@
+# Python here is written to 120 columns, the right margin IntelliJ gives by default and the one this code
+# was written against, rather than PEP 8's 79 or the 99 it lets a team agree on. Every other file is held to
+# the same, but for Markdown prose, which is written to 100; a fenced block in Markdown is code. A paragraph
+# rewrapped is filled to the limit, so that text does not narrow with every edit.
+# .github/test_line_length.py holds every tracked file to these, but for a Markdown table row, a line opening
+# with a link too long for a line of its own (one word after it at most), a link definition, and a released
+# section of CHANGELOG.md.
+root = true
+
+[*]
+max_line_length = 120
+
+[*.md]
+max_line_length = 100
