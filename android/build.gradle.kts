@@ -64,7 +64,7 @@ android {
     defaultConfig {
         applicationId = "cz.loplex.dogvision"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = providers.gradleProperty("appVersion").get()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
