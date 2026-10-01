@@ -63,6 +63,8 @@ lwjgl-egl = { module = "org.lwjgl:lwjgl-egl", version.ref = "lwjgl" }
 lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
 lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
 lwjgl-opengles = { module = "org.lwjgl:lwjgl-opengles", version.ref = "lwjgl" }
+# Looked up by its name in build-logic.
+# noinspection UnusedVersionCatalogEntry
 nucleus-angle-natives = { module = "dev.nucleusframework:nucleus.angle-natives", version.ref = "nucleus-angle" }
 
 [plugins]
