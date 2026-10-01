@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Builds a desktop window's MSI for Windows on x86-64 on Linux, through Wine: with --window compose,
-# the default, dog-vision's, the Compose window's; with --window swing, dog-vision-swing's.
+# the default, dog-vision's, the Compose window's; with --window swing, dog-vision-swing's. With
+# --window cli it builds dog-vision-cli's, the command line's alone, which is no window but is made
+# the same way.
 #
 # jpackage makes an installer only on the system the installer is for, so this runs a Windows JDK's
 # jpackage.exe under Wine, over the JAR that the window's windowsUberJar task assembles, with WiX
@@ -8,6 +10,11 @@
 # dog-vision.exe or dog-vision-swing.exe, and dog-vision-cli.exe, the command line alone, which
 # runs in a console. It is written to gui-compose/build/compose/binaries/main/msi or
 # gui-swing/build/packages/msi.
+#
+# The command line's MSI holds dog-vision-cli.exe alone, over the JAR of cli's uberJar task, with no
+# shortcut, and puts its folder on the system's PATH: jpackage's main.wxs, from the JDK's own
+# jpackage, takes the fragment in cli/packaging/msi-path.xml, which says what it does. It is written
+# to cli/build/packages/msi.
 #
 # Three steps go round Wine 11.18, where they fail:
 # - Wine's TransmitFile, handed a file where Windows expects a socket, fails with another error than
@@ -53,7 +60,7 @@ die() {
 
 usage() {
     die "usage: $0 --jdk <Windows JDK 17> --jmods <the Windows JDK's jmods> --wix <WiX 3.14's binaries>
-       [--app-version <version>] [--window compose|swing]" 2
+       [--app-version <version>] [--window compose|swing|cli]" 2
 }
 
 # The path as Windows programs under Wine see it: through the drive Wine maps to the root, Z:.
@@ -96,7 +103,7 @@ case "$window" in
         name="dog-vision"
         module="gui-compose"
         jar_task=":gui-compose:windowsUberJar"
-        jar_dir="$root/gui-compose/build/compose/jars"
+        jar_file="gui-compose/build/compose/jars/dog-vision-windows-x64-@VERSION@.jar"
         output="$root/gui-compose/build/compose/binaries/main/msi"
         main_class="cz.loplex.dogvision.desktop.MainKt"
         description="How a dog or another animal sees a photo, a video or the camera"
@@ -108,12 +115,25 @@ case "$window" in
         name="dog-vision-swing"
         module="gui-swing"
         jar_task=":gui-swing:windowsUberJar"
-        jar_dir="$root/gui-swing/build/jars"
+        jar_file="gui-swing/build/jars/dog-vision-swing-windows-x64-@VERSION@.jar"
         output="$root/gui-swing/build/packages/msi"
         main_class="cz.loplex.dogvision.swing.MainKt"
         description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
         upgrade_uuid="acf6164b-f4f9-4430-b4f0-939242f187fb"
         modules="java.base,java.desktop,java.instrument,jdk.unsupported"
+        java_options=()
+        ;;
+    cli)
+        name="dog-vision-cli"
+        module="cli"
+        jar_task=":cli:uberJar"
+        jar_file="cli/build/jars/dog-vision-cli.jar"
+        output="$root/cli/build/packages/msi"
+        main_class="cz.loplex.dogvision.cli.MainKt"
+        description="How a dog or another animal sees a photo, from the command line"
+        upgrade_uuid="bedc25f5-bde3-4837-86b0-26c5291beed3"
+        # What jdeps --print-module-deps finds the JAR using.
+        modules="java.base,java.desktop"
         java_options=()
         ;;
     *) usage ;;
@@ -122,6 +142,7 @@ esac
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
 require "jlink" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
+[[ "$window" != cli ]] || require "jimage" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
 if (( ${#missing[@]} > 0 )); then
     die "$(printf '%s\n' "Missing commands:" "${missing[@]/#/  }")"
 fi
@@ -145,7 +166,7 @@ version_pattern=$'(^|\n)appVersion=([^\n]+)'
 gradle_version="${BASH_REMATCH[2]}"
 version="${app_version:-$gradle_version}"
 "$root/gradlew" --quiet "$jar_task"
-jar="$jar_dir/$name-windows-x64-$gradle_version.jar"
+jar="$root/${jar_file/@VERSION@/$gradle_version}"
 
 staging="$root/$module/build/windows-msi"
 rm -rf "${staging:?}"
@@ -165,6 +186,41 @@ mkdir -p "$output"
 msi="$output/$name-$version.msi"
 rm -f "$msi"
 
+# The resource directory holds MsiInstallerCodepage_en.wxl, for the code page the vendor's name
+# needs, and for the command line the main.wxs of the JDK's jpackage, with msi-path.xml in it. The
+# build fails where that main.wxs has not exactly one reference to Files and one </Wix>.
+resources="$staging/resources"
+cp -r "$packaging/windows" "$resources"
+if [[ "$window" == cli ]]; then
+    jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal/resources/main\.wxs" \
+        "$(realpath "$jdk")/lib/modules"
+    main_wxs="$(find "$staging/jimage" -name main.wxs)"
+    [[ -f "$main_wxs" ]] || die "$jdk's jpackage has no main.wxs"
+    files_reference='<ComponentGroupRef Id="Files"/>'
+    for anchor in "$files_reference" "</Wix>"; do
+        (( $(grep -c -F "$anchor" "$main_wxs") == 1 )) || die "$jdk's main.wxs has not one $anchor"
+    done
+    text="$(<"$main_wxs")"
+    text="${text/"$files_reference"/"$files_reference"$'\n      <ComponentGroupRef Id="DogVisionCliPath"/>'}"
+    text="${text/"</Wix>"/"$(<"$root/cli/packaging/msi-path.xml")"$'\n</Wix>'}"
+    printf '%s\n' "$text" >"$resources/main.wxs"
+fi
+
+# Each window's launcher has a shortcut in the Start menu, in a group of the package's name rather
+# than jpackage's "Unknown", and on the desktop; dog-vision-cli.exe beside it asks for none, which
+# JDK 17's jpackage gives it all the same. The command line's MSI asks for no shortcut at all, as
+# dog-vision-cli.exe started from one only prints its usage.
+if [[ "$window" == cli ]]; then
+    launcher_options=(--win-console)
+else
+    launcher_options=(
+        --add-launcher "dog-vision-cli=$(windows_path "$packaging/dog-vision-cli.properties")"
+        --win-menu
+        --win-menu-group "$name"
+        --win-shortcut
+    )
+fi
+
 
 # jpackage.
 
@@ -175,8 +231,6 @@ export WINEDEBUG="${WINEDEBUG:--all}"
 export LC_ALL="cs_CZ.UTF-8"
 temp="$staging/temp"
 
-# The resource directory holds MsiInstallerCodepage_en.wxl, for the code page the vendor's name needs.
-# The menu group, the package's name, is not jpackage's "Unknown".
 if log="$(wine "$jpackage" \
     --type "msi" \
     --name "$name" \
@@ -190,11 +244,8 @@ if log="$(wine "$jpackage" \
     --main-class "$main_class" \
     "${java_options[@]}" \
     --runtime-image "$(windows_path "$staging/runtime")" \
-    --add-launcher "dog-vision-cli=$(windows_path "$packaging/dog-vision-cli.properties")" \
-    --resource-dir "$(windows_path "$packaging/windows")" \
-    --win-menu \
-    --win-menu-group "$name" \
-    --win-shortcut \
+    "${launcher_options[@]}" \
+    --resource-dir "$(windows_path "$resources")" \
     --win-dir-chooser \
     --win-upgrade-uuid "$upgrade_uuid" \
     --temp "$(windows_path "$temp")" \
@@ -220,7 +271,7 @@ if (( status != 0 )); then
     # light.exe its own first: light.exe takes the MSI's code page from the first, which is then
     # the resource directory's.
     localizations=()
-    for wxl in "$packaging"/windows/*.wxl; do
+    for wxl in "$resources"/*.wxl; do
         localizations+=(-loc "$(windows_path "$wxl")")
     done
 

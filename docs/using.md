@@ -189,6 +189,7 @@ The camera and a photo record there.
 
 ```sh
 dog-vision-cli --species cat --compare dog photo.jpg            # from the deb or the rpm
+dog-vision-cli --species cat --compare dog photo.jpg            # from the MSI, on Windows
 dog-vision-cli\dog-vision-cli.exe --species cat photo.jpg       # from the zip, on Windows
 java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 ```
@@ -196,9 +197,11 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 - **On Linux it installs as a package of its own, `dog-vision-cli`**, from its deb or its rpm, and
   runs as `dog-vision-cli` from the `PATH` on the system's Java 17 or newer, which the package
   manager installs with it where there is none; a headless Java is enough, as it opens no window.
-- **On Windows it comes as a zip of its own**, to unpack and run as
-  `dog-vision-cli\dog-vision-cli.exe`, on a Java it brings with it; it adds itself to no `PATH`,
-  and [Building it](building.md#the-command-lines-zip-for-windows) says how it is made.
+- **On Windows it comes as an MSI of its own, `dog-vision-cli`**, which puts it on the `PATH`, so
+  that it runs as `dog-vision-cli` in a console opened after, on a Java it brings with it.
+  [Building it](building.md#what-each-package-holds) says what it installs.
+- **Or as a zip, to unpack and run** as `dog-vision-cli\dog-vision-cli.exe`, which it adds to no
+  `PATH`; [Building it](building.md#the-command-lines-zip-for-windows) says how it is made.
 - **Anywhere else, the JAR runs on a Java 17 or newer**: `./gradlew :cli:uberJar` builds it, with
   everything it needs.
 - **It converts a photo at full size**, as the desktop program's `dog-vision photo.jpg` does: it
