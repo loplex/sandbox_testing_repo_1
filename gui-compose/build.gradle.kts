@@ -7,8 +7,10 @@ import cz.loplex.dogvision.packaging.RpmLibraryRequires
 import cz.loplex.dogvision.packaging.RpmPackage
 import cz.loplex.dogvision.packaging.UnpackNatives
 import cz.loplex.dogvision.packaging.debianPackages
+import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.installedJarNames
 import cz.loplex.dogvision.packaging.renameJars
+import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -25,21 +27,6 @@ plugins {
 /** The class whose main the window and its JARs start with. */
 val mainClassName = "cz.loplex.dogvision.desktop.MainKt"
 
-/** Whether this machine is Windows, where the run draws through ANGLE and WGL, as the window does. */
-val onWindows = System.getProperty("os.name").startsWith("Windows")
-
-/** LWJGL's native part for this machine: Linux's or Windows's, on x86-64. */
-val lwjglNatives = if (onWindows) "natives-windows" else "natives-linux"
-
-/** The LWJGL modules with a native part on Linux: desktop GL's is for LwjglGl through EGL. */
-val lwjglWithLinuxNatives = listOf(libs.lwjgl.asProvider(), libs.lwjgl.opengles, libs.lwjgl.opengl)
-
-/** The LWJGL modules with a native part on Windows, where GLFW makes the WGL context. */
-val lwjglWithWindowsNatives = lwjglWithLinuxNatives + libs.lwjgl.glfw
-
-/** The LWJGL modules with a native part on this machine. */
-val lwjglWithNatives = if (onWindows) lwjglWithWindowsNatives else lwjglWithLinuxNatives
-
 kotlin {
     jvm {
         compilerOptions {
@@ -55,39 +42,14 @@ kotlin {
             implementation(libs.compose.multiplatform.material3)
             // This machine's natives, which the run and packageUberJarForCurrentOS take.
             runtimeOnly(compose.desktop.currentOs)
-            for (library in lwjglWithNatives) {
-                runtimeOnly("${library.get().module}:${libs.versions.lwjgl.get()}:$lwjglNatives")
-            }
-            if (onWindows) runtimeOnly(libs.nucleus.angle.natives)
+            for (natives in glNatives()) runtimeOnly(natives)
         }
     }
 }
 
-/**
- * What runs the window on Windows on x86-64 in place of this machine's natives: Compose's and LWJGL's natives for it,
- * and ANGLE, OpenGL ES over Direct3D 11, which Windows has no EGL for. Only windowsUberJar takes it.
- */
-val windowsRuntime: Configuration = configurations.create("windowsRuntime") {
-    isCanBeConsumed = false
-    extendsFrom(configurations["commonMainImplementation"], configurations["jvmMainImplementation"])
-    // The attributes the JVM target resolves with, so that the other modules give their JVM variants.
-    val jvmAttributes = configurations["jvmRuntimeClasspath"].attributes
-    attributes {
-        for (key in jvmAttributes.keySet()) copyAttribute(key, jvmAttributes)
-    }
-}
-
-fun <T : Any> AttributeContainer.copyAttribute(key: Attribute<T>, from: AttributeContainer) {
-    attribute(key, checkNotNull(from.getAttribute(key)))
-}
-
-dependencies {
-    windowsRuntime(libs.compose.multiplatform.desktop.windows.x64)
-    for (library in lwjglWithWindowsNatives) {
-        windowsRuntime("${library.get().module}:${libs.versions.lwjgl.get()}:natives-windows")
-    }
-    windowsRuntime(libs.nucleus.angle.natives)
-}
+// What runs the window on Windows on x86-64 in place of this machine's natives: Compose's for it, before LWJGL's and
+// ANGLE. Only windowsUberJar takes it.
+windowsRuntime(listOf(libs.compose.multiplatform.desktop.windows.x64))
 
 /** The icons, the second launcher's properties and what else the packages take. */
 val packaging = layout.projectDirectory.dir("packaging")
