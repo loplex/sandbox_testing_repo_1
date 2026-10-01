@@ -1,9 +1,10 @@
 # Installs a desktop window's MSI, upgrades it to a later one and removes it, checking each step.
 #
 # The MSIs are tools/package_msi_on_windows.ps1's: -Msi of -Version, and -UpgradeMsi of the later
-# -UpgradeVersion, of the product -Name, dog-vision, the default, or dog-vision-swing. Each check
-# says whether it held, and every check runs, so that one failing does not hide the others; the
-# script fails if any did. msiexec's logs go to -LogDir.
+# -UpgradeVersion, of the product -Name, dog-vision, the default, dog-vision-swing, or
+# dog-vision-cli, the command line's, which has no shortcut and puts its folder on the system's
+# PATH. Each check says whether it held, and every check runs, so that one failing does not hide the
+# others; the script fails if any did. msiexec's logs go to -LogDir.
 #
 # -BuiltUnderWine takes MSIs of tools/package_msi_on_linux.sh instead, whose JDK 17's jpackage
 # gives dog-vision-cli shortcuts too: the checks then hold them there.
@@ -17,7 +18,7 @@ param(
     [Parameter(Mandatory)] [string]$UpgradeMsi,
     [Parameter(Mandatory)] [string]$UpgradeVersion,
     [Parameter(Mandatory)] [string]$LogDir,
-    [ValidateSet("dog-vision", "dog-vision-swing")] [string]$Name = "dog-vision",
+    [ValidateSet("dog-vision", "dog-vision-swing", "dog-vision-cli")] [string]$Name = "dog-vision",
     [switch]$BuiltUnderWine
 )
 
@@ -43,6 +44,7 @@ function Test-Check([string]$What, [bool]$Holds) {
 $installDir = Join-Path $env:ProgramFiles $Name
 $startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$Name"
 $desktop = Join-Path $env:PUBLIC "Desktop"
+$isCli = $Name -eq "dog-vision-cli"
 
 # msiexec with [Arguments], waited for; 3010 is success that asks for a restart.
 function Invoke-Msiexec([string]$Log, [string[]]$Arguments) {
@@ -67,19 +69,31 @@ function Test-Ice([string]$Package) {
     Test-Check "$(Split-Path -Leaf $Package) passes ICE validation" ($LASTEXITCODE -eq 0)
 }
 
-# The installed product: one, of [Expected] version, with both launchers.
+# How often the installation folder is on the system's PATH, as the registry holds it for the
+# processes started after.
+function Get-OnPath {
+    $entries = [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";"
+    @($entries | Where-Object { $_.TrimEnd("\") -eq $installDir }).Count
+}
+
+# The installed product: one, of [Expected] version, with both launchers, or dog-vision-cli's alone,
+# and only dog-vision-cli's folder on the PATH, once.
 function Test-Installed([string]$Expected) {
     $installed = @(Get-Installed)
     Test-Check "one $Name is installed" ($installed.Count -eq 1)
     Test-Check "the installed version is $Expected" (@($installed | Where-Object DisplayVersion -eq $Expected).Count -eq 1)
-    foreach ($launcher in @("$Name.exe", "dog-vision-cli.exe")) {
+    foreach ($launcher in @("$Name.exe", "dog-vision-cli.exe") | Select-Object -Unique) {
         Test-Check "$launcher is installed" (Test-Path (Join-Path $installDir $launcher))
     }
+    $onPath = if ($isCli) { 1 } else { 0 }
+    Test-Check "the installation folder is on the PATH $onPath time(s)" ((Get-OnPath) -eq $onPath)
 }
 
 
 # The first version.
 
+# The system's PATH as it was before, which removing the product is to leave as it was.
+$pathBefore = [Environment]::GetEnvironmentVariable("Path", "Machine")
 Test-Ice $Msi
 Test-Check "the MSI of $Version installs" (Invoke-Msiexec "install-$Version.log" @("/i", "`"$Msi`""))
 Test-Installed $Version
@@ -97,18 +111,40 @@ Test-Check "dog-vision-cli.exe converts a photo" (
 )
 
 # The window's launcher has a shortcut in the Start menu and on the desktop; the command line alone,
-# which only prints its usage when started from one, has none, but in an MSI built under Wine.
+# which only prints its usage when started from one, has none, but beside a window in an MSI built
+# under Wine.
 Write-Host "Start menu: $(@(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Name -join ', ')"
 Write-Host "Desktop: $(@(Get-ChildItem $desktop -Filter 'dog-vision*' -ErrorAction SilentlyContinue).Name -join ', ')"
-Test-Check "$Name has a Start menu shortcut" (Test-Path (Join-Path $startMenu "$Name.lnk"))
-Test-Check "$Name has a desktop shortcut" (Test-Path (Join-Path $desktop "$Name.lnk"))
-$cliShortcuts = if ($BuiltUnderWine) { "has" } else { "has no" }
-Test-Check "dog-vision-cli $cliShortcuts Start menu shortcut" (
-    (Test-Path (Join-Path $startMenu "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
-)
-Test-Check "dog-vision-cli $cliShortcuts desktop shortcut" (
-    (Test-Path (Join-Path $desktop "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
-)
+if ($isCli) {
+    Test-Check "dog-vision-cli has no Start menu folder" (-not (Test-Path $startMenu))
+    Test-Check "dog-vision-cli has no desktop shortcut" (-not (Test-Path (Join-Path $desktop "dog-vision-cli.lnk")))
+} else {
+    Test-Check "$Name has a Start menu shortcut" (Test-Path (Join-Path $startMenu "$Name.lnk"))
+    Test-Check "$Name has a desktop shortcut" (Test-Path (Join-Path $desktop "$Name.lnk"))
+    $cliShortcuts = if ($BuiltUnderWine) { "has" } else { "has no" }
+    Test-Check "dog-vision-cli $cliShortcuts Start menu shortcut" (
+        (Test-Path (Join-Path $startMenu "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
+    )
+    Test-Check "dog-vision-cli $cliShortcuts desktop shortcut" (
+        (Test-Path (Join-Path $desktop "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
+    )
+}
+
+# The command line's MSI: dog-vision-cli runs by its name alone, from the PATH a process started
+# after the installation has, from the registry, as this script's own is the one it started with.
+if ($isCli) {
+    $env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+        [Environment]::GetEnvironmentVariable("Path", "User")
+    $found = Get-Command "dog-vision-cli" -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    Test-Check "dog-vision-cli on the PATH is the installed one" (
+        $found -and $found.Source -eq (Join-Path $installDir "dog-vision-cli.exe")
+    )
+    if ($found) {
+        dog-vision-cli --help | Out-Null
+    }
+    Test-Check "dog-vision-cli runs from the PATH" ($found -and $LASTEXITCODE -eq 0)
+}
 
 
 # The later version, over it.
@@ -128,6 +164,10 @@ Test-Check "the MSI of $UpgradeVersion uninstalls" (
 Test-Check "no $Name is installed after" (@(Get-Installed).Count -eq 0)
 Test-Check "the installation folder is gone" (-not (Test-Path $installDir))
 Test-Check "the Start menu folder is gone" (-not (Test-Path $startMenu))
+Test-Check "the installation folder is not on the PATH" ((Get-OnPath) -eq 0)
+Test-Check "the PATH is as it was before, separators included" (
+    [Environment]::GetEnvironmentVariable("Path", "Machine") -eq $pathBefore
+)
 
 
 if ($failures.Count -gt 0) {
