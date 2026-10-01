@@ -32,7 +32,7 @@ Building the programs is [Building it](building.md)'s.
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one.
 It holds:
 
-- the tasks the Linux packages are made with, which a module takes by applying the plugin
+- the tasks the packages are made with, which a module takes by applying the plugin
   `cz.loplex.dogvision.packaging`;
 - [`windowPackages`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/WindowPackages.kt),
   which registers them for a window's deb and rpm, once for both windows;
@@ -278,11 +278,14 @@ in [`.editorconfig`](../.editorconfig):
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, each window's MSI**, built by `package_msi_on_windows.ps1` in two
   versions and tried by `test_msi_on_windows.ps1`; the MSIs are the run's artifacts.
+- **On Windows Server 2022, the command line's zip**, built by `package_cli_zip_on_windows.ps1` and
+  tried by `test_cli_zip_on_windows.ps1`; the zip is the run's artifact.
 
 [`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs when started
 by hand, as it installs Wine and .NET Framework 4.8 each time: each window's MSI that
 `package_msi_on_linux.sh` builds under Wine, validated by `smoke.exe` and tried by
-`test_msi_on_windows.ps1` on Windows Server 2022.
+`test_msi_on_windows.ps1` on Windows Server 2022, and the command line's zip that
+`package_cli_zip_on_linux.sh` builds under Wine, tried by `test_cli_zip_on_windows.ps1` there.
 
 ## Caveat: the emulator fails the video tests' colour checks
 
