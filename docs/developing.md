@@ -275,14 +275,15 @@ in [`.editorconfig`](../.editorconfig):
   on the runner, where its command line runs and its window's main converts a photo.
 - **On Windows Server 2022, `./gradlew :gui-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
-- **On Windows Server 2022, each window's MSI**, built by `package_msi_on_windows.ps1` in two
-  versions and tried by `test_msi_on_windows.ps1`; the MSIs are the run's artifacts.
+- **On Windows Server 2022, each window's MSI and the command line's**, built by
+  `package_msi_on_windows.ps1` in two versions and tried by `test_msi_on_windows.ps1`; the MSIs are
+  the run's artifacts.
 - **On Windows Server 2022, the command line's zip**, built by `package_cli_zip_on_windows.ps1` and
   tried by `test_cli_zip_on_windows.ps1`; the zip is the run's artifact.
 
 [`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs when started
-by hand, as it installs Wine and .NET Framework 4.8 each time: each window's MSI that
-`package_msi_on_linux.sh` builds under Wine, validated by `smoke.exe` and tried by
+by hand, as it installs Wine and .NET Framework 4.8 each time: each window's MSI and the command
+line's that `package_msi_on_linux.sh` builds under Wine, validated by `smoke.exe` and tried by
 `test_msi_on_windows.ps1` on Windows Server 2022, and the command line's zip that
 `package_cli_zip_on_linux.sh` builds under Wine, tried by `test_cli_zip_on_windows.ps1` there.
 
