@@ -6,4 +6,4 @@ jobs:
   which:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "PROBE-FILE=default-branch sha=$GITHUB_SHA ref=$GITHUB_REF"
+      - run: echo "PROBE-FILE=default-branch-after-run sha=$GITHUB_SHA ref=$GITHUB_REF"
