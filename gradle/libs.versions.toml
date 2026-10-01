@@ -22,6 +22,9 @@ lifecycle = "2.11.0"
 lwjgl = "3.4.3"
 nucleus-angle = "8037.1"
 media3 = "1.11.1"
+# Temurin's jmods for Windows, which the command line's Windows runtime is linked from: of JDK 25, as the jlink that
+# links it, and of any update of it, as jlink asks only for its own feature release.
+temurin-windows-jmods = "25.0.4.1+1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
@@ -64,6 +67,7 @@ lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
 lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
 lwjgl-opengles = { module = "org.lwjgl:lwjgl-opengles", version.ref = "lwjgl" }
 nucleus-angle-natives = { module = "dev.nucleusframework:nucleus.angle-natives", version.ref = "nucleus-angle" }
+temurin-windows-jmods = { module = "net.adoptium:temurin25-binaries", version.ref = "temurin-windows-jmods" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
