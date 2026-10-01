@@ -9,6 +9,8 @@ What each program does is [Using it](using.md)'s.
 - [The Android app](#the-android-app), [the web page](#the-web-page),
   [the command line](#the-command-line) and [the desktop window](#the-desktop-window) — the
   `./gradlew` tasks and what they write.
+- [The command line's zip for Windows](#the-command-lines-zip-for-windows) — `dog-vision-cli.exe`
+  on a runtime of its own, built by jpackage on Windows or under Wine.
 - [The desktop packages](#the-desktop-packages) — the deb, the rpm, the tar.gz and the MSI of each
   window: the tools they need, what they install, their dependencies, and the scripts that try them.
 
@@ -45,8 +47,10 @@ Each artifact lands here:
 | Swing window   | the JARs, Linux's, Windows's | `gui-swing/build/jars`                           |
 | Swing window   | the deb, the rpm, the tar.gz | `gui-swing/build/packages/deb`, `…/rpm`, `…/tar` |
 
-The MSIs are not among them, as jpackage builds an installer only on the system it is for:
-[The MSI, built under Wine or on Windows](#the-msi-built-under-wine-or-on-windows) says how.
+The MSIs and the command line's zip for Windows are not among them, as jpackage builds an installer
+or a native launcher only on the system it is for:
+[The MSI, built under Wine or on Windows](#the-msi-built-under-wine-or-on-windows) and
+[The command line's zip for Windows](#the-command-lines-zip-for-windows) say how.
 
 ## The Android app
 
@@ -70,6 +74,39 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ./gradlew :cli:uberJar           # cli/build/jars/dog-vision-cli.jar, with everything it needs
 ./gradlew :cli:installJvmDist    # or a start script and its JARs, in cli/build/install/dog-vision-cli-jvm
 ```
+
+### The command line's zip for Windows
+
+```sh
+tools/package_cli_zip_on_linux.sh --jdk <Windows JDK 17>
+                                 # cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip
+pwsh tools/package_cli_zip_on_windows.ps1
+                                 # on Windows: the same
+```
+
+- **It is to unpack and run without installing it**, as `dog-vision-cli\dog-vision-cli.exe`, on
+  Windows on x86-64; it adds itself to neither the `PATH` nor the Start menu.
+- **It holds jpackage's app image**: `dog-vision-cli.exe`, a native launcher that runs in a
+  console, the JAR in `app`, a runtime of its own in `runtime`, and the licence.
+- **Its runtime is Temurin's JDK 25, cut down by jlink to `java.base` and `java.desktop`**, which
+  ImageIO needs.
+  `./gradlew :cli:windowsRuntime` links it, on any system, from Temurin's jmods for Windows, which
+  Gradle downloads from Adoptium's releases on GitHub.
+  Their version is `temurin-windows-jmods` in [`libs.versions.toml`](../gradle/libs.versions.toml):
+  jlink takes jmods of any update of its own feature release, 25.
+- **jpackage makes the launcher only on Windows**, so each script runs a Windows jpackage over the
+  runtime and the JAR:
+  - [`tools/package_cli_zip_on_windows.ps1`](../tools/package_cli_zip_on_windows.ps1) runs the
+    JDK 25 that `JAVA_HOME` names;
+  - [`tools/package_cli_zip_on_linux.sh`](../tools/package_cli_zip_on_linux.sh) runs a Windows
+    JDK 17's under Wine, as [`package_msi_on_linux.sh`](../tools/package_msi_on_linux.sh) does and
+    says why, in the locale `cs_CZ.UTF-8`; it needs neither WiX nor .NET, and needs `zip`.
+- **[`tools/test_cli_zip_on_windows.ps1`](../tools/test_cli_zip_on_windows.ps1) tries it on
+  Windows**: it unpacks it into a folder whose name has a space, and runs `dog-vision-cli` from the
+  `PATH` with `--help`, on a photo and with an unknown option.
+  The Windows zip job of [`ci.yml`](../.github/workflows/ci.yml) builds it and tries it on every
+  push, and [`msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) tries the one built
+  under Wine.
 
 ## The desktop window
 
