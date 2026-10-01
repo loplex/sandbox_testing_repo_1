@@ -1,6 +1,7 @@
 import cz.loplex.dogvision.packaging.DebPackage
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
+import cz.loplex.dogvision.packaging.RuntimeImage
 import cz.loplex.dogvision.packaging.artifact
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -147,3 +148,45 @@ val packageRpm = tasks.register<RpmPackage>("packageRpm") {
     recommends = emptyList()
 }
 artifact(packageRpm)
+
+// The runtime of the command line's zip for Windows on x86-64, which tools/package_cli_zip_on_windows.ps1 and
+// tools/package_cli_zip_on_linux.sh hand jpackage: jlink links it from Temurin's jmods for Windows, so that it is the
+// same runtime on Windows and on Linux, where jpackage runs under Wine.
+val windowsJmods = configurations.dependencyScope("windowsJmods")
+val windowsJmodsZip = configurations.resolvable("windowsJmodsZip") { extendsFrom(windowsJmods.get()) }
+dependencies {
+    // Adoptium names the zip after the release, with an underscore for its plus.
+    val release = libs.versions.temurin.windows.jmods.get()
+    windowsJmods(libs.temurin.windows.jmods) {
+        artifact {
+            name = "OpenJDK25U-jmods_x64_windows_hotspot_${release.replace('+', '_')}"
+            type = "zip"
+        }
+    }
+}
+
+// The jmods alone, out of the folder the zip holds them in, as jlink's module path takes a folder of them.
+val windowsJmodsDir = tasks.register<Sync>("windowsJmods") {
+    description = "Unpacks Temurin's jmods for Windows into build/windows/jmods."
+    into(layout.buildDirectory.dir("windows/jmods"))
+    from(windowsJmodsZip.map { zips -> zips.map { zipTree(it) } }) { include("*/*.jmod") }
+    eachFile { relativePath = RelativePath(true, name) }
+    includeEmptyDirs = false
+}
+
+/** The JDK the Windows runtime is linked with: Temurin 25, of the jmods' feature release, which jlink asks for. */
+val packagingJdk = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(25)
+    vendor = JvmVendorSpec.ADOPTIUM
+}
+
+val windowsRuntime = tasks.register<RuntimeImage>("windowsRuntime") {
+    description = "Links build/windows/runtime, the command line's runtime for Windows, from Temurin's jmods for it."
+    group = "distribution"
+    jdkHome = packagingJdk.map { it.metadata.installationPath.asFile.path }
+    jmods = layout.dir(windowsJmodsDir.map { it.destinationDir })
+    // What jdeps --print-module-deps finds the JAR using: ImageIO, which reads and writes the photos, is in
+    // java.desktop.
+    modules = listOf("java.base", "java.desktop")
+    destination = layout.buildDirectory.dir("windows/runtime")
+}

@@ -44,7 +44,7 @@ every species, its measurements and their sources.
 - [The model](docs/model.md) — every species and its sources, how the simulation works, the
   colour saturation, the acuity blur, the map of differences, and what it cannot show.
 - [Building it](docs/building.md) — the JDK and the Android SDK, `./gradlew` for each program, and
-  the deb, the rpm, the tar.gz and the MSI.
+  the deb, the rpm, the tar.gz, the MSI and the command line's zip for Windows.
 - [Developing it](docs/developing.md) — the modules, what each test task holds, the CI, and the
   caveats of testing on an emulator and under Wine.
 

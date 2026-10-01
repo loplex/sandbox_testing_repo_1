@@ -1,5 +1,4 @@
-// The tasks the Linux packages are made with, applied as the plugin below, and the natives the desktop modules run
-// with.
+// The tasks the packages are made with, applied as the plugin below, and the natives the desktop modules run with.
 plugins {
     `kotlin-dsl`
     alias(libs.plugins.ktlint)
