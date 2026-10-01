@@ -120,7 +120,7 @@ fun Project.windowPackages(
         depends.set(layout.buildDirectory.file("packages/debDepends.txt"))
     }
 
-    tasks.register("packageDeb", DebPackage::class.java) {
+    val packageDeb = tasks.register("packageDeb", DebPackage::class.java) {
         this.description = "Packs build/packages/deb/${packageName}_<version>_amd64.deb, on the system's Java."
         group = "distribution"
         tree.set(layout.dir(linuxTree.map { it.destinationDir }))
@@ -132,7 +132,7 @@ fun Project.windowPackages(
         recommends.set(listOf("dog-vision-cli"))
     }
 
-    tasks.register("packageRpm", RpmPackage::class.java) {
+    val packageRpm = tasks.register("packageRpm", RpmPackage::class.java) {
         this.description = "Packs build/packages/rpm/$packageName-<version>-1.x86_64.rpm, on the system's Java."
         group = "distribution"
         tree.set(layout.dir(linuxTree.map { it.destinationDir }))
@@ -152,4 +152,6 @@ fun Project.windowPackages(
         )
         recommends.set(listOf("dog-vision-cli"))
     }
+    artifact(packageDeb)
+    artifact(packageRpm)
 }

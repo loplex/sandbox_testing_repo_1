@@ -1,3 +1,5 @@
+import cz.loplex.dogvision.packaging.artifact
+
 // The web page: a photo shown as a species sees it, rendered by the shared shaders in WebGL 2.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -35,3 +37,6 @@ kotlin {
         }
     }
 }
+
+// The page's artifact, the page for production, whose task Kotlin's plugin registers.
+artifact("jsBrowserDistribution")
