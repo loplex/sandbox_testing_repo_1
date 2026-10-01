@@ -1,6 +1,7 @@
 # The MSIs that tools/package_msi_on_linux.sh builds under Wine, each window's in two versions,
 # validated and installed on Windows: WiX 3.14's smoke.exe fails under Wine (SMOK0216, Win32 error 0x65B), so
-# only Windows can validate it. It installs Wine and .NET Framework 4.8 each time and depends on
+# only Windows can validate it. The command line's zip that tools/package_cli_zip_on_linux.sh builds
+# under Wine, run on Windows. It installs Wine and .NET Framework 4.8 each time and depends on
 # WineHQ's packages and winetricks, so it runs when started by hand, not on every push as ci.yml
 # does.
 name: MSI built under Wine
@@ -85,6 +86,10 @@ jobs:
           mv gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.{0,1}.msi wine-msi/
           mv gui-swing/build/packages/msi/dog-vision-swing-0.1.{0,1}.msi wine-msi/
           ls -l wine-msi
+      - name: Build the command line's zip
+        run: |
+          tools/package_cli_zip_on_linux.sh --jdk "$JDK17"
+          mv cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip wine-msi/
       - uses: actions/upload-artifact@v5
         with:
           name: wine-msi
@@ -128,6 +133,10 @@ jobs:
           -Msi wine-msi/dog-vision-swing-0.1.0.msi -Version 0.1.0
           -UpgradeMsi wine-msi/dog-vision-swing-0.1.1.msi -UpgradeVersion 0.1.1
           -LogDir msi-logs/dog-vision-swing -BuiltUnderWine
+      - name: Unpack the command line's zip and run it
+        if: always()
+        shell: pwsh
+        run: ./tools/test_cli_zip_on_windows.ps1 -Zip wine-msi/dog-vision-cli-0.1.0-windows-x64.zip
       - if: always()
         uses: actions/upload-artifact@v5
         with:
