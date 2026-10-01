@@ -1,3 +1,4 @@
+import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsRuntime
@@ -75,6 +76,9 @@ compose.desktop {
     }
 }
 
+// The JAR with this machine's natives, whose task Compose's plugin registers.
+artifact("packageUberJarForCurrentOS")
+
 // dog-vision-cli beside dog-vision in the app image: Compose runs jpackage for it from the JARs.
 tasks.withType<AbstractJPackageTask>().configureEach {
     val launcher = packaging.file("dog-vision-cli.properties")
@@ -106,7 +110,7 @@ windowPackages(
 )
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
-tasks.register<Tar>("packageTarGz") {
+val packageTarGz = tasks.register<Tar>("packageTarGz") {
     description = "Packs the app image into build/compose/binaries/main/tar/dog-vision-<version>-linux-x64.tar.gz."
     group = "compose desktop"
     val version = compose.desktop.application.nativeDistributions.packageVersion
@@ -118,9 +122,10 @@ tasks.register<Tar>("packageTarGz") {
     eachFile { permissions { unix(if (file.canExecute()) "755" else "644") } }
     from(tasks.named<AbstractJPackageTask>("createDistributable").flatMap { it.destinationDir })
 }
+artifact(packageTarGz)
 
 // Built on any machine, as jpackage's installers are not: Windows's natives and ANGLE in place of this machine's.
-tasks.register<Jar>("windowsUberJar") {
+val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/compose/jars/dog-vision-windows-x64-<version>.jar, the window for Windows."
     group = "compose desktop"
     archiveFileName = "dog-vision-windows-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar"
@@ -142,3 +147,4 @@ tasks.register<Jar>("windowsUberJar") {
     // when a pattern changes.
     inputs.property("excludes", excludes)
 }
+artifact(windowsUberJar)

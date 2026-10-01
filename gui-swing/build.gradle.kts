@@ -1,4 +1,5 @@
 import cz.loplex.dogvision.packaging.AppImage
+import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsRuntime
@@ -77,20 +78,22 @@ fun Jar.uberJar(fileName: String, classpath: Provider<out Iterable<File>>) {
     inputs.property("excludes", excludes)
 }
 
-tasks.register<Jar>("linuxUberJar") {
+val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/jars/dog-vision-swing-linux-x64-<version>.jar, the window for this machine."
     group = "distribution"
     uberJar("dog-vision-swing-linux-x64-${packageVersion.get()}.jar", configurations.named("jvmRuntimeClasspath"))
 }
+artifact(linuxUberJar)
 
 // Built on any machine: Windows's natives and ANGLE in place of this machine's.
-tasks.register<Jar>("windowsUberJar") {
+val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/jars/dog-vision-swing-windows-x64-<version>.jar, the window for Windows."
     group = "distribution"
     uberJar("dog-vision-swing-windows-x64-${packageVersion.get()}.jar", configurations.named("windowsRuntime"))
     // ANGLE for Windows on ARM, which LWJGL's natives here are not for.
     exclude("nucleus/native/win32-aarch64/**")
 }
+artifact(windowsUberJar)
 
 /**
  * The JDK the tar.gz's runtime is linked from and jpackage runs from: Temurin, as the Compose window's build says why.
@@ -121,7 +124,7 @@ val appImage = tasks.register<AppImage>("appImage") {
 }
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
-tasks.register<Tar>("packageTarGz") {
+val packageTarGz = tasks.register<Tar>("packageTarGz") {
     description = "Packs the app image into build/packages/tar/dog-vision-swing-<version>-linux-x64.tar.gz."
     group = "distribution"
     archiveFileName = "dog-vision-swing-${packageVersion.get()}-linux-x64.tar.gz"
@@ -131,6 +134,7 @@ tasks.register<Tar>("packageTarGz") {
     eachFile { permissions { unix(if (file.canExecute()) "755" else "644") } }
     from(appImage.flatMap { it.destination })
 }
+artifact(packageTarGz)
 
 // The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision, with the desktop
 // entry and icons under names of their own, so that both windows install side by side.

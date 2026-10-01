@@ -1,6 +1,7 @@
 import cz.loplex.dogvision.packaging.DebPackage
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
+import cz.loplex.dogvision.packaging.artifact
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -64,7 +65,7 @@ tasks.register<JavaExec>("renderFigures") {
 }
 
 // One JAR with core and the Kotlin standard library in it, which `java -jar` runs alone on a JDK 17 or newer.
-tasks.register<Jar>("uberJar") {
+val uberJar = tasks.register<Jar>("uberJar") {
     description = "Assembles build/jars/dog-vision-cli.jar, the command line with everything it needs."
     group = "distribution"
     archiveFileName = "dog-vision-cli.jar"
@@ -75,6 +76,7 @@ tasks.register<Jar>("uberJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/module-info.class")
 }
+artifact(uberJar)
 
 // The deb and the rpm, dog-vision-cli, on the system's Java: its JARs in /usr/share/dog-vision-cli/lib and a launcher
 // in /usr/bin, which finds a Java 17 or newer. It has no natives, so one package serves every architecture, and it
@@ -115,7 +117,7 @@ val linuxDescription = """
     the packages dog-vision and dog-vision-swing.
 """.trimIndent()
 
-tasks.register<DebPackage>("packageDeb") {
+val packageDeb = tasks.register<DebPackage>("packageDeb") {
     description = "Packs build/packages/deb/dog-vision-cli_<version>_all.deb, on the system's Java."
     group = "distribution"
     tree = layout.dir(linuxTree.map { it.destinationDir })
@@ -128,8 +130,9 @@ tasks.register<DebPackage>("packageDeb") {
     depends = listOf("default-jre-headless (>= 2:1.17) | java17-runtime-headless")
     recommends = emptyList()
 }
+artifact(packageDeb)
 
-tasks.register<RpmPackage>("packageRpm") {
+val packageRpm = tasks.register<RpmPackage>("packageRpm") {
     description = "Packs build/packages/rpm/dog-vision-cli-<version>-1.noarch.rpm, on the system's Java."
     group = "distribution"
     tree = layout.dir(linuxTree.map { it.destinationDir })
@@ -143,3 +146,4 @@ tasks.register<RpmPackage>("packageRpm") {
     requires = listOf("/bin/sh", "(jre-17-headless or jre-21-headless or jre-25-headless)")
     recommends = emptyList()
 }
+artifact(packageRpm)
