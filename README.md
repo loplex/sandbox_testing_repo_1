@@ -37,8 +37,8 @@ This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-pytho
 - [Using it](docs/using.md) — the app's controls, saving and recording; what the web page, the command line and the window do.
 - [The model](docs/model.md) — every species and its sources, how the simulation works,
   the colour saturation, the acuity blur, the map of differences, and what it cannot show.
-- [Building it](docs/building.md) — the JDK and the Android SDK,
-  `./gradlew` for each program, and the deb, the rpm, the tar.gz and the MSI.
+- [Building it](docs/building.md) — the JDK and the Android SDK, `./gradlew` for each program,
+  and the deb, the rpm, the tar.gz, the MSI and the command line's zip for Windows.
 - [Developing it](docs/developing.md) —
   the modules, what each test task holds, the CI, and the caveats of testing on an emulator and under Wine.
 
