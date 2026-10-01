@@ -1,6 +1,6 @@
-# The MSIs that tools/package_msi_on_linux.sh builds under Wine, each window's in two versions,
-# validated and installed on Windows: WiX 3.14's smoke.exe fails under Wine (SMOK0216, Win32 error 0x65B), so
-# only Windows can validate it. The command line's zip that tools/package_cli_zip_on_linux.sh builds
+# The MSIs that tools/package_msi_on_linux.sh builds under Wine, each window's and the command
+# line's in two versions, validated and installed on Windows: WiX 3.14's smoke.exe fails under Wine
+# (SMOK0216, Win32 error 0x65B), so only Windows can validate it. The command line's zip that tools/package_cli_zip_on_linux.sh builds
 # under Wine, run on Windows. It installs Wine and .NET Framework 4.8 each time and depends on
 # WineHQ's packages and winetricks, so it runs when started by hand, not on every push as ci.yml
 # does.
@@ -77,7 +77,7 @@ jobs:
           echo "WIX=$PWD/wix" >> "$GITHUB_ENV"
       - name: Build the MSIs
         run: |
-          for window in compose swing; do
+          for window in compose swing cli; do
             tools/package_msi_on_linux.sh --jdk "$JDK17" --jmods "$JMODS" --wix "$WIX" --window "$window"
             tools/package_msi_on_linux.sh --jdk "$JDK17" --jmods "$JMODS" --wix "$WIX" --window "$window" \
               --app-version 0.1.1
@@ -85,6 +85,7 @@ jobs:
           mkdir -p wine-msi
           mv gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.{0,1}.msi wine-msi/
           mv gui-swing/build/packages/msi/dog-vision-swing-0.1.{0,1}.msi wine-msi/
+          mv cli/build/packages/msi/dog-vision-cli-0.1.{0,1}.msi wine-msi/
           ls -l wine-msi
       - name: Build the command line's zip
         run: |
@@ -133,6 +134,14 @@ jobs:
           -Msi wine-msi/dog-vision-swing-0.1.0.msi -Version 0.1.0
           -UpgradeMsi wine-msi/dog-vision-swing-0.1.1.msi -UpgradeVersion 0.1.1
           -LogDir msi-logs/dog-vision-swing -BuiltUnderWine
+      - name: Install, upgrade and remove dog-vision-cli's
+        if: always()
+        shell: pwsh
+        run: >-
+          ./tools/test_msi_on_windows.ps1 -Name dog-vision-cli
+          -Msi wine-msi/dog-vision-cli-0.1.0.msi -Version 0.1.0
+          -UpgradeMsi wine-msi/dog-vision-cli-0.1.1.msi -UpgradeVersion 0.1.1
+          -LogDir msi-logs/dog-vision-cli -BuiltUnderWine
       - name: Unpack the command line's zip and run it
         if: always()
         shell: pwsh
