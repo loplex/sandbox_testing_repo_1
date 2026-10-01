@@ -34,6 +34,8 @@ It holds:
 
 - the tasks the Linux packages are made with, which a module takes by applying the plugin
   `cz.loplex.dogvision.packaging`;
+- [`windowPackages`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/WindowPackages.kt),
+  which registers them for a window's deb and rpm, once for both windows;
 - [`glNatives` and `windowsRuntime`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DesktopNatives.kt),
   the natives that `gui-core`'s tests and the windows run with.
 
