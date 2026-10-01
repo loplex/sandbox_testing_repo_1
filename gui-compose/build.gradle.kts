@@ -1,15 +1,5 @@
-import cz.loplex.dogvision.packaging.DebDepends
-import cz.loplex.dogvision.packaging.DebPackage
-import cz.loplex.dogvision.packaging.DesktopEntry
-import cz.loplex.dogvision.packaging.JavaLauncher
-import cz.loplex.dogvision.packaging.NativesOnly
-import cz.loplex.dogvision.packaging.RpmLibraryRequires
-import cz.loplex.dogvision.packaging.RpmPackage
-import cz.loplex.dogvision.packaging.UnpackNatives
-import cz.loplex.dogvision.packaging.debianPackages
 import cz.loplex.dogvision.packaging.glNatives
-import cz.loplex.dogvision.packaging.installedJarNames
-import cz.loplex.dogvision.packaging.renameJars
+import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -93,147 +83,27 @@ tasks.withType<AbstractJPackageTask>().configureEach {
     inputs.file(launcher)
 }
 
-// The deb and the rpm, dog-vision, on the system's Java: the window's JARs in /usr/share/dog-vision/lib, the natives
-// they load unpacked in /usr/lib/dog-vision, where the FHS puts what depends on the architecture, a launcher in
-// /usr/bin, which finds a Java 17 or newer, and the desktop entry and icons. The command line is the package
-// dog-vision-cli, which each recommends.
-val linuxPackage = "dog-vision"
-val linuxHome = "/usr/share/$linuxPackage"
-val linuxNativesHome = "/usr/lib/$linuxPackage"
-val linuxJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
-
-/** The names of the JARs in /usr/share/dog-vision/lib that are not their own, as [installedJarNames] gives them. */
-val linuxJarNames = configurations.named("jvmRuntimeClasspath")
-    .flatMap { it.incoming.artifacts.resolvedArtifacts }
-    .map(::installedJarNames)
-
-/** The desktop entry's and the icons' name: the application's ID, which the Windows MSI does not use. */
-val applicationId = "cz.loplex.dogvision"
-
-// Every native library in the JARs, which skiko and LWJGL would otherwise unpack at run time into the user's home or
-// /tmp: skiko's, and LWJGL's for this machine.
-val linuxNatives = tasks.register<UnpackNatives>("linuxNatives") {
-    description = "Unpacks skiko's and LWJGL's Linux natives out of the JARs into build/packages/natives, for the " +
-        "deb and the rpm to install in /usr/lib/dog-vision."
-    jars.from(linuxJars)
-    natives = layout.buildDirectory.dir("packages/natives")
-}
-
-val linuxLauncher = tasks.register<JavaLauncher>("linuxLauncher") {
-    description = "Writes build/packages/launcher/dog-vision, the script the deb and the rpm install in /usr/bin, " +
-        "which starts the window on the system's Java 17 or newer, not a headless one."
-    commandName = linuxPackage
-    mainClass = mainClassName
-    jars.from(linuxJars)
-    jarDirectory = "$linuxHome/lib"
-    jarNames = linuxJarNames
+// The deb and the rpm, dog-vision, on the system's Java.
+windowPackages(
+    packageName = "dog-vision",
+    // The application's ID, which the Windows MSI does not use.
+    applicationId = "cz.loplex.dogvision",
+    mainClass = mainClassName,
     // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
-    jvmOptions = listOf(
-        "-Dcompose.application.configure.swing.globals=true",
-        "-Dskiko.library.path=$linuxNativesHome",
-        "-Dorg.lwjgl.librarypath=$linuxNativesHome",
-    )
-    minimumJava = 17
-    opensWindow = true
-    script = layout.buildDirectory.file("packages/launcher/$linuxPackage")
-}
+    jvmOptions = { natives ->
+        listOf("-Dcompose.application.configure.swing.globals=true", "-Dskiko.library.path=$natives")
+    },
+    summary = "How a dog or another animal sees colours (Kotlin Compose GUI)",
+    description = """
+        dog-vision shows a photo, a video or the camera with the colours a dog,
+        a cat or another animal can tell apart, beside the original.
 
-val linuxDesktopEntry = tasks.register<DesktopEntry>("linuxDesktopEntry") {
-    description = "Writes build/packages/cz.loplex.dogvision.desktop, the desktop entry that puts the window in the " +
-        "desktop's menu, named in each language of texts/strings."
-    strings = rootProject.layout.projectDirectory.dir("texts/strings")
-    nameString = "app_name"
-    commentString = "desktop_comment"
-    exec = linuxPackage
-    icon = applicationId
-    categories = listOf("Graphics")
-    // Java names each window's WM_CLASS after the class its main is in, the dots as dashes.
-    startupWmClass = mainClassName.replace('.', '-')
-    entry = layout.buildDirectory.file("packages/$applicationId.desktop")
-}
+        This package is the desktop window, in Compose.
 
-val linuxTree = tasks.register<Sync>("linuxTree") {
-    description = "Lays out in build/packages/tree the files the deb and the rpm install: the JARs, the natives, the " +
-        "launcher, the desktop entry and the icons."
-    into(layout.buildDirectory.dir("packages/tree"))
-    from(linuxJars) {
-        into(linuxHome.removePrefix("/") + "/lib")
-        exclude(NativesOnly)
-        renameJars(linuxJarNames)
-    }
-    from(linuxNatives) { into(linuxNativesHome.removePrefix("/")) }
-    from(linuxLauncher) { into("usr/bin") }
-    from(linuxDesktopEntry) { into("usr/share/applications") }
-    from(packaging.file("dog-vision.png")) {
-        into("usr/share/icons/hicolor/256x256/apps")
-        rename("dog-vision.png", "$applicationId.png")
-    }
-    from(packaging.file("dog-vision.svg")) {
-        into("usr/share/icons/hicolor/scalable/apps")
-        rename("dog-vision.svg", "$applicationId.svg")
-    }
-}
-
-val rpmLibraryRequires = tasks.register<RpmLibraryRequires>("rpmLibraryRequires") {
-    description = "Lists in build/packages/rpmLibraryRequires.txt the libraries the natives link against and do not " +
-        "bring themselves, which the rpm requires."
-    image = linuxNatives.flatMap { it.natives }
-    requires = layout.buildDirectory.file("packages/rpmLibraryRequires.txt")
-}
-
-val debDepends = tasks.register<DebDepends>("debDepends") {
-    description = "Writes the deb's Depends into build/packages/debDepends.txt: the packages of the libraries the " +
-        "natives link against and do not bring, then a Java that can open a window, libEGL and ffmpeg."
-    image = linuxNatives.flatMap { it.natives }
-    packages = debianPackages
-    // What the natives do not name: a Java that can open a window, the distribution's default where it is 17 or
-    // newer, as the Debian Java Policy has it; LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video or
-    // the camera.
-    others = listOf("default-jre (>= 2:1.17) | java17-runtime", "libegl1", "ffmpeg")
-    depends = layout.buildDirectory.file("packages/debDepends.txt")
-}
-
-/** What the deb and the rpm are listed with, in a package manager's search and its details. */
-val linuxSummary = "How a dog or another animal sees colours (Kotlin Compose GUI)"
-val linuxDescription = """
-    dog-vision shows a photo, a video or the camera with the colours a dog,
-    a cat or another animal can tell apart, beside the original.
-
-    This package is the desktop window, in Compose.
-
-    Given a photo alone, it converts it as the command line does, which is
-    the package dog-vision-cli.
-""".trimIndent()
-
-tasks.register<DebPackage>("packageDeb") {
-    description = "Packs build/packages/deb/dog-vision_<version>_amd64.deb, on the system's Java."
-    group = "distribution"
-    tree = layout.dir(linuxTree.map { it.destinationDir })
-    packageName = linuxPackage
-    architecture = "amd64"
-    summary = linuxSummary
-    longDescription = linuxDescription
-    depends = debDepends.flatMap { it.depends }.map { it.asFile.readText().split(", ") }
-    recommends = listOf("dog-vision-cli")
-}
-
-tasks.register<RpmPackage>("packageRpm") {
-    description = "Packs build/packages/rpm/dog-vision-<version>-1.x86_64.rpm, on the system's Java."
-    group = "distribution"
-    tree = layout.dir(linuxTree.map { it.destinationDir })
-    packageName = linuxPackage
-    architecture = "x86_64"
-    summary = linuxSummary
-    longDescription = linuxDescription
-    // The libraries the natives need, as rpm's own generator names them, since Fedora's and openSUSE's package names
-    // differ; a Java that can open a window, as cli's rpm says why; libEGL, which LWJGL opens once it runs; and
-    // ffmpeg's command rather than a package, as Fedora has two ffmpeg packages.
-    requires = rpmLibraryRequires.flatMap { it.requires }.map { file ->
-        file.asFile.readText().split(',') +
-            listOf("/bin/sh", "(jre-17 or jre-21 or jre-25)", "libEGL.so.1()(64bit)", "/usr/bin/ffmpeg")
-    }
-    recommends = listOf("dog-vision-cli")
-}
+        Given a photo alone, it converts it as the command line does, which is
+        the package dog-vision-cli.
+    """.trimIndent(),
+)
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
 tasks.register<Tar>("packageTarGz") {
