@@ -15,8 +15,10 @@ captures/
 *.jks
 *.keystore
 keystore.properties
-# JetBrains IDE project settings, regenerated from the Gradle build on import
-.idea/
+# JetBrains IDE project settings, regenerated from the Gradle build on import,
+# all but the inspection profile, which is shared
+.idea/*
+!.idea/inspectionProfiles/
 *.iml
 *.ipr
 *.iws
