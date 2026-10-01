@@ -8,6 +8,8 @@ import cz.loplex.dogvision.packaging.RpmLibraryRequires
 import cz.loplex.dogvision.packaging.RpmPackage
 import cz.loplex.dogvision.packaging.UnpackNatives
 import cz.loplex.dogvision.packaging.debianPackages
+import cz.loplex.dogvision.packaging.glNatives
+import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -21,21 +23,6 @@ plugins {
 
 /** The class whose main the window and its JARs start with. */
 val mainClassName = "cz.loplex.dogvision.swing.MainKt"
-
-/** Whether this machine is Windows, where the run draws through ANGLE and WGL, as the window does. */
-val onWindows = System.getProperty("os.name").startsWith("Windows")
-
-/** LWJGL's native part for this machine: Linux's or Windows's, on x86-64. */
-val lwjglNatives = if (onWindows) "natives-windows" else "natives-linux"
-
-/** The LWJGL modules with a native part on Linux. */
-val lwjglWithLinuxNatives = listOf(libs.lwjgl.asProvider(), libs.lwjgl.opengles, libs.lwjgl.opengl)
-
-/** The LWJGL modules with a native part on Windows, where GLFW makes the WGL context. */
-val lwjglWithWindowsNatives = lwjglWithLinuxNatives + libs.lwjgl.glfw
-
-/** The LWJGL modules with a native part on this machine. */
-val lwjglWithNatives = if (onWindows) lwjglWithWindowsNatives else lwjglWithLinuxNatives
 
 kotlin {
     jvm {
@@ -57,10 +44,7 @@ kotlin {
             implementation(libs.flatlaf)
             implementation(libs.kotlinx.coroutines.swing)
             // This machine's natives, which the run and linuxUberJar take.
-            for (library in lwjglWithNatives) {
-                runtimeOnly("${library.get().module}:${libs.versions.lwjgl.get()}:$lwjglNatives")
-            }
-            if (onWindows) runtimeOnly(libs.nucleus.angle.natives)
+            for (natives in glNatives()) runtimeOnly(natives)
         }
         jvmTest.dependencies {
             implementation(kotlin("test"))
@@ -75,27 +59,9 @@ tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }
 
-/** What runs the window on Windows on x86-64 in place of this machine's natives: LWJGL's for it, and ANGLE. */
-val windowsRuntime: Configuration = configurations.create("windowsRuntime") {
-    isCanBeConsumed = false
-    extendsFrom(configurations["commonMainImplementation"], configurations["jvmMainImplementation"])
-    // The attributes the JVM target resolves with, so that the other modules give their JVM variants.
-    val jvmAttributes = configurations["jvmRuntimeClasspath"].attributes
-    attributes {
-        for (key in jvmAttributes.keySet()) copyAttribute(key, jvmAttributes)
-    }
-}
-
-fun <T : Any> AttributeContainer.copyAttribute(key: Attribute<T>, from: AttributeContainer) {
-    attribute(key, checkNotNull(from.getAttribute(key)))
-}
-
-dependencies {
-    for (library in lwjglWithWindowsNatives) {
-        windowsRuntime("${library.get().module}:${libs.versions.lwjgl.get()}:natives-windows")
-    }
-    windowsRuntime(libs.nucleus.angle.natives)
-}
+// What runs the window on Windows on x86-64 in place of this machine's natives: LWJGL's for it, and ANGLE. Only
+// windowsUberJar takes it.
+windowsRuntime()
 
 /** The packages' version, as the other modules' packages have it. */
 val packageVersion = providers.gradleProperty("appVersion")

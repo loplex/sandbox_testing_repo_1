@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.ktlint) apply false
+    id("cz.loplex.dogvision.packaging") apply false
 }
 
 // The Kotlin/JS modules download Node.js from the repository declared in settings.gradle.kts, which is where the build
