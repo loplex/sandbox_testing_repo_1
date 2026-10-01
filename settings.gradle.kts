@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 pluginManagement {
-    // The tasks the Linux packages are made with.
+    // The tasks the Linux packages are made with, and the natives the desktop modules share.
     includeBuild("build-logic")
     repositories {
         google {
