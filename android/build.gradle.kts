@@ -1,5 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
+import cz.loplex.dogvision.packaging.artifact
 import org.w3c.dom.Element
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
@@ -91,6 +92,9 @@ android {
         generateLocaleConfig = true
     }
 }
+
+// The app's artifact, the debug APK, whose task Android's plugin registers.
+artifact("assembleDebug")
 
 dependencies {
     implementation(project(":core"))
