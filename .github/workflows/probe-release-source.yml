@@ -1,0 +1,9 @@
+name: probe-release-source
+on:
+  release:
+    types: [published]
+jobs:
+  which:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PROBE-FILE=tagged-commit sha=$GITHUB_SHA ref=$GITHUB_REF"
