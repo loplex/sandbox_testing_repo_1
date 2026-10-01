@@ -4,6 +4,7 @@ How to build each program from this repository, and the desktop windows' package
 What each program does is [Using it](using.md)'s.
 
 - [What the build needs](#what-the-build-needs) — the JDK, the Android SDK, Chrome.
+- [Every artifact at once](#every-artifact-at-once) — `./gradlew packageAll`, and the folder each artifact lands in.
 - [The Android app](#the-android-app), [the web page](#the-web-page), [the command line](#the-command-line) and [the desktop window](#the-desktop-window) —
   the `./gradlew` tasks and what they write.
 - [The desktop packages](#the-desktop-packages) — the deb, the rpm, the tar.gz and the MSI of each window:
@@ -16,6 +17,32 @@ What each program does is [Using it](using.md)'s.
 - **The Android SDK with platform 37**, found through `ANDROID_HOME` or `sdk.dir` in `local.properties`,
   which Android Studio and IntelliJ IDEA write when they open the project.
 - **Google Chrome** for the web page's tests, found on the `PATH` as `google-chrome` or through `CHROME_BIN`.
+
+## Every artifact at once
+
+```sh
+./gradlew packageAll
+```
+
+Gradle runs the task of that name in every module that has one.\
+A module's build script marks each task that makes one of its artifacts with [`artifact()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/Artifact.kt),
+which adds it to the module's `packageAll`.\
+Each artifact lands here:
+
+| Program        | Artifacts                    | Folder                                           |
+|----------------|------------------------------|--------------------------------------------------|
+| Android app    | the debug APK                | `android/build/outputs/apk/debug`                |
+| web page       | the page                     | `web/build/dist/js/productionExecutable`         |
+| command line   | the JAR                      | `cli/build/jars`                                 |
+| command line   | the deb, the rpm             | `cli/build/packages/deb`, `…/rpm`                |
+| Compose window | the JARs, Linux's, Windows's | `gui-compose/build/compose/jars`                 |
+| Compose window | the deb, the rpm             | `gui-compose/build/packages/deb`, `…/rpm`        |
+| Compose window | the tar.gz                   | `gui-compose/build/compose/binaries/main/tar`    |
+| Swing window   | the JARs, Linux's, Windows's | `gui-swing/build/jars`                           |
+| Swing window   | the deb, the rpm, the tar.gz | `gui-swing/build/packages/deb`, `…/rpm`, `…/tar` |
+
+The MSIs are not among them, as jpackage builds an installer only on the system it is for:
+[The MSI, built under Wine or on Windows](#the-msi-built-under-wine-or-on-windows) says how.
 
 ## The Android app
 
