@@ -4,14 +4,15 @@
 # puts its folder on the system's PATH.
 #
 # The same MSI as tools/package_msi_on_linux.sh builds through Wine, from the JAR that the window's
-# windowsUberJar task assembles, but with the JDK this runs on: its jlink links the runtime and its
-# jpackage makes the MSI through WiX Toolset 3, whose light.exe validates it (ICE) here. It is
+# windowsUberJar task assembles and the runtime that its windowsRuntime task links, but with the
+# jpackage of the JDK this runs on, which makes the MSI through WiX Toolset 3, whose light.exe
+# validates it (ICE) here. It is
 # written to gui-compose/build/compose/binaries/main/msi/<version>, gui-swing/build/packages/msi/<version> or
 # cli/build/packages/msi/<version>.
 #
 # Needs:
 # - PowerShell 7 (pwsh), which reads this file as UTF-8, as the vendor's name needs.
-# - A JDK 25 as JAVA_HOME, as the tar.gz's runtime is.
+# - A JDK 25 as JAVA_HOME, for its jpackage.
 # - WiX Toolset 3.14's candle.exe and light.exe on the PATH, or its installation's WIX variable.
 #
 # -AppVersion gives the MSI another version than gradle.properties' appVersion, as a
@@ -28,40 +29,40 @@ $root = Split-Path -Parent $PSScriptRoot
 $packaging = Join-Path $root "gui-compose\packaging"
 
 # What each window's MSI is made of, as package_msi_on_linux.sh gives it, which says why the upgrade
-# codes must never change and must differ, and where the modules and the Java option come from. The
-# JAR's name takes the version for {0}.
+# codes must never change and must differ, and where the Java option comes from. The JAR's name
+# takes the version for {0}.
 if ($Window -eq "compose") {
     $name = "dog-vision"
     $module = Join-Path $root "gui-compose"
     $jarTask = ":gui-compose:windowsUberJar"
+    $runtimeTask = ":gui-compose:windowsRuntime"
     $jarFile = "build\compose\jars\dog-vision-windows-x64-{0}.jar"
     $outputDir = Join-Path $module "build\compose\binaries\main\msi"
     $mainClass = "cz.loplex.dogvision.desktop.MainKt"
     $description = "How a dog or another animal sees a photo, a video or the camera"
     $upgradeUuid = "602aa86b-3230-4786-8460-ba08bca42e45"
-    $modules = "java.base,java.desktop,java.logging,jdk.crypto.ec,java.instrument,jdk.unsupported"
     $javaOptions = @("--java-options", "-Dcompose.application.configure.swing.globals=true")
 } elseif ($Window -eq "swing") {
     $name = "dog-vision-swing"
     $module = Join-Path $root "gui-swing"
     $jarTask = ":gui-swing:windowsUberJar"
+    $runtimeTask = ":gui-swing:windowsRuntime"
     $jarFile = "build\jars\dog-vision-swing-windows-x64-{0}.jar"
     $outputDir = Join-Path $module "build\packages\msi"
     $mainClass = "cz.loplex.dogvision.swing.MainKt"
     $description = "How a dog or another animal sees a photo, a video or the camera, in Java Swing"
     $upgradeUuid = "acf6164b-f4f9-4430-b4f0-939242f187fb"
-    $modules = "java.base,java.desktop,java.instrument,jdk.unsupported"
     $javaOptions = @()
 } else {
     $name = "dog-vision-cli"
     $module = Join-Path $root "cli"
     $jarTask = ":cli:uberJar"
+    $runtimeTask = ":cli:windowsRuntime"
     $jarFile = "build\jars\dog-vision-cli.jar"
     $outputDir = Join-Path $module "build\packages\msi"
     $mainClass = "cz.loplex.dogvision.cli.MainKt"
     $description = "How a dog or another animal sees a photo, from the command line"
     $upgradeUuid = "bedc25f5-bde3-4837-86b0-26c5291beed3"
-    $modules = "java.base,java.desktop"
     $javaOptions = @()
 }
 
@@ -85,7 +86,7 @@ if (-not $env:JAVA_HOME) {
 $jdkBin = Join-Path $env:JAVA_HOME "bin"
 
 
-# What jpackage takes in: the JAR and a runtime.
+# What jpackage takes in: the JAR and the runtime, which the module's build\windows\runtime holds.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
@@ -95,8 +96,9 @@ $packageVersion = $Matches[1]
 if (-not $AppVersion) {
     $AppVersion = $packageVersion
 }
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask)
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask, $runtimeTask)
 $jar = Join-Path $module ($jarFile -f $packageVersion)
+$runtime = Join-Path $module "build\windows\runtime"
 
 $staging = Join-Path $module "build\windows-msi\$AppVersion"
 if (Test-Path $staging) {
@@ -107,14 +109,6 @@ if (Test-Path $staging) {
 $inputDir = Join-Path $staging "input"
 New-Item -ItemType Directory -Path $inputDir | Out-Null
 Copy-Item $jar $inputDir
-
-# The options jpackage links a runtime with itself.
-$runtime = Join-Path $staging "runtime"
-Invoke-Checked (Join-Path $jdkBin "jlink.exe") @(
-    "--add-modules", $modules,
-    "--strip-native-commands", "--strip-debug", "--no-man-pages", "--no-header-files",
-    "--output", $runtime
-)
 
 # The resource directory, less its code page file, which jpackage from JDK 25 on hands light.exe
 # after its own English strings, whose code page, 1252, light.exe then takes: in its place, those
