@@ -335,6 +335,9 @@ window's and with `-Window cli` the command line's.
   installs a later version over it and removes that; `-Name dog-vision-swing` tries the Swing
   window's, and `-Name dog-vision-cli` the command line's, whose folder it checks is on the `PATH`
   once and off it after.
+- **The licence dialog shows [`LICENSE`](../LICENSE) line for line**, from the RTF that each
+  module's `windowsLicense` task writes: jpackage's own conversion of a text file runs a
+  paragraph's lines together, which the GPL has broken by hand.
 - **The MSI's code page is Windows-1250**, from
   [`gui-compose/packaging/windows`](../gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl), as the
   vendor's name has a ř that jpackage's Windows-1252 lacks.
