@@ -11,9 +11,12 @@
 # dog-vision-cli.exe, the command line alone, which runs in a console. It is written to
 # gui-compose/build/compose/binaries/main/msi or gui-swing/build/packages/msi.
 #
+# What the MSI is made of, its arguments and its resource directory with jpackage's main.wxs and a
+# fragment of the module's in it, the module's windowsJpackage task writes, which
+# tools/package_msi_on_windows.ps1 hands jpackage on Windows as well; the task says what each holds.
+#
 # The command line's MSI holds dog-vision-cli.exe alone, with no shortcut, and puts its folder on the
-# system's PATH: jpackage's main.wxs, from the JDK's own jpackage, takes the fragment in
-# cli/packaging/msi-path.xml, which says what it does. It is written to cli/build/packages/msi.
+# system's PATH, as cli/packaging/msi-path.xml says. It is written to cli/build/packages/msi.
 #
 # Three steps go round Wine 11.18, where they fail:
 # - Wine's TransmitFile, handed a file where Windows expects a socket, fails with another error than
@@ -32,10 +35,10 @@
 # - Wine, and a prefix with .NET Framework 4.8: WINEPREFIX's, or without it dot_net_msi_builder
 #   among winetricks' named prefixes, in WINE_PREFIXES or ~/.local/share/wineprefixes, which
 #   tools/make_wine_prefix_on_linux.sh makes.
-# - The locale cs_CZ.UTF-8, which Wine runs in: JDK 17's jpackage reads its arguments in Windows's
-#   ANSI code page, which Wine takes from the locale, and the vendor's ř is in Windows-1250, a Czech
-#   locale's, not in Windows-1252, an English locale's or C's, where it becomes "?" and jpackage
-#   fails on it.
+# - The locale cs_CZ.UTF-8, which Wine runs in: JDK 17's jpackage hands the vendor's name to WiX's
+#   candle.exe on its command line, which Windows passes in its ANSI code page, which Wine takes from
+#   the locale, and the vendor's ř is in Windows-1250, a Czech locale's, not in Windows-1252, an
+#   English locale's or C's, where it becomes another letter in the MSI.
 # - --jdk: a Windows JDK 17, unpacked, for its bin/jpackage.exe, which package_app_image_on_linux.sh
 #   is given as well.
 # - --wix: WiX Toolset 3.14's binaries, unpacked, the directory holding candle.exe and light.exe
@@ -53,8 +56,6 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# The icon, the code page's file and the windows' fragment of main.wxs, which the MSIs take.
-packaging="$root/gui-compose/packaging"
 
 # Says why on the standard error and exits, with 1 or the status given.
 die() {
@@ -113,54 +114,17 @@ jdk="${jdk:-$tools/jdk17}"
 wix="${wix:-$tools/wix}"
 export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/dot_net_msi_builder}"
 
-# What each window's MSI is made of: its name is its files' and its folder's, and its product,
-# which the installer, the system's list of programs and the Start menu's group show, is the app's
-# name with the suffix after it. Every later version's MSI replaces the one installed with the same
-# upgrade code, as Windows Installer tells versions of one product apart by it: never change
-# either, nor give both windows one, as installing the one would then remove the other. Each
-# adds a fragment to main.wxs, its component group, which says what it does: a window's removes the
-# folder ffmpeg is downloaded into, with a component GUID of the window's own that never changes
-# either; the command line's puts its folder on the PATH.
+# Each window's module, whose build script says what its MSI is made of, the MSI's name, and where
+# it is written.
 case "$window" in
-    compose)
-        name="dog-vision"
-        suffix=""
-        module="gui-compose"
-        output="$root/gui-compose/build/compose/binaries/main/msi"
-        description="How a dog or another animal sees a photo, a video or the camera"
-        upgrade_uuid="602aa86b-3230-4786-8460-ba08bca42e45"
-        fragment="$packaging/msi-data.xml"
-        component_group="DogVisionData"
-        data_guid="40251de4-ef0f-4dc1-983b-ad8bc49cb1c5"
-        ;;
-    swing)
-        name="dog-vision-swing"
-        suffix=" (Swing)"
-        module="gui-swing"
-        output="$root/gui-swing/build/packages/msi"
-        description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
-        upgrade_uuid="acf6164b-f4f9-4430-b4f0-939242f187fb"
-        fragment="$packaging/msi-data.xml"
-        component_group="DogVisionData"
-        data_guid="06dcc47f-bd8f-4e38-8aec-7f26ed952950"
-        ;;
-    cli)
-        name="dog-vision-cli"
-        suffix=" (command line)"
-        module="cli"
-        output="$root/cli/build/packages/msi"
-        description="How a dog or another animal sees a photo, from the command line"
-        upgrade_uuid="bedc25f5-bde3-4837-86b0-26c5291beed3"
-        fragment="$root/cli/packaging/msi-path.xml"
-        component_group="DogVisionCliPath"
-        data_guid=""
-        ;;
-    *) usage ;;
+    compose) module="gui-compose" name="dog-vision"       output="$root/gui-compose/build/compose/binaries/main/msi" ;;
+      swing) module="gui-swing"   name="dog-vision-swing" output="$root/gui-swing/build/packages/msi" ;;
+        cli) module="cli"     name="dog-vision-cli"   output="$root/cli/build/packages/msi" ;;
+          *) usage ;;
 esac
 
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
-require "jimage" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
 if (( ${#missing[@]} > 0 )); then
     die "$(printf '%s\n' "Missing commands:" "${missing[@]/#/  }")"
 fi
@@ -177,24 +141,19 @@ wix="$(realpath "$wix")"
     die "$WINEPREFIX is no Wine prefix: tools/make_wine_prefix_on_linux.sh makes it" 2
 
 
-# What jpackage takes in: the app image, and the licence and the dialogs' bitmaps that the module's
-# build/windows holds.
+# What jpackage takes in: the app image, and the arguments and the resource directory that the
+# module's windowsJpackage task wrote for it, as package_app_image_on_linux.sh ran it.
 
 # The app's version, as gradle.properties gives it to the Linux packages, unless --app-version gives
 # another. The pattern stays unquoted after =~, where quotes would make it a plain string.
 version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
 version="${app_version:-${BASH_REMATCH[2]}}"
-# The app's name in English, as the window's title and the Linux packages' menu entries have it.
-name_pattern='<string name="app_name">([^<]+)</string>'
-[[ "$(<"$root/texts/strings/values/strings.xml")" =~ $name_pattern ]] ||
-    die "texts/strings/values/strings.xml has no app_name"
-app_name="${BASH_REMATCH[1]}"
-product="$app_name$suffix"
 image_options=(--jdk "$jdk" --window "$window")
 [[ -z "$app_version" ]] || image_options+=(--app-version "$app_version")
 image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
-"$root/gradlew" --quiet ":$module:windowsLicense" ":$module:windowsBitmaps"
+arguments="$root/$module/build/windows/jpackage"
+resources="$arguments/resources"
 
 staging="$root/$module/build/windows-msi"
 rm -rf "${staging:?}"
@@ -204,48 +163,10 @@ mkdir -p "$output"
 msi="$output/$name-$version.msi"
 rm -f "$msi"
 
-# The resource directory holds MsiInstallerCodepage_en.wxl, for the code page the vendor's name
-# needs, and the main.wxs of the JDK's jpackage with the product's name and WiX's dialog bitmaps
-# set to the module's and its fragment in it. The build fails where that main.wxs has not exactly
-# one product's name, one </Product>, one reference to Files and one </Wix>.
-resources="$staging/resources"
-cp -r "$packaging/windows" "$resources"
-jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal/resources/main\.wxs" \
-    "$(realpath "$jdk")/lib/modules"
-main_wxs="$(find "$staging/jimage" -name main.wxs)"
-[[ -f "$main_wxs" ]] || die "$jdk's jpackage has no main.wxs"
-files_reference='<ComponentGroupRef Id="Files"/>'
-product_name="Name=\"\$(var.JpAppName)\""
-anchors=("$product_name" "</Product>" "$files_reference" "</Wix>")
-for anchor in "${anchors[@]}"; do
-    (( $(grep -c -F "$anchor" "$main_wxs") == 1 )) || die "$jdk's main.wxs has not one $anchor"
-done
-text="$(<"$main_wxs")"
-text="${text/"$product_name"/"Name=\"$product\""}"
-bitmaps="<WixVariable Id=\"WixUIBannerBmp\" Value=\"$(windows_path "$root/$module/build/windows/banner.bmp")\"/>
-  <WixVariable Id=\"WixUIDialogBmp\" Value=\"$(windows_path "$root/$module/build/windows/dialog.bmp")\"/>"
-text="${text/"</Product>"/"$bitmaps"$'\n  </Product>'}"
-reference="<ComponentGroupRef Id=\"$component_group\"/>"
-text="${text/"$files_reference"/"$files_reference"$'\n      '"$reference"}"
-fragment_text="$(<"$fragment")"
-fragment_text="${fragment_text//@APP_NAME@/$app_name}"
-fragment_text="${fragment_text//@NAME@/$name}"
-fragment_text="${fragment_text//@GUID@/$data_guid}"
-text="${text/"</Wix>"/"$fragment_text"$'\n</Wix>'}"
-printf '%s\n' "$text" >"$resources/main.wxs"
-
-# Each window's launcher has a shortcut in the Start menu, in a group of the product's name rather
-# than jpackage's "Unknown", and on the desktop; dog-vision-cli.exe beside it asks for none, which
-# JDK 17's jpackage gives it all the same. The command line's MSI asks for no shortcut at all, as
-# dog-vision-cli.exe started from one only prints its usage.
-if [[ "$window" == cli ]]; then
-    shortcut_options=()
-else
-    shortcut_options=(--win-menu --win-menu-group "$product" --win-shortcut)
-fi
 
 
-# jpackage.
+# jpackage, which reads the files of arguments as UTF-8, as windowsJpackage writes them, only when
+# told to: JDK 17's default charset is the system's.
 
 # jpackage finds WiX on the PATH, which Wine takes from WINEPATH.
 WINEPATH="$(windows_path "$wix")"
@@ -255,18 +176,11 @@ export LC_ALL="cs_CZ.UTF-8"
 temp="$staging/temp"
 
 if log="$(wine "$jpackage" \
+    -J-Dfile.encoding=UTF-8 \
+    "@$(windows_path "$arguments/package-arguments")" \
+    "@$(windows_path "$arguments/msi-arguments")" \
     --type "msi" \
-    --name "$name" \
-    --app-version "$version" \
-    --vendor "Martin Lopatář" \
-    --description "$description" \
-    --license-file "$(windows_path "$root/$module/build/windows/LICENSE.rtf")" \
-    --icon "$(windows_path "$packaging/dog-vision.ico")" \
     --app-image "$(windows_path "$image")" \
-    "${shortcut_options[@]}" \
-    --resource-dir "$(windows_path "$resources")" \
-    --win-dir-chooser \
-    --win-upgrade-uuid "$upgrade_uuid" \
     --temp "$(windows_path "$temp")" \
     --dest "$(windows_path "$output")" 2>&1)"; then
     status=0
