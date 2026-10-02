@@ -157,7 +157,14 @@ private fun Screen(session: LiveSession<ImageBitmap>, state: LiveSession.State, 
         }
     }
     Row(Modifier.dragAndDropTarget(shouldStartDragAndDrop = { droppedFiles(it).isNotEmpty() }, target = drop)) {
-        Preview(picture, state, Modifier.weight(1f).fillMaxHeight(), session::setArea, session::installFfmpeg)
+        Preview(
+            picture,
+            state,
+            Modifier.weight(1f).fillMaxHeight(),
+            session::setArea,
+            session::downloadFfmpeg,
+            session::installFfmpeg,
+        )
         PanelToggle(state.panelShown, session::togglePanel)
         if (state.panelShown) {
             Column(Modifier.width(380.dp).fillMaxHeight()) {
@@ -207,7 +214,8 @@ private fun droppedFiles(event: DragAndDropEvent): List<File> =
 
 /**
  * The images laid out as [picture] has them, with their captions, or why there are none, and where [state] offers it
- * an offer to install ffmpeg, which [onInstallFfmpeg] starts.
+ * an offer to download ffmpeg, which [onDownloadFfmpeg] starts, or to install it through winget, which
+ * [onInstallFfmpeg] starts.
  */
 @Composable
 private fun Preview(
@@ -215,6 +223,7 @@ private fun Preview(
     state: LiveSession.State,
     modifier: Modifier,
     onArea: (Area) -> Unit,
+    onDownloadFfmpeg: () -> Unit,
     onInstallFfmpeg: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -230,7 +239,7 @@ private fun Preview(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(failure.words(texts), textAlign = TextAlign.Center)
-                if (state.offersFfmpeg) FfmpegOffer(state, onInstallFfmpeg)
+                if (state.offersFfmpeg) FfmpegOffer(state, onDownloadFfmpeg, onInstallFfmpeg)
             }
             return@Box
         }
@@ -254,14 +263,23 @@ private fun Preview(
 }
 
 /**
- * A button that installs ffmpeg through winget, which [onInstall] starts, and what came of it, as [state] has it; where
- * winget is missing, that names ffmpeg's download page as a link.
+ * A button that downloads ffmpeg, which [onDownload] starts, beside one that installs it through winget, which
+ * [onInstall] starts, where [state] offers winget, and what came of either, as [state] has it; where winget is missing,
+ * that names ffmpeg's download page as a link.
  */
 @Composable
-private fun FfmpegOffer(state: LiveSession.State, onInstall: () -> Unit) {
+private fun FfmpegOffer(state: LiveSession.State, onDownload: () -> Unit, onInstall: () -> Unit) {
     val texts = LocalTexts.current
-    OutlinedButton(enabled = !state.installingFfmpeg, onClick = onInstall) {
-        Text(texts.get(if (state.installingFfmpeg) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(enabled = !state.gettingFfmpeg, onClick = onDownload) {
+            val percent = state.downloadingFfmpeg
+            Text(if (percent == null) texts.get(Str.DOWNLOAD_FFMPEG) else texts.get(Str.DOWNLOADING_FFMPEG, percent))
+        }
+        if (state.offersWinget) {
+            OutlinedButton(enabled = !state.gettingFfmpeg, onClick = onInstall) {
+                Text(texts.get(if (state.installingFfmpeg) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG))
+            }
+        }
     }
     state.ffmpegFailure?.let { Text(linkedWords(it, texts), textAlign = TextAlign.Center) }
 }

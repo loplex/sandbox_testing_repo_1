@@ -29,8 +29,9 @@ $root = Split-Path -Parent $PSScriptRoot
 $packaging = Join-Path $root "gui-compose\packaging"
 
 # What each window's MSI is made of, as package_msi_on_linux.sh gives it, which says why the upgrade
-# codes must never change and must differ, what the product's name is shown as, and where the Java
-# option comes from. The JAR's name takes the version for {0}.
+# codes and the windows' component GUIDs must never change and must differ, what the product's name
+# is shown as, what each fragment of main.wxs does, and where the Java option comes from. The JAR's
+# name takes the version for {0}.
 if ($Window -eq "compose") {
     $name = "dog-vision"
     $suffix = ""
@@ -44,6 +45,9 @@ if ($Window -eq "compose") {
     $mainClass = "cz.loplex.dogvision.desktop.MainKt"
     $description = "How a dog or another animal sees a photo, a video or the camera"
     $upgradeUuid = "602aa86b-3230-4786-8460-ba08bca42e45"
+    $fragmentFile = Join-Path $packaging "msi-data.xml"
+    $componentGroup = "DogVisionData"
+    $dataGuid = "40251de4-ef0f-4dc1-983b-ad8bc49cb1c5"
     $javaOptions = @("--java-options", "-Dcompose.application.configure.swing.globals=true")
 } elseif ($Window -eq "swing") {
     $name = "dog-vision-swing"
@@ -58,6 +62,9 @@ if ($Window -eq "compose") {
     $mainClass = "cz.loplex.dogvision.swing.MainKt"
     $description = "How a dog or another animal sees a photo, a video or the camera, in Java Swing"
     $upgradeUuid = "acf6164b-f4f9-4430-b4f0-939242f187fb"
+    $fragmentFile = Join-Path $packaging "msi-data.xml"
+    $componentGroup = "DogVisionData"
+    $dataGuid = "06dcc47f-bd8f-4e38-8aec-7f26ed952950"
     $javaOptions = @()
 } else {
     $name = "dog-vision-cli"
@@ -72,6 +79,9 @@ if ($Window -eq "compose") {
     $mainClass = "cz.loplex.dogvision.cli.MainKt"
     $description = "How a dog or another animal sees a photo, from the command line"
     $upgradeUuid = "bedc25f5-bde3-4837-86b0-26c5291beed3"
+    $fragmentFile = Join-Path $root "cli\packaging\msi-path.xml"
+    $componentGroup = "DogVisionCliPath"
+    $dataGuid = ""
     $javaOptions = @()
 }
 
@@ -108,7 +118,8 @@ $strings = Get-Content (Join-Path $root "texts\strings\values\strings.xml") -Raw
 if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
     throw "texts\strings\values\strings.xml has no app_name"
 }
-$product = $Matches[1] + $suffix
+$appName = $Matches[1]
+$product = $appName + $suffix
 if (-not $AppVersion) {
     $AppVersion = $packageVersion
 }
@@ -149,8 +160,8 @@ if ($text -notmatch 'Codepage="1252"') {
 $text = $text -replace 'Codepage="1252"', 'Codepage="1250"'
 [System.IO.File]::WriteAllText((Join-Path $resources "MsiInstallerStrings_en.wxl"), $text)
 
-# This JDK's main.wxs with the product's name and WiX's dialog bitmaps set to the module's, and for
-# the command line msi-path.xml in it as well, as package_msi_on_linux.sh puts them there.
+# This JDK's main.wxs with the product's name and WiX's dialog bitmaps set to the module's, and its
+# fragment in it, as package_msi_on_linux.sh puts them there.
 Invoke-Checked (Join-Path $jdkBin "jimage.exe") @(
     "extract", "--dir", $extracted, "--include", "regex:.*/jdk/jpackage/internal/resources/main\.wxs",
     (Join-Path $env:JAVA_HOME "lib\modules")
@@ -162,10 +173,7 @@ if (-not $mainWxs) {
 $text = [System.IO.File]::ReadAllText($mainWxs.FullName)
 $filesReference = '<ComponentGroupRef Id="Files"/>'
 $productName = 'Name="$(var.JpAppName)"'
-$anchors = @($productName, "</Product>")
-if ($Window -eq "cli") {
-    $anchors += @($filesReference, "</Wix>")
-}
+$anchors = @($productName, "</Product>", $filesReference, "</Wix>")
 foreach ($anchor in $anchors) {
     if (([regex]::Matches($text, [regex]::Escape($anchor))).Count -ne 1) {
         throw "This JDK's main.wxs has not one $anchor"
@@ -177,11 +185,10 @@ $bitmaps = "<WixVariable Id=`"WixUIBannerBmp`" Value=`"$banner`"/>`n" +
     "  <WixVariable Id=`"WixUIDialogBmp`" Value=`"$dialog`"/>`n  </Product>"
 $text = $text.Replace("</Product>", $bitmaps)
 $text = $text.Replace($productName, "Name=`"$product`"")
-if ($Window -eq "cli") {
-    $fragment = [System.IO.File]::ReadAllText((Join-Path $module "packaging\msi-path.xml"))
-    $text = $text.Replace($filesReference, "$filesReference`n      <ComponentGroupRef Id=`"DogVisionCliPath`"/>")
-    $text = $text.Replace("</Wix>", "$fragment</Wix>")
-}
+$fragment = [System.IO.File]::ReadAllText($fragmentFile)
+$fragment = $fragment.Replace("@APP_NAME@", $appName).Replace("@NAME@", $name).Replace("@GUID@", $dataGuid)
+$text = $text.Replace($filesReference, "$filesReference`n      <ComponentGroupRef Id=`"$componentGroup`"/>")
+$text = $text.Replace("</Wix>", "$fragment</Wix>")
 [System.IO.File]::WriteAllText((Join-Path $resources "main.wxs"), $text)
 
 # Each window's launcher has a shortcut in the Start menu, in a group of the package's name, and on
