@@ -1,9 +1,8 @@
 # The MSI that tools/package_msi_on_linux.sh builds under Wine, in two versions, validated and
 # installed on Windows: WiX 3.14's smoke.exe fails under Wine (SMOK0216, Win32 error 0x65B), so only
 # Windows can validate it. The command line's zip that tools/package_cli_zip_on_linux.sh builds
-# under Wine, run on Windows. It installs Wine and .NET Framework 4.8 each time and depends on
-# WineHQ's packages and winetricks, so it runs when started by hand, not on every push as ci.yml
-# does.
+# under Wine, run on Windows. It installs Wine and makes its prefix each time and depends on
+# WineHQ's packages, so it runs when started by hand, not on every push as ci.yml does.
 name: MSI built under Wine
 
 on:
@@ -32,26 +31,25 @@ jobs:
           java-version: 25
       - uses: gradle/actions/setup-gradle@v5
       # Ubuntu 24.04's own Wine is 9.0; the script was made with WineHQ's 11.18 Staging.
-      - name: Install WineHQ's Wine Staging and winetricks
+      - name: Install WineHQ's Wine Staging
         run: |
           sudo dpkg --add-architecture i386
           sudo mkdir -pm755 /etc/apt/keyrings
           sudo wget -q -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
           sudo wget -q -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --install-recommends winehq-staging xvfb cabextract
+          sudo apt-get install -y -qq --install-recommends winehq-staging xvfb
           # The locale package_msi_on_linux.sh runs Wine in, for the vendor's ř.
           sudo locale-gen cs_CZ.UTF-8
           wine --version
-          sudo wget -q -O /usr/local/bin/winetricks https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-          sudo chmod +x /usr/local/bin/winetricks
       - name: Start the virtual display
         run: Xvfb :99 -screen 0 1280x1024x24 &
-      # The Windows JDK 17 and WiX 3.14, into tools/cache; Gradle downloads the runtime's jmods.
-      - name: Download the Windows JDK 17 and WiX 3.14
+      # The Windows JDK 17, WiX 3.14 and Wine Mono, into tools/cache; Gradle downloads the runtime's
+      # jmods.
+      - name: Download the Windows JDK 17, WiX 3.14 and Wine Mono
         run: tools/fetch_msi_tools_on_linux.sh
-      - name: Put .NET Framework 4.8 into the prefix
-        timeout-minutes: 40
+      - name: Make the Wine prefix, with Wine Mono
+        timeout-minutes: 15
         run: tools/make_wine_prefix_on_linux.sh
       - name: Build the MSIs
         run: |

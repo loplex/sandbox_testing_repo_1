@@ -4,11 +4,13 @@
 # - jdk17: a Windows JDK 17, Temurin's latest at the time, for its jpackage.exe, which
 #   tools/package_app_image_on_linux.sh runs.
 # - wix: WiX Toolset 3.14's binaries.
+# - wine-mono-11.3.0-x86.msi: Wine Mono, which tools/make_wine_prefix_on_linux.sh installs into the
+#   Wine prefix, for candle.exe and light.exe to run on: the release that Wine 11.18 asks for.
 #
 # The tools directory is tools/cache, which git ignores, unless --tools names another.
 # What is in it already stays, so a second run downloads nothing.
-# Each download is unpacked beside its place first and renamed into it once whole, so that one
-# stopped halfway is downloaded again on the next run.
+# Each download is unpacked or written beside its place first and renamed into it once whole, so
+# that one stopped halfway is downloaded again on the next run.
 #
 # The runtime is no download of this script's: the windowsRuntime tasks of :packaging and :cli link
 # it, from Temurin's jmods for Windows, which Gradle downloads.
@@ -75,6 +77,24 @@ fetch() {
     download=""
 }
 
+# Downloads the file at the URL into the tools directory under the name, unless that is there
+# already.
+fetch_file() {
+    local name="$1" url="$2"
+    local target="$tools/$name"
+    if [[ -f "$target" ]]; then
+        echo "$target is there"
+        return
+    fi
+    echo "Downloading $name from $url"
+    download="$(mktemp -d "$tools/.download-XXXXXX")"
+    curl -sSfL -o "$download/$name" "$url"
+    mv "$download/$name" "$target"
+    rm -rf "$download"
+    download=""
+}
+
 fetch "jdk17" "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse"
 fetch "wix" "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip"
+fetch_file "wine-mono-11.3.0-x86.msi" "https://dl.winehq.org/wine/wine-mono/11.3.0/wine-mono-11.3.0-x86.msi"
 

@@ -303,7 +303,7 @@ in [`.editorconfig`](../.editorconfig):
   tried by `test_cli_zip_on_windows.ps1`; the zip is the run's artifact.
 
 [`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs when started
-by hand, as it installs Wine and .NET Framework 4.8 each time: the MSI that
+by hand, as it installs Wine and makes its prefix each time: the MSI that
 `package_msi_on_linux.sh` builds under Wine, in two versions, validated by `smoke.exe` and tried by
 `test_msi_on_windows.ps1` on Windows Server 2022, and the command line's zip that
 `package_cli_zip_on_linux.sh` builds under Wine, tried by `test_cli_zip_on_windows.ps1` there.
