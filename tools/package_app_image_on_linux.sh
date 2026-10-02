@@ -27,7 +27,7 @@
 # gradle/libs.versions.toml.
 #
 # Needs:
-# - Wine. Its prefix is WINEPREFIX's, or without it dot_net_msi_builder among winetricks' named
+# - Wine. Its prefix is WINEPREFIX's, or without it mono_msi_builder among winetricks' named
 #   prefixes where that is there, which tools/make_wine_prefix_on_linux.sh makes for the MSIs, and
 #   else Wine's own.
 # - The locale cs_CZ.UTF-8.
@@ -94,7 +94,7 @@ if [[ -z "$name" ]]; then
 fi
 
 jdk="${jdk:-$tools/jdk17}"
-msi_prefix="${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/dot_net_msi_builder"
+msi_prefix="${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/mono_msi_builder"
 if [[ -z "${WINEPREFIX:-}" && -f "$msi_prefix/drive_c/windows/system32/kernel32.dll" ]]; then
     export WINEPREFIX="$msi_prefix"
 fi

@@ -162,7 +162,7 @@ pwsh tools/package_cli_zip_on_windows.ps1
 tools/fetch_msi_tools_on_linux.sh
                                      # once: what the MSI is built with, into tools/cache
 tools/make_wine_prefix_on_linux.sh
-                                     # once: its Wine prefix, ~/.local/share/wineprefixes/dot_net_msi_builder
+                                     # once: its Wine prefix, ~/.local/share/wineprefixes/mono_msi_builder
 tools/package_app_image_on_linux.sh
                                      # the folders the MSI and the zip hold: tools/build/app-image/dog-vision, …
 tools/package_msi_on_linux.sh        # tools/build/msi/dog-vision-0.1.0.msi
@@ -177,7 +177,7 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 | deb     | `dpkg-deb`                                 | dpkg              | `packageDeb`                                     |
 | deb     | `readelf`                                  | binutils          | `debDepends`                                     |
 | rpm     | `rpmbuild` 4.13 or later, `rpm`, `elfdeps` | rpm               | `rpmLibraryRequires`, `packageRpm`               |
-| MSI     | Wine, a Windows JDK 17, WiX 3.14           | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
+| MSI     | Wine, a Windows JDK 17, WiX 3.14           | wine              | `tools/package_msi_on_linux.sh`, which says more |
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
   so that build needs the network: jpackage runs from it, and it is the tar.gzs' runtime.
@@ -314,10 +314,10 @@ both.
 - **Under Wine, [`tools/package_msi_on_linux.sh`](../tools/package_msi_on_linux.sh) builds it**,
   with the detours round Wine that it and `package_app_image_on_linux.sh` describe.
   [`tools/fetch_msi_tools_on_linux.sh`](../tools/fetch_msi_tools_on_linux.sh) downloads what it
-  builds with, once: a Windows JDK 17 and WiX 3.14, into `tools/cache`.
+  builds with, once: a Windows JDK 17, WiX 3.14 and Wine Mono, into `tools/cache`.
   [`tools/make_wine_prefix_on_linux.sh`](../tools/make_wine_prefix_on_linux.sh) makes the Wine
-  prefix it builds in, with .NET Framework 4.8, in a few minutes: `dot_net_msi_builder` among
-  winetricks' named prefixes, in `~/.local/share/wineprefixes`.
+  prefix it builds in, with Wine Mono, on which WiX runs, in a few minutes: `mono_msi_builder`
+  among winetricks' named prefixes, in `~/.local/share/wineprefixes`.
   Wine cannot validate it, so the workflow
   [`msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml), started by hand, builds it on
   Linux and validates, installs, upgrades and removes it on Windows.
