@@ -20,7 +20,7 @@ import java.io.OutputStream
 import java.time.LocalDateTime
 
 /** The folder under Pictures and Movies that what the app saves goes to. */
-const val APP_FOLDER = "Dog vision"
+const val APP_FOLDER = "Dog Vision"
 
 /** Where the gallery keeps what the app saves: snapshots and photos in Pictures, videos in Movies. */
 enum class Gallery(val mimeType: String, val directory: String, val collection: Uri) {
@@ -28,7 +28,7 @@ enum class Gallery(val mimeType: String, val directory: String, val collection: 
     VIDEOS("video/mp4", Environment.DIRECTORY_MOVIES, MediaStore.Video.Media.EXTERNAL_CONTENT_URI),
     ;
 
-    /** The folder as the user finds it, such as Pictures/Dog vision. */
+    /** The folder as the user finds it, such as Pictures/Dog Vision. */
     val folder: String get() = "$directory/$APP_FOLDER"
 }
 
