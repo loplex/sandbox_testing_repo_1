@@ -169,6 +169,9 @@
     <!-- What only the desktop window says -->
     <string name="draw_failed">Cannot draw the view: %1$s</string>
     <string name="ffmpeg_missing">Videos and the camera need %1$s, which comes with ffmpeg and cannot be run here. Install ffmpeg so that it is on the PATH.</string>
+    <string name="download_ffmpeg">Download ffmpeg</string>
+    <string name="downloading_ffmpeg">Downloading ffmpeg… %1$s%%</string>
+    <string name="ffmpeg_not_downloaded">ffmpeg was not downloaded: %1$s</string>
     <string name="install_ffmpeg">Install ffmpeg through winget</string>
     <string name="installing_ffmpeg">winget is installing ffmpeg…</string>
     <string name="ffmpeg_not_installed">winget did not install ffmpeg: %1$s</string>
