@@ -270,4 +270,4 @@ The sections below hold for both windows.
   as Gyan's build (`winget install --id Gyan.FFmpeg`) for this user alone.
 - **It shows the video or the camera once ffmpeg is found**, without starting again.
 - **Where winget is missing**, as on a Windows without Microsoft's App Installer,
-  the window opens ffmpeg's download page in the browser and names it.
+  the window names ffmpeg's download page as a link, which opens in the browser when it is clicked.

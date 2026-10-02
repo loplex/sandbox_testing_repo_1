@@ -6,13 +6,17 @@ import java.awt.BasicStroke
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.LayoutManager
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.Toolkit
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
@@ -53,7 +57,9 @@ internal open class Column : Row() {
  * and a piece wider than the line on lines of its own,
  * broken at its spaces, and inside a word wider than the line, as the Compose controls and the web page break one;
  * its lines [centred] or from the left, and at most [maxWidth] wide.\
- * Its height follows the width it is given.
+ * Its height follows the width it is given.\
+ * A piece that is [link] is drawn as a link, on each line it is broken across,
+ * and [onLink] is given it when it is clicked.
  */
 internal class WrappedText(private val centred: Boolean = false) : JComponent() {
     var pieces: List<String> = emptyList()
@@ -64,6 +70,15 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
             repaint()
         }
 
+    var link: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            repaint()
+        }
+
+    var onLink: (String) -> Unit = {}
+
     var maxWidth = Int.MAX_VALUE
         set(value) {
             if (field == value) return
@@ -73,6 +88,19 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
 
     init {
         lookAsLabel()
+        val mouse = object : MouseAdapter() {
+            override fun mouseClicked(event: MouseEvent) {
+                val link = link ?: return
+                if (linkAreas().any { it.contains(event.point) }) onLink(link)
+            }
+
+            override fun mouseMoved(event: MouseEvent) {
+                val overLink = linkAreas().any { it.contains(event.point) }
+                cursor = Cursor.getPredefinedCursor(if (overLink) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR)
+            }
+        }
+        addMouseListener(mouse)
+        addMouseMotionListener(mouse)
     }
 
     override fun updateUI() {
@@ -93,8 +121,10 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
      * and one wider than [width] on lines of its own, broken at its spaces, with what follows it on the next line;
      * a word wider than [width] is broken between its characters.
      */
-    internal fun lines(width: Int): List<String> {
-        val lines = WrappedLines(width, getFontMetrics(font)::stringWidth)
+    internal fun lines(width: Int): List<String> = laidOut(width).map { it.text }
+
+    private fun laidOut(width: Int): List<WrappedLine> {
+        val lines = WrappedLines(width, link, getFontMetrics(font)::stringWidth)
         pieces.forEach(lines::addPiece)
         return lines.finish()
     }
@@ -123,17 +153,47 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
         if (lines(textWidth()).size != before) SwingUtilities.invokeLater(::revalidate)
     }
 
+    /** Where [line] starts, on the left. */
+    private fun lineX(line: String): Int {
+        val inner = width - insets.left - insets.right
+        return insets.left + if (centred) (inner - getFontMetrics(font).stringWidth(line)) / 2 else 0
+    }
+
+    /** Where [link] is drawn, a part on each line it is broken across, or nothing where it is none of the pieces. */
+    private fun linkAreas(): List<Rectangle> {
+        val metrics = getFontMetrics(font)
+        return laidOut(textWidth()).mapIndexedNotNull { i, line ->
+            val link = line.link ?: return@mapIndexedNotNull null
+            val x = lineX(line.text) + metrics.stringWidth(line.text.substring(0, link.first))
+            val width = metrics.stringWidth(line.text.substring(link))
+            Rectangle(x, insets.top + i * metrics.height, width, metrics.height)
+        }
+    }
+
     override fun paintComponent(g: Graphics) {
         val g2 = g.create() as Graphics2D
         try {
             antialiased(g2)
             g2.font = font
-            g2.color = if (isEnabled) foreground else UIManager.getColor("Label.disabledForeground")
+            val text = if (isEnabled) foreground else UIManager.getColor("Label.disabledForeground")
             val metrics = g2.fontMetrics
-            val inner = width - insets.left - insets.right
-            lines(textWidth()).forEachIndexed { i, line ->
-                val x = insets.left + if (centred) (inner - metrics.stringWidth(line)) / 2 else 0
-                g2.drawString(line, x, insets.top + i * metrics.height + metrics.ascent)
+            laidOut(textWidth()).forEachIndexed { i, line ->
+                val x = lineX(line.text)
+                val y = insets.top + i * metrics.height + metrics.ascent
+                g2.color = text
+                val range = line.link
+                if (range == null) {
+                    g2.drawString(line.text, x, y)
+                    return@forEachIndexed
+                }
+                val link = line.text.substring(range)
+                val before = line.text.substring(0, range.first)
+                val linkX = x + metrics.stringWidth(before)
+                g2.drawString(before, x, y)
+                g2.drawString(line.text.substring(range.last + 1), linkX + metrics.stringWidth(link), y)
+                g2.color = UIManager.getColor("Component.linkColor") ?: text
+                g2.drawString(link, linkX, y)
+                g2.fillRect(linkX, y + 1, metrics.stringWidth(link), max(1, UIScale.scale(1)))
             }
         } finally {
             g2.dispose()
@@ -265,12 +325,19 @@ internal fun antialiased(g: Graphics2D) {
     if (lookAndFeel != null) g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, lookAndFeel)
 }
 
-/** The lines of a [WrappedText] as its pieces fill them, in [width] as [measure] measures a text. */
-private class WrappedLines(private val width: Int, private val measure: (String) -> Int) {
+/** A line's [text], and where in it the link, or the part of it on this line, is drawn, if anywhere. */
+private class WrappedLine(val text: String, val link: IntRange?)
+
+/**
+ * The lines of a [WrappedText] as its pieces fill them, in [width] as [measure] measures a text;
+ * [link] is the word drawn as a link, if any.
+ */
+private class WrappedLines(private val width: Int, private val link: String?, private val measure: (String) -> Int) {
     private val space = measure(" ")
-    private val lines = mutableListOf<String>()
+    private val lines = mutableListOf<WrappedLine>()
     private val line = StringBuilder()
     private var lineWidth = 0
+    private var lineLink: IntRange? = null
 
     /** Adds [piece], whole where it fits on a line, and otherwise on lines of its own, broken at its spaces. */
     fun addPiece(piece: String) {
@@ -282,7 +349,7 @@ private class WrappedLines(private val width: Int, private val measure: (String)
     }
 
     /** The lines, the last one ended. */
-    fun finish(): List<String> {
+    fun finish(): List<WrappedLine> {
         breakLine()
         return lines
     }
@@ -294,26 +361,39 @@ private class WrappedLines(private val width: Int, private val measure: (String)
         breakLine()
         val parts = parts(word)
         parts.forEachIndexed { i, part ->
-            add(part, measure(part))
+            add(part, measure(part), ofLink = word == link)
             if (i < parts.lastIndex) breakLine()
         }
     }
 
-    private fun add(text: String, textWidth: Int) {
+    private fun add(text: String, textWidth: Int, ofLink: Boolean = false) {
         if (line.isNotEmpty() && lineWidth + space + textWidth > width) breakLine()
         if (line.isNotEmpty()) {
             line.append(' ')
             lineWidth += space
         }
+        val start = line.length
         line.append(text)
         lineWidth += textWidth
+        val range = if (ofLink) text.indices else linkIn(text)
+        if (lineLink == null && range != null) lineLink = start + range.first..start + range.last
     }
 
     private fun breakLine() {
         if (line.isEmpty()) return
-        lines += line.toString()
+        lines += WrappedLine(line.toString(), lineLink)
         line.clear()
         lineWidth = 0
+        lineLink = null
+    }
+
+    /** Where in [text] [link] stands as a word of its own, or null where it is none of its words. */
+    private fun linkIn(text: String): IntRange? {
+        val link = link ?: return null
+        val at = text.indexOf(link)
+        val end = at + link.length
+        val whole = at >= 0 && (at == 0 || text[at - 1] == ' ') && (end == text.length || text[end] == ' ')
+        return if (whole) at until end else null
     }
 
     /** [word] in parts each at most [width] wide, broken between its characters; a character wider stays whole. */
