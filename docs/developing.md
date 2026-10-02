@@ -231,7 +231,8 @@ graph TD
 ## Checking it
 
 `./gradlew check` runs every test task below that needs no phone, Android Lint, the Kotlin style,
-and the check of [the modules' graphs](#which-module-uses-which).
+the check of [the modules' graphs](#which-module-uses-which), and that of
+[the artifacts' folders](building.md#every-artifact-at-once).
 The test classes' comments say what each of them holds.
 
 | Task                                           | Tests                                                |
