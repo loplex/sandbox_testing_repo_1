@@ -1,0 +1,190 @@
+# The checks on Linux and the Linux packages, installed, upgraded and removed; on Windows what Linux
+# cannot show: the windows' GL contexts, ANGLE's and WGL's, their MSIs and the command line's,
+# built with jpackage and installed, upgraded and removed, and the command line's zip, built with
+# jpackage and run.
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      # ffmpeg for the window's feed; Mesa's EGL and llvmpipe for its GL tests, as the runner has no GPU.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
+      - run: ./gradlew check
+      # The Linux packages, dog-vision, dog-vision-swing and dog-vision-cli, and a later version of
+      # each, which the build writes beside the first.
+      - name: Build the debs and the rpms
+        id: packages
+        run: |
+          sudo apt-get install -y rpm
+          tasks=(:desktop:packageDeb :desktop:packageRpm :swing:packageDeb :swing:packageRpm)
+          tasks+=(:cli:packageDeb :cli:packageRpm)
+          ./gradlew "${tasks[@]}"
+          ./gradlew "${tasks[@]}" -PappVersion=0.1.1
+      # Each in a bare Ubuntu 20.04, the oldest release their dependencies are named for, upgraded to
+      # the later version; each window opens under Xvfb there.
+      - name: Try the dog-vision deb
+        run: >-
+          tools/test_deb.sh --upgrade desktop/build/packages/deb/dog-vision_0.1.1_amd64.deb
+          desktop/build/packages/deb/dog-vision_0.1.0_amd64.deb ubuntu:20.04
+      - name: Try the dog-vision-swing deb
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_deb.sh --upgrade swing/build/packages/deb/dog-vision-swing_0.1.1_amd64.deb
+          swing/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb ubuntu:20.04
+      - name: Try the dog-vision-cli deb
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_deb.sh --upgrade cli/build/packages/deb/dog-vision-cli_0.1.1_all.deb
+          cli/build/packages/deb/dog-vision-cli_0.1.0_all.deb ubuntu:20.04
+      # Each in a bare Fedora, with no desktop, upgraded the same way.
+      - name: Try the dog-vision rpm
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_rpm.sh --upgrade desktop/build/packages/rpm/dog-vision-0.1.1-1.x86_64.rpm
+          desktop/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm fedora:42
+      - name: Try the dog-vision-swing rpm
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_rpm.sh --upgrade swing/build/packages/rpm/dog-vision-swing-0.1.1-1.x86_64.rpm
+          swing/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm fedora:42
+      - name: Try the dog-vision-cli rpm
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_rpm.sh --upgrade cli/build/packages/rpm/dog-vision-cli-0.1.1-1.noarch.rpm
+          cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42
+      # The tar.gz, unpacked and run where it is, on its own runtime: the command line, and the
+      # window's main converting a photo given alone.
+      - name: Build the tar.gz and try it
+        if: success() || failure()
+        run: |
+          ./gradlew :desktop:packageTarGz
+          tar -xzf desktop/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/dog-vision/bin/dog-vision-cli" --help
+          cp tools/test_photo.jpg "$RUNNER_TEMP"
+          "$RUNNER_TEMP/dog-vision/bin/dog-vision" "$RUNNER_TEMP/test_photo.jpg"
+          test -s "$RUNNER_TEMP/test_photo.dog.png"
+      # The Swing window's, the same way.
+      - name: Build the dog-vision-swing tar.gz and try it
+        if: success() || failure()
+        run: |
+          ./gradlew :swing:packageTarGz
+          tar -xzf swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/dog-vision-swing/bin/dog-vision-cli" --help
+          mkdir "$RUNNER_TEMP/swing" && cp tools/test_photo.jpg "$RUNNER_TEMP/swing"
+          "$RUNNER_TEMP/dog-vision-swing/bin/dog-vision-swing" "$RUNNER_TEMP/swing/test_photo.jpg"
+          test -s "$RUNNER_TEMP/swing/test_photo.dog.png"
+      - if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: linux-reports
+          path: |
+            **/build/reports/
+            **/hs_err_pid*.log
+
+  windows-gl:
+    name: Windows GL tests
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      # Windows's own opengl32.dll has OpenGL 1.1 alone, where WglContext asks for 3.3 core: Mesa's
+      # llvmpipe, beside java.exe, which Windows loads a DLL from before its system folder. Its WGL
+      # alone: Mesa's libEGL and libGLESv2 there could be taken for ANGLE's, which have their names.
+      - name: Put Mesa's OpenGL beside java.exe
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo pal1000/mesa-dist-win --pattern "*release-msvc.7z" --output mesa.7z
+          7z x mesa.7z -omesa "x64/*.dll" | Out-Null
+          Write-Host "Mesa's DLLs: $((Get-ChildItem mesa/x64).Name -join ', ')"
+          foreach ($dll in "opengl32.dll", "libgallium_wgl.dll", "libglapi.dll") {
+            if (Test-Path "mesa/x64/$dll") { Copy-Item "mesa/x64/$dll" (Join-Path $env:JAVA_HOME "bin") }
+          }
+      # ANGLE runs on Direct3D 11's software rasteriser, WARP, as the runner has no GPU. Mesa would
+      # take its Direct3D 12 driver, which needs Mesa's dxil.dll, over llvmpipe.
+      - run: ./gradlew :desktop-core:jvmTest
+        env:
+          GALLIUM_DRIVER: llvmpipe
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-gl-reports
+          path: |
+            desktop-core/build/reports/
+            desktop-core/build/test-results/
+            desktop-core/hs_err_pid*.log
+
+  windows-msi:
+    name: Windows MSI
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      # WiX Toolset 3.14 comes with the runner's image, which names it by WIX. The MSI, and a later
+      # version of it.
+      - name: Build the MSIs
+        shell: pwsh
+        run: |
+          ./tools/package_msi_on_windows.ps1
+          ./tools/package_msi_on_windows.ps1 -AppVersion 0.1.1
+      - name: Install, upgrade and remove it
+        shell: pwsh
+        run: >-
+          ./tools/test_msi_on_windows.ps1
+          -Msi tools/build/msi/dog-vision-0.1.0.msi -Version 0.1.0
+          -UpgradeMsi tools/build/msi/dog-vision-0.1.1.msi -UpgradeVersion 0.1.1
+          -LogDir msi-logs
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-msi
+          path: |
+            tools/build/msi/
+            msi-logs/
+
+  windows-zip:
+    name: Windows zip
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build the command line's zip
+        shell: pwsh
+        run: ./tools/package_cli_zip_on_windows.ps1
+      - name: Unpack the zip and run the command line
+        shell: pwsh
+        run: >-
+          ./tools/test_cli_zip_on_windows.ps1
+          -Zip tools/build/zip/dog-vision-cli-0.1.0-windows-x64.zip
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-zip
+          path: tools/build/zip/
