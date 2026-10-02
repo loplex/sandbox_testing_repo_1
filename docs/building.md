@@ -338,6 +338,9 @@ window's and with `-Window cli` the command line's.
 - **The licence dialog shows [`LICENSE`](../LICENSE) line for line**, from the RTF that each
   module's `windowsLicense` task writes: jpackage's own conversion of a text file runs a
   paragraph's lines together, which the GPL has broken by hand.
+- **The dialogs show the dog**, on the bitmaps that each module's `windowsBitmaps` task draws from
+  the icon in place of WiX's: the banner across the top of most of them, and a panel on the left
+  of the first and the last, in the icon's background.
 - **The MSI's code page is Windows-1250**, from
   [`gui-compose/packaging/windows`](../gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl), as the
   vendor's name has a ř that jpackage's Windows-1252 lacks.
