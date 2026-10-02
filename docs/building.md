@@ -254,9 +254,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   `java.base` and `java.desktop`, with no shortcut, as started from one it would only print its
   usage.
   It puts `Program Files\dog-vision-cli` at the end of the system's `PATH`, for the consoles opened
-  after, and takes it off again when it is removed: jpackage cannot, so the scripts add
-  [`cli/packaging/msi-path.xml`](../cli/packaging/msi-path.xml) to jpackage's own `main.wxs`, taken
-  from the JDK that builds the MSI, and fail where that `main.wxs` has changed so that they cannot.
+  after, and takes it off again when it is removed: jpackage cannot, so the module's
+  `windowsJpackage` task adds [`cli/packaging/msi-path.xml`](../cli/packaging/msi-path.xml) to
+  jpackage's own `main.wxs`, taken from the JDK whose jpackage builds the MSI, and fails where that
+  `main.wxs` has changed so that it cannot.
   It installs beside either window's MSI, whose `dog-vision-cli.exe` is not on the `PATH`.
 
 ### The Linux packages' dependencies
@@ -342,6 +343,10 @@ window's and with `-Window cli` the command line's.
 - **Both take the runtime from Gradle**, so that it is the same on Windows and under Wine:
   `./gradlew :gui-compose:windowsRuntime`, `:gui-swing:windowsRuntime` and `:cli:windowsRuntime`
   link it, on any system, as the command line's zip's above.
+- **Both take what the MSI is made of from Gradle**, so that the two make the same MSI: each
+  module's `windowsJpackage` task writes, into its `build/windows/jpackage`, jpackage's arguments
+  and resource directory, from what the module's build script says of its package and the
+  `main.wxs` of the JDK that `-PjpackageJdk` names, whose jpackage the script runs.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
   machine to throw away**: it installs the MSI, runs the command line, looks at the shortcuts,
   installs a later version over it and removes that; `-Name dog-vision-swing` tries the Swing
@@ -353,9 +358,10 @@ window's and with `-Window cli` the command line's.
 - **The dialogs show the dog**, on the bitmaps that each module's `windowsBitmaps` task draws from
   the icon in place of WiX's: the banner across the top of most of them, and a panel on the left
   of the first and the last, in the icon's background.
-- **The MSI's code page is Windows-1250**, from
-  [`gui-compose/packaging/windows`](../gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl), as the
-  vendor's name has a ř that jpackage's Windows-1252 lacks.
+- **The MSI's code page is Windows-1250**, as the vendor's name has a ř that jpackage's
+  Windows-1252 lacks:
+  [`MsiInstallerCodepage_en.wxl`](../gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl) says
+  how for each JDK's jpackage.
 
 #### Caveat: the MSI built under Wine gives `dog-vision-cli` shortcuts too
 
