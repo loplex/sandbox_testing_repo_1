@@ -47,8 +47,15 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -248,7 +255,7 @@ private fun Preview(
 
 /**
  * A button that installs ffmpeg through winget, which [onInstall] starts, and what came of it, as [state] has it; where
- * winget is missing, the session opens ffmpeg's download page in the browser.
+ * winget is missing, that names ffmpeg's download page as a link.
  */
 @Composable
 private fun FfmpegOffer(state: LiveSession.State, onInstall: () -> Unit) {
@@ -256,7 +263,22 @@ private fun FfmpegOffer(state: LiveSession.State, onInstall: () -> Unit) {
     OutlinedButton(enabled = !state.installingFfmpeg, onClick = onInstall) {
         Text(texts.get(if (state.installingFfmpeg) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG))
     }
-    state.ffmpegFailure?.let { Text(it.words(texts), textAlign = TextAlign.Center) }
+    state.ffmpegFailure?.let { Text(linkedWords(it, texts), textAlign = TextAlign.Center) }
+}
+
+/** [failure]'s words, with its link, where it has one, as a link that opens it in the browser when it is clicked. */
+@Composable
+private fun linkedWords(failure: Failure, texts: Texts): AnnotatedString {
+    val words = failure.words(texts)
+    val link = failure.link
+    val at = link?.let { words.indexOf(it) } ?: -1
+    if (link == null || at < 0) return AnnotatedString(words)
+    val style = TextLinkStyles(SpanStyle(MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline))
+    return buildAnnotatedString {
+        append(words.substring(0, at))
+        withLink(LinkAnnotation.Url(link, style)) { append(link) }
+        append(words.substring(at + link.length))
+    }
 }
 
 /** An area's pixels as Compose draws them, through Skia. */
