@@ -345,6 +345,10 @@ where Direct3D 11 is switched off, and the command line.
   into the home unless `winetricks sandbox` removed the links.
 - **Removing the MSI under Wine leaves the files in `%ProgramData%\Dog Vision`**: msiexec's log
   shows WiX's RemoveFolderEx finding them under Wine 11.18, and they stay.
+- **Under Wine, `ADDLOCAL` installs the Features it names alone**, so a part named without
+  `DogVision` comes without the runtime; Windows installs a Feature's parent with it.
+- **Under Wine, an upgrade installs every part**, whichever were installed before: Wine's
+  `MigrateFeatureStates` migrates nothing, so only Windows shows that a later version keeps them.
 - **The Compose window's button that installs ffmpeg is tried on Linux**, with scripts in place of
   winget and PowerShell, as Wine has neither winget nor a registry that winget writes to.
   winget's install itself ran on GitHub's Windows Server 2025, whose image has winget.

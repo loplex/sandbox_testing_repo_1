@@ -237,6 +237,24 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   `Program Files\dog-vision`, each a launcher on the one runtime: `dog-vision.exe`,
   `dog-vision-swing.exe` and `dog-vision-cli.exe`.
   The installer and the system's list of programs name it *Dog Vision*.
+- **The installer offers each as a part of its own**, a Feature in its tree, under the runtime's,
+  which cannot be left out; the table below lists them.
+  Every part is selected by default, so a plain or a silent install (`msiexec /qn`, winget)
+  installs them all.
+  `ADDLOCAL` names fewer, as `msiexec /i dog-vision-0.1.0.msi ADDLOCAL=DogVision,SwingGui` installs
+  the Swing window alone; Windows adds `DogVision` by itself, Wine does not.
+  *Change* in the system's list of programs adds or removes parts later, as do `ADDLOCAL` and
+  `REMOVE`.
+  A later version installed over it keeps the parts installed, and a part added later or a later
+  version goes into the folder chosen at the first install, which the MSI reads from the registry.
+
+| Feature       | In the tree                 | Installs                                           |
+|---------------|-----------------------------|----------------------------------------------------|
+| `DogVision`   | Dog Vision                  | the runtime                                        |
+| `ComposeGui`  | GUI (Compose Multiplatform) | `dog-vision.exe` and its shortcuts                 |
+| `SwingGui`    | GUI (Java Swing)            | `dog-vision-swing.exe` and its shortcuts           |
+| `CommandLine` | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH` |
+
 - **Each window gets a shortcut in the Start menu and on the desktop**, *Dog Vision* and
   *Dog Vision (Swing)*, the Start menu's in a group *Dog Vision*.
   The command line gets none, as started from one it would only print its usage, but
@@ -340,10 +358,15 @@ both.
   [`packaging/windows/dog-vision.wxs`](../packaging/windows/dog-vision.wxs), a component for each
   file of the app image, and the values the source takes, which the scripts hand candle.exe and
   light.exe.
+  Each launcher's files, its `.exe`, its `.cfg` and the JARs on its classpath alone, are a component
+  group of their own, `Launcher.dog_vision_swing`, which the source's Feature of that launcher
+  takes; the rest is the group `Files`, in the runtime's Feature.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
   machine to throw away**: it installs the MSI, runs the command line, from the `PATH` too, looks
   at the shortcuts, installs a later version over it and removes that, and checks that the
   installation folder is on the `PATH` once and off it after.
+  Then it installs the Swing window alone, by `ADDLOCAL=SwingGui`, into a folder of its own, adds
+  the Compose window, and checks that the later version keeps both there, without the command line.
 - **The licence dialog shows [`LICENSE`](../LICENSE) line for line**, from the RTF that the
   `windowsLicense` task writes, as the GPL has its lines broken by hand.
 - **The dialogs show the dog**, on the bitmaps that the `windowsBitmaps` task draws from the icon in
