@@ -312,6 +312,13 @@ where Direct3D 11 is switched off, and the command line.
   so what Wine shows is the code and ANGLE, not the drivers people have.
 - **Wine's own `d3dcompiler_47` never finishes linking one of the passes' shaders**, so ANGLE hangs
   under it; Microsoft's, which `winetricks d3dcompiler_47` installs into a Wine prefix, links it.
+- **ANGLE hung there shows nothing and says nothing**: neither a photo nor the camera appears,
+  though the camera's light comes on, and as a hang is no failure, the window does not fall back
+  to WGL.
+- **Which `d3dcompiler_47` a prefix has** shows in its `system32/d3dcompiler_47.dll`, where
+  `strings` finds `Wine builtin DLL` in Wine's own.
+- **`--gl wgl` draws without Microsoft's `d3dcompiler_47`**, taking WGL alone, as
+  [the GPU it draws on](using.md#the-gpu-it-draws-on) says, where installing it is not wanted.
 - **Installing the MSI under Wine writes into the home**: Wine turns its shortcuts into the Linux
   desktop's unless `WINEDLLOVERRIDES=winemenubuilder.exe=d` is set, and the prefix's folders link
   into the home unless `winetricks sandbox` removed the links.
