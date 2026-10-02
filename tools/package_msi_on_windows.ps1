@@ -7,9 +7,8 @@
 # resource directory that the window's windowsJpackage task writes, which say what it is made of,
 # with the JAR that its windowsUberJar task assembles and the runtime that its windowsRuntime task
 # links, but with the jpackage of the JDK this runs on, which makes the MSI through WiX Toolset 3,
-# whose light.exe validates it (ICE) here. It is written to
-# gui-compose/build/compose/binaries/main/msi/<version>, gui-swing/build/packages/msi/<version> or
-# cli/build/packages/msi/<version>.
+# whose light.exe validates it (ICE) here. It is written to tools\build\msi, which git ignores, as
+# tools\build\msi\dog-vision-0.1.0.msi.
 #
 # Needs:
 # - PowerShell 7 (pwsh), which reads this file as UTF-8.
@@ -27,20 +26,16 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 
-# Each window's module, whose build script says what its MSI is made of, the MSI's name, and where it
-# is written.
+# Each window's module, whose build script says what its MSI is made of, and the MSI's name.
 if ($Window -eq "compose") {
     $module = "gui-compose"
     $name = "dog-vision"
-    $outputDir = "build\compose\binaries\main\msi"
 } elseif ($Window -eq "swing") {
     $module = "gui-swing"
     $name = "dog-vision-swing"
-    $outputDir = "build\packages\msi"
 } else {
     $module = "cli"
     $name = "dog-vision-cli"
-    $outputDir = "build\packages\msi"
 }
 
 # Runs a program and stops the script where it fails, as $ErrorActionPreference does not for them.
@@ -79,13 +74,14 @@ if ($AppVersion) {
 Invoke-Checked (Join-Path $root "gradlew.bat") $gradleOptions
 $arguments = Join-Path $root "$module\build\windows\jpackage"
 
-$staging = Join-Path $root "$module\build\windows-msi\$AppVersion"
+$staging = Join-Path $root "tools\build\staging\$name-msi"
 if (Test-Path $staging) {
     Remove-Item -Recurse -Force $staging
 }
-$output = Join-Path (Join-Path $root "$module\$outputDir") $AppVersion
-if (Test-Path $output) {
-    Remove-Item -Recurse -Force $output
+$output = Join-Path $root "tools\build\msi"
+$msi = Join-Path $output "$name-$AppVersion.msi"
+if (Test-Path $msi) {
+    Remove-Item -Force $msi
 }
 
 
@@ -104,4 +100,4 @@ Invoke-Checked (Join-Path $jdkBin "jpackage.exe") @(
     "--verbose"
 )
 
-Join-Path $output "$name-$AppVersion.msi"
+$msi
