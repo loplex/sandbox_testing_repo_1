@@ -197,8 +197,9 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 - **On Linux it installs as a package of its own, `dog-vision-cli`**, from its deb or its rpm, and
   runs as `dog-vision-cli` from the `PATH` on the system's Java 17 or newer, which the package
   manager installs with it where there is none; a headless Java is enough, as it opens no window.
-- **On Windows the MSI installs it beside both windows**, and puts it on the `PATH`, so that it runs
-  as `dog-vision-cli` in a console opened after, on a Java it brings with it.
+- **On Windows the MSI installs it beside both windows**, as its part *Command line*, and puts it on
+  the `PATH`, so that it runs as `dog-vision-cli` in a console opened after, on a Java it brings
+  with it.
   [Building it](building.md#what-each-package-holds) says what it installs.
 - **Or as a zip, to unpack and run** as `dog-vision-cli\dog-vision-cli.exe`, which it adds to no
   `PATH`; [Building it](building.md#the-command-lines-zip-for-windows) says how it is made.
@@ -273,7 +274,7 @@ widgets](images/window-swing.png)
   `PATH` and *Dog Vision (Swing)* in the desktop's menu (*Psí vidění (Swing)* in Czech), beside
   `dog-vision` where both are installed.
   Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`, and on Windows the MSI installs it,
-  beside the Compose window.
+  as its part *GUI (Java Swing)*, beside the Compose window's *GUI (Compose Multiplatform)*.
 - **It is light or dark as the desktop asks**: on Linux as the desktop portal's colour scheme says,
   which GNOME and KDE set, on Windows as `AppsUseLightTheme` says, and light where neither can be
   read.

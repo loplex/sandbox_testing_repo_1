@@ -39,16 +39,17 @@ abstract class WindowsLauncherConfigs : DefaultTask() {
         for (config in configs) {
             // The lines with their ends, which jpackage writes as the system it runs on does.
             val lines = Regex("(?<=\n)").split(config.readText(Charsets.UTF_8)).filter(String::isNotEmpty)
-            val classpath = lines.filter { it.startsWith(CLASSPATH) }
-            check(classpath.isNotEmpty()) { "$config has no $CLASSPATH" }
-            val own = classpath.first().removePrefix(CLASSPATH).trimEnd()
+            val classpath = lines.filter { it.startsWith(LAUNCHER_CLASSPATH) }
+            check(classpath.isNotEmpty()) { "$config has no $LAUNCHER_CLASSPATH" }
+            val own = classpath.first().removePrefix(LAUNCHER_CLASSPATH).trimEnd()
             val jar = File(app, own.removePrefix("\$APPDIR\\"))
-            check(own.startsWith("\$APPDIR\\") && jar.isFile) { "$config's first $CLASSPATH is no JAR in $app: $own" }
+            check(own.startsWith("\$APPDIR\\") && jar.isFile) {
+                "$config's first $LAUNCHER_CLASSPATH is no JAR in $app: $own"
+            }
             File(out, config.name).writeText((lines - classpath.drop(1).toSet()).joinToString(""), Charsets.UTF_8)
         }
     }
-
-    private companion object {
-        const val CLASSPATH = "app.classpath="
-    }
 }
+
+/** The key of a line of a launcher's .cfg that names a file of its classpath, which jpackage writes one a line. */
+internal const val LAUNCHER_CLASSPATH = "app.classpath="
