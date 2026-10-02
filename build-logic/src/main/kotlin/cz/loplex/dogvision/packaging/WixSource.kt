@@ -1,0 +1,202 @@
+package cz.loplex.dogvision.packaging
+
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import java.io.File
+import java.security.MessageDigest
+import java.util.UUID
+
+/**
+ * Writes in [destination] what WiX Toolset 3's candle.exe and light.exe make the MSI of, which the scripts in tools
+ * hand them:
+ *
+ * - [product], the MSI's source as it is, which includes variables.wxi and refers to what files.wxs defines.
+ * - variables.wxi: the preprocessor variables [product] takes, each of this task's values, the paths of its files, and
+ *   ProductCode, as [productCode] says.
+ * - files.wxs: every file of [image] but app/.jpackage.xml, jpackage's record of the image, which its own MSIs leave
+ *   out too, each a component of its own whose key path it is, in the folder INSTALLDIR, which [product] defines, and
+ *   the component group Files of them all.
+ * - [codePage], the localization that sets the MSI's code page, as it is.
+ *
+ * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision.exe, by which [product]
+ * refers to it; every other file, folder and component one of a hash of its path. Each component's GUID is made of
+ * [upgradeCode] and the file's path, so that it stays the same while the file is in the same place, as Windows
+ * Installer counts the installations of a component by its GUID.
+ */
+abstract class WixSource : DefaultTask() {
+    /** The app image the MSI installs, with the launchers' .cfg as [WindowsLauncherConfigs] writes them. */
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val image: DirectoryProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val product: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val codePage: RegularFileProperty
+
+    /** The product's name, which the installer, the system's list of programs and the Start menu show. */
+    @get:Input
+    abstract val productName: Property<String>
+
+    @get:Input
+    abstract val version: Property<String>
+
+    @get:Input
+    abstract val vendor: Property<String>
+
+    @get:Input
+    abstract val packageDescription: Property<String>
+
+    /**
+     * The MSI's upgrade code: every later version's MSI replaces the one installed with the same code, as Windows
+     * Installer tells versions of one product apart by it. Never change it, nor give two products one, as installing
+     * the one would then remove the other.
+     */
+    @get:Input
+    abstract val upgradeCode: Property<String>
+
+    /** The name of the folder in Program Files that the MSI installs into. */
+    @get:Input
+    abstract val installFolder: Property<String>
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
+    abstract val icon: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
+    abstract val license: RegularFileProperty
+
+    /** The pictures of the MSI's dialogs, as windowsBitmaps draws them. */
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
+    abstract val banner: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
+    abstract val dialog: RegularFileProperty
+
+    /** Whether candle.exe runs under Wine, which sees the paths through its drive Z:, rather than on Windows. */
+    @get:Input
+    abstract val underWine: Property<Boolean>
+
+    @get:OutputDirectory
+    abstract val destination: DirectoryProperty
+
+    @TaskAction
+    fun write() {
+        val out = destination.get().asFile
+        out.deleteRecursively()
+        out.mkdirs()
+        product.get().asFile.copyTo(File(out, product.get().asFile.name))
+        codePage.get().asFile.copyTo(File(out, codePage.get().asFile.name))
+        File(out, "variables.wxi").writeText(variables(), Charsets.UTF_8)
+        File(out, "files.wxs").writeText(files(), Charsets.UTF_8)
+    }
+
+    /**
+     * The product's code, which tells this version of the product apart from every other: made of [upgradeCode] and
+     * [version], as jpackage makes its, so that an MSI of the version installed is taken for the same product, which
+     * Windows Installer then repairs or removes, rather than installed beside it.
+     */
+    private fun productCode(): UUID = uuid("${upgradeCode.get()}/${version.get()}")
+
+    private fun variables(): String {
+        val values = listOf(
+            "ProductName" to productName.get(),
+            "ProductCode" to productCode().toString(),
+            "UpgradeCode" to upgradeCode.get(),
+            "Version" to version.get(),
+            "Vendor" to vendor.get(),
+            "Description" to packageDescription.get(),
+            "InstallFolder" to installFolder.get(),
+            "Icon" to path(icon.get().asFile),
+            "License" to path(license.get().asFile),
+            "Banner" to path(banner.get().asFile),
+            "Dialog" to path(dialog.get().asFile),
+        )
+        val defines = values.joinToString("") { (name, value) ->
+            // A define's value ends at its quote, and $( in it would start a variable.
+            check('"' !in value && "$(" !in value && "?>" !in value) { "$name's value cannot be defined: $value" }
+            "  <?define $name = \"$value\" ?>\n"
+        }
+        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<!-- Written by the $path task. -->\n" +
+            "<Include>\n$defines</Include>\n"
+    }
+
+    private fun files(): String {
+        val root = image.get().asFile
+        val components = mutableListOf<String>()
+        val body = StringBuilder()
+
+        fun folder(directory: File, depth: Int) {
+            val indent = "  ".repeat(depth)
+            for (entry in directory.listFiles().orEmpty().sortedBy { it.name }) {
+                val relative = entry.relativeTo(root).invariantSeparatorsPath
+                if (relative == JPACKAGE_RECORD) continue
+                if (entry.isDirectory) {
+                    body.append("$indent<Directory Id=\"d${hash(relative)}\" Name=\"${xml(entry.name)}\">\n")
+                    folder(entry, depth + 1)
+                    body.append("$indent</Directory>\n")
+                } else {
+                    val file = if (directory == root) entry.name.replace('-', '_') else "f${hash(relative)}"
+                    check(Regex("[A-Za-z_][A-Za-z0-9_.]*").matches(file)) { "$relative gives no WiX ID: $file" }
+                    val component = "c${hash(relative)}"
+                    components += component
+                    body.append(
+                        "$indent<Component Id=\"$component\" Guid=\"{${uuid("${upgradeCode.get()}/$relative")}}\"" +
+                            " Win64=\"yes\">\n" +
+                            "$indent  <File Id=\"$file\" KeyPath=\"yes\" Source=\"${xml(path(entry))}\"/>\n" +
+                            "$indent</Component>\n",
+                    )
+                }
+            }
+        }
+        folder(root, 3)
+        check(components.isNotEmpty()) { "$root holds no file" }
+
+        val references = components.joinToString("") { "      <ComponentRef Id=\"$it\"/>\n" }
+        return """
+            |<?xml version="1.0" encoding="utf-8"?>
+            |<!-- Written by the $path task: every file of the app image, each its own component. -->
+            |<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+            |  <Fragment>
+            |    <DirectoryRef Id="INSTALLDIR">
+            |$body    </DirectoryRef>
+            |    <ComponentGroup Id="Files">
+            |$references    </ComponentGroup>
+            |  </Fragment>
+            |</Wix>
+            |
+        """.trimMargin()
+    }
+
+    /** [file]'s path as candle.exe sees it: Windows's own, or under Wine through its drive Z:. */
+    private fun path(file: File): String =
+        if (underWine.get()) "Z:" + file.absolutePath.replace('/', '\\') else file.absolutePath
+
+    private fun hash(text: String): String =
+        MessageDigest.getInstance("MD5").digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
+    /** A name-based UUID of [text], which is the same each time it is made of the same text. */
+    private fun uuid(text: String): UUID = UUID.nameUUIDFromBytes(text.toByteArray(Charsets.UTF_8))
+
+    private fun xml(text: String): String =
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+    private companion object {
+        const val JPACKAGE_RECORD = "app/.jpackage.xml"
+    }
+}

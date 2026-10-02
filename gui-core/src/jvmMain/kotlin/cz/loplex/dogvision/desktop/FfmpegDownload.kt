@@ -19,7 +19,7 @@ import java.util.zip.ZipFile
  * ffmpeg for Windows on x86-64 downloaded, where the window offers it: BtbN's build of [BRANCH], the release branch
  * that libs.versions.toml pins, the newest of it, with its DLLs, one of the builds ffmpeg's download page names. The
  * zip is checked against the release's checksums.sha256, and its bin folder unpacked into [folder], under
- * %ProgramData%, where every user of the machine finds it and from where each window's MSI removes it with the product.
+ * %ProgramData%, where every user of the machine finds it and from where the MSI removes it with the product.
  */
 object FfmpegDownload {
     /** The release branch, such as 9.0, whose newest build is downloaded. */

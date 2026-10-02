@@ -35,7 +35,7 @@ if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
     throw "gradle.properties has no appVersion"
 }
 $version = $Matches[1]
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsJpackage", "-PjpackageJdk=$env:JAVA_HOME")
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsJpackage")
 $jpackageFiles = Join-Path $cli "build\windows\jpackage"
 
 $staging = Join-Path $root "tools\build\staging\cli-zip"
@@ -46,13 +46,12 @@ if (Test-Path $staging) {
 
 # jpackage, and the zip of its image.
 
-# The files of arguments, which jpackage reads in its default charset, UTF-8 from JDK 18 on, as
-# windowsJpackage writes them: Java reads its command line in the system's ANSI code page, which on
+# The file of arguments, which jpackage reads in its default charset, UTF-8 from JDK 18 on, as
+# windowsJpackage writes it: Java reads its command line in the system's ANSI code page, which on
 # an English Windows, 1252, has no ř for the vendor's name.
 $image = Join-Path $staging "image"
 Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
-    "@$(Join-Path $jpackageFiles "package-arguments")",
-    "@$(Join-Path $jpackageFiles "image-arguments")",
+    "@$(Join-Path $jpackageFiles "arguments")",
     "--type", "app-image",
     "--dest", $image
 )

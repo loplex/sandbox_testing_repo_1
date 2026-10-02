@@ -1,10 +1,9 @@
-import cz.loplex.dogvision.packaging.WindowsJpackageFiles
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.windowPackages
+import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
-import cz.loplex.dogvision.packaging.windowsRuntimeImage
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -53,7 +52,7 @@ val packagingJdk = packagingJdk()
 
 // packageUberJarForCurrentOS writes build/compose/jars/dog-vision-linux-x64-<version>.jar, which runs alone on a JDK
 // 17 or newer, with this machine's natives in it. createDistributable writes jpackage's app image, with a runtime of
-// its own, which packageTarGz packs; Windows's MSI is tools/package_msi_on_linux.sh's.
+// its own, which packageTarGz packs; Windows's MSI is :packaging's.
 compose.desktop {
     application {
         mainClass = mainClassName
@@ -71,9 +70,6 @@ compose.desktop {
         }
     }
 }
-
-// The MSI's runtime, of the modules the app image's has: Compose's own and those added above.
-windowsRuntimeImage("the window's runtime for Windows", compose.desktop.application.nativeDistributions.modules)
 
 // The JAR with this machine's natives, whose task Compose's plugin registers.
 artifact("packageUberJarForCurrentOS")
@@ -148,18 +144,13 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
 }
 artifact(windowsUberJar)
 
-// What jpackage makes dog-vision's app image and MSI for Windows of, as the scripts in tools hand it. Compose's
-// launchers pass the Java option, with which its application gives Swing the system's look; the fragment removes the
-// folder ffmpeg is downloaded into.
-tasks.named<WindowsJpackageFiles>("windowsJpackage") {
-    packageName = "dog-vision"
-    packageDescription = "How a dog or another animal sees a photo, a video or the camera"
-    mainJar = windowsUberJar.flatMap { it.archiveFile }
-    mainClass = mainClassName
-    javaOptions = listOf("-Dcompose.application.configure.swing.globals=true")
-    launchers.from(packaging.file("dog-vision-cli.properties"))
-    upgradeCode = "602aa86b-3230-4786-8460-ba08bca42e45"
-    fragment = packaging.file("msi-data.xml")
-    componentGroup = "DogVisionData"
-    componentGuid = "40251de4-ef0f-4dc1-983b-ad8bc49cb1c5"
-}
+// dog-vision.exe, the MSI's main launcher, which :packaging takes, on a runtime of the modules the app image's has:
+// Compose's own and those added above. Compose's launchers pass the Java option, with which its application gives
+// Swing the system's look.
+windowsLauncher(
+    name = "dog-vision",
+    jar = windowsUberJar.flatMap { it.archiveFile },
+    mainClass = mainClassName,
+    javaOptions = listOf("-Dcompose.application.configure.swing.globals=true"),
+    runtimeModules = compose.desktop.application.nativeDistributions.modules,
+)
