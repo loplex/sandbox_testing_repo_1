@@ -152,6 +152,9 @@
     <!-- What only the desktop window says -->
     <string name="draw_failed">Zobrazení nejde vykreslit: %1$s</string>
     <string name="ffmpeg_missing">Videa a kamera potřebují %1$s, který patří k ffmpeg a tady nejde spustit. Nainstalujte ffmpeg tak, aby byl v PATH.</string>
+    <string name="download_ffmpeg">Stáhnout ffmpeg</string>
+    <string name="downloading_ffmpeg">Stahuji ffmpeg… %1$s %%</string>
+    <string name="ffmpeg_not_downloaded">ffmpeg se nepodařilo stáhnout: %1$s</string>
     <string name="install_ffmpeg">Nainstalovat ffmpeg přes winget</string>
     <string name="installing_ffmpeg">winget instaluje ffmpeg…</string>
     <string name="ffmpeg_not_installed">winget ffmpeg nenainstaloval: %1$s</string>
