@@ -39,7 +39,8 @@ fun Project.packagingJdk(): Provider<JavaLauncher> =
  * the runtime for Windows on x86-64 that the scripts in tools hand jpackage:
  * [modules] alone, with [packagingJdk]'s jlink, from Temurin's jmods for Windows of [temurinRelease],
  * which windowsJmods unpacks into build/windows/jmods.
- * So it is the same runtime on Windows and on Linux, where jpackage runs under Wine, whatever JDK either runs on.
+ * So it is the same runtime on Windows and on Linux, where jpackage runs under Wine, whatever JDK either runs on.\
+ * windowsJpackage hands it jpackage.
  */
 fun Project.windowsRuntimeImage(what: String, modules: List<String>): TaskProvider<RuntimeImage> {
     val release = temurinRelease()
@@ -65,7 +66,7 @@ fun Project.windowsRuntimeImage(what: String, modules: List<String>): TaskProvid
         includeEmptyDirs = false
     }
 
-    return tasks.register("windowsRuntime", RuntimeImage::class.java) {
+    val runtime = tasks.register("windowsRuntime", RuntimeImage::class.java) {
         description = "Links build/windows/runtime, $what, from Temurin's jmods for Windows."
         group = "distribution"
         jdkHome.set(packagingJdk().map { it.metadata.installationPath.asFile.path })
@@ -73,4 +74,8 @@ fun Project.windowsRuntimeImage(what: String, modules: List<String>): TaskProvid
         this.modules.set(modules)
         destination.set(layout.buildDirectory.dir("windows/runtime"))
     }
+    tasks.named("windowsJpackage", WindowsJpackageFiles::class.java) {
+        this.runtime.set(runtime.flatMap { it.destination })
+    }
+    return runtime
 }
