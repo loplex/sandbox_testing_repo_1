@@ -17,12 +17,13 @@ sealed interface FfmpegInstall {
 
 /**
  * Where the feeds run ffmpeg and ffprobe from: the PATH the window started with, or, once they are installed from the
- * window, where they were put.
+ * window, where they were put; on Windows, where they are on neither, the folder [FfmpegDownload] unpacks them into.
  *
- * Windows has no ffmpeg of its own, so the window offers to install it through winget, the package manager Windows 10
- * and 11 come with, as Gyan's build, which winget unpacks for this user alone and puts on the user's PATH. That PATH is
- * written to the registry, and only programs started after it see it, so ffmpeg is looked for on the PATH the registry
- * holds, as a program started from the Start menu now would get it.
+ * Windows has no ffmpeg of its own, so the window offers to download it, as [FfmpegDownload] does, and where winget is
+ * on the PATH to install it through winget, the package manager Windows 10 and 11 come with, as Gyan's build, which
+ * winget unpacks for this user alone and puts on the user's PATH. That PATH is written to the registry, and only
+ * programs started after it see it, so ffmpeg is looked for on the PATH the registry holds, as a program started from
+ * the Start menu now would get it.
  */
 object FfmpegPrograms {
     private val PROGRAMS = listOf("ffmpeg", "ffprobe")
@@ -48,8 +49,19 @@ object FfmpegPrograms {
     @Volatile
     private var found = emptyMap<String, String>()
 
-    /** What runs [program]: its whole path, where it was found after the window started, else its name. */
-    fun command(program: String): String = found[program] ?: program
+    /**
+     * What runs [program]: its whole path, where it was found after the window started, or on Windows where it is
+     * downloaded and not on the PATH the window started with; else its name.
+     */
+    fun command(program: String): String = found[program] ?: downloaded(program) ?: program
+
+    /** Whether winget is on the PATH the window started with, as the App Installer puts it there. */
+    fun wingetOnPath(): Boolean = find(listOf("winget"), folders(System.getenv("PATH").orEmpty())).isNotEmpty()
+
+    private fun downloaded(program: String): String? {
+        if (!onWindows || find(listOf(program), folders(System.getenv("PATH").orEmpty())).isNotEmpty()) return null
+        return FfmpegDownload.program(program).takeIf(File::isFile)?.path
+    }
 
     /**
      * Finds ffmpeg on the PATH the registry holds, which it is on where it was installed after the window started, and

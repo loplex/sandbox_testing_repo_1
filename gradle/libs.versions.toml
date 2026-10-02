@@ -22,6 +22,10 @@ lifecycle = "2.11.0"
 lwjgl = "3.4.3"
 nucleus-angle = "8037.1"
 media3 = "1.11.1"
+# The release branch of BtbN's builds of ffmpeg for Windows that the desktop windows download where ffmpeg is missing:
+# the newest build of it, which brings the branch's fixes; a later branch is taken by hand, once the windows are tried
+# with it.
+ffmpeg-windows = "9.0"
 # Temurin's release the packages' runtimes come from: the jmods for Windows, which each MSI's and the command line's
 # zip's runtime is linked from, are of it exactly; the JDK that links them, and the tar.gzs' runtime, is Gradle's
 # toolchain of its feature release, 25, as jlink asks only for its own. That release is an LTS one, as the packages ship
