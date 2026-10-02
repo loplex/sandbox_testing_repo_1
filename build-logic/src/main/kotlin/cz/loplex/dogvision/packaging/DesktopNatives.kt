@@ -51,4 +51,5 @@ private fun <T : Any> AttributeContainer.copyAttribute(key: Attribute<T>, from: 
     attribute(key, checkNotNull(from.getAttribute(key)))
 }
 
-private fun Project.libs(): VersionCatalog = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
+/** The build's version catalog, libs.versions.toml. */
+internal fun Project.libs(): VersionCatalog = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")

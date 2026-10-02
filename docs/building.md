@@ -158,15 +158,20 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ./gradlew :cli:packageRpm            # cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 ./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
-tools/package_msi_on_linux.sh --jdk <Windows JDK 17> --jmods <Windows JDK 25's jmods> --wix <WiX 3.14>
+tools/fetch_msi_tools_on_linux.sh
+                                     # once: what the MSIs are built with, into tools/cache
+tools/make_wine_prefix_on_linux.sh
+                                     # once: their Wine prefix, ~/.local/share/wineprefixes/dot_net_msi_builder
+tools/package_msi_on_linux.sh        # all three MSIs below, or with --window compose, swing or cli one
+tools/package_msi_on_linux.sh --window compose
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
-tools/package_msi_on_linux.sh --window swing --jdk <Windows JDK 17> --jmods <…> --wix <…>
+tools/package_msi_on_linux.sh --window swing
                                      # gui-swing/build/packages/msi/dog-vision-swing-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1
                                      # on Windows: gui-compose/build/compose/binaries/main/msi/0.1.0/dog-vision-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1 -Window swing
                                      # on Windows: gui-swing/build/packages/msi/0.1.0/dog-vision-swing-0.1.0.msi
-tools/package_msi_on_linux.sh --window cli --jdk <Windows JDK 17> --jmods <…> --wix <…>
+tools/package_msi_on_linux.sh --window cli
                                      # cli/build/packages/msi/dog-vision-cli-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1 -Window cli
                                      # on Windows: cli/build/packages/msi/0.1.0/dog-vision-cli-0.1.0.msi
@@ -179,11 +184,13 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 | deb     | `dpkg-deb`                                 | dpkg              | `packageDeb`                                     |
 | deb     | `readelf`                                  | binutils          | `debDepends`                                     |
 | rpm     | `rpmbuild` 4.13 or later, `rpm`, `elfdeps` | rpm               | `rpmLibraryRequires`, `packageRpm`               |
-| MSI     | Wine, a Windows JDK 17, jmods, WiX 3.14    | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
+| MSI     | Wine, a Windows JDK 17, WiX 3.14           | wine, winetricks  | `tools/package_msi_on_linux.sh`, which says more |
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
-  so that build needs the network: jpackage runs from it, and it is the tar.gzs' runtime, where the
-  MSI scripts link the MSI's from a Windows JDK 25.
+  so that build needs the network: jpackage runs from it, and it is the tar.gzs' runtime.
+  Its jlink links the MSIs' runtime as well, from Temurin's jmods for Windows, which Gradle
+  downloads too, of the release `temurin-windows-jmods` in
+  [`libs.versions.toml`](../gradle/libs.versions.toml) gives.
   The Compose window's tar.gz comes from Compose's own jpackage task, the Swing window's from
   [`AppImage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/AppImage.kt) in
   `build-logic`, as Compose's plugin is not applied to it.
@@ -303,18 +310,26 @@ runtime into its packages.
 ### The MSI, built under Wine or on Windows
 
 jpackage builds an installer only on the system it is for, so each window's MSI and the command
-line's are built either under Wine on Linux or on Windows; each script builds the Compose window's,
-with `--window swing` or `-Window swing` the Swing window's, and with `--window cli` or
-`-Window cli` the command line's.
+line's are built either under Wine on Linux or on Windows.
+`package_msi_on_linux.sh` builds all three, and with `--window compose`, `swing` or `cli` one of
+them; `package_msi_on_windows.ps1` builds the Compose window's, with `-Window swing` the Swing
+window's and with `-Window cli` the command line's.
 
 - **On Windows, [`tools/package_msi_on_windows.ps1`](../tools/package_msi_on_windows.ps1) builds
-  it** with the JDK 25 it runs on and WiX 3.14, and light.exe validates it.
+  it** with the jpackage of the JDK 25 it runs on and WiX 3.14, and light.exe validates it.
 - **Under Wine, [`tools/package_msi_on_linux.sh`](../tools/package_msi_on_linux.sh) builds it**,
   with three detours round Wine that the script describes.
-  Its runtime is linked from the jmods it is given.
+  [`tools/fetch_msi_tools_on_linux.sh`](../tools/fetch_msi_tools_on_linux.sh) downloads what it
+  builds with, once: a Windows JDK 17 and WiX 3.14, into `tools/cache`.
+  [`tools/make_wine_prefix_on_linux.sh`](../tools/make_wine_prefix_on_linux.sh) makes the Wine
+  prefix it builds in, with .NET Framework 4.8, in a few minutes: `dot_net_msi_builder` among
+  winetricks' named prefixes, in `~/.local/share/wineprefixes`.
   Wine cannot validate it, so the workflow
   [`msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml), started by hand, builds it on
   Linux and validates, installs, upgrades and removes it on Windows.
+- **Both take the runtime from Gradle**, so that it is the same on Windows and under Wine:
+  `./gradlew :gui-compose:windowsRuntime`, `:gui-swing:windowsRuntime` and `:cli:windowsRuntime`
+  link it, on any system, as the command line's zip's above.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
   machine to throw away**: it installs the MSI, runs the command line, looks at the shortcuts,
   installs a later version over it and removes that; `-Name dog-vision-swing` tries the Swing

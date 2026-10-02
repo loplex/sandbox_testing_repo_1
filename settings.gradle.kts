@@ -33,8 +33,8 @@ dependencyResolutionManagement {
             metadataSources { artifact() }
             content { includeModule("org.nodejs", "node") }
         }
-        // Temurin's jmods for Windows, which the command line's Windows runtime is linked from, from Adoptium's
-        // releases on GitHub: net.adoptium:temurin25-binaries:25.0.4.1+1 is the release jdk-25.0.4.1+1 of
+        // Temurin's jmods for Windows, which the Windows runtimes are linked from, from Adoptium's releases on
+        // GitHub: net.adoptium:temurin25-binaries:25.0.4.1+1 is the release jdk-25.0.4.1+1 of
         // adoptium/temurin25-binaries.
         ivy("https://github.com/adoptium") {
             name = "Temurin releases"

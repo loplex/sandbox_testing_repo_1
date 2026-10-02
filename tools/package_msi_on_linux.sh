@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds a desktop window's MSI for Windows on x86-64 on Linux, through Wine: with --window compose,
-# the default, dog-vision's, the Compose window's; with --window swing, dog-vision-swing's. With
-# --window cli it builds dog-vision-cli's, the command line's alone, which is no window but is made
-# the same way.
+# Builds the MSIs for Windows on x86-64 on Linux, through Wine: without --window all three, one
+# after the other; with --window compose dog-vision's, the Compose window's; with --window swing
+# dog-vision-swing's; with --window cli dog-vision-cli's, the command line's alone, which is no
+# window but is made the same way.
 #
 # jpackage makes an installer only on the system the installer is for, so this runs a Windows JDK's
 # jpackage.exe under Wine, over the JAR that the window's windowsUberJar task assembles, with WiX
@@ -19,8 +19,9 @@
 # Three steps go round Wine 11.18, where they fail:
 # - Wine's TransmitFile, handed a file where Windows expects a socket, fails with another error than
 #   Windows's WSAENOTSOCK, which the JDK from 18 on takes for a failed copy ("transfer failed"). So
-#   jpackage.exe comes from a JDK 17, which copies files without it, and the runtime, a JDK 25 as on
-#   Linux, is linked by this machine's jlink from the Windows JDK's jmods.
+#   jpackage.exe comes from a JDK 17, which copies files without it, and the runtime is the
+#   window's windowsRuntime task's, which Gradle links from Temurin's jmods for Windows of the
+#   release in gradle/libs.versions.toml.
 # - light.exe's validation of the MSI (ICE) fails in Wine's msi.dll with 0x65B, so light.exe runs a
 #   second time without it (-sval), as electron-builder runs it off Windows; jpackage has no way to
 #   pass the switch. .github/workflows/msi-under-wine.yml validates the MSI on Windows instead.
@@ -29,18 +30,21 @@
 #   (`winetricks dotnet48`).
 #
 # Needs:
-# - Wine, with .NET Framework 4.8 in the prefix; WINEPREFIX chooses the prefix, as it does for Wine.
+# - Wine, and a prefix with .NET Framework 4.8: WINEPREFIX's, or without it dot_net_msi_builder
+#   among winetricks' named prefixes, in WINE_PREFIXES or ~/.local/share/wineprefixes, which
+#   tools/make_wine_prefix_on_linux.sh makes.
 # - The locale cs_CZ.UTF-8, which Wine runs in: JDK 17's jpackage reads its arguments in Windows's
 #   ANSI code page, which Wine takes from the locale, and the vendor's ř is in Windows-1250, a Czech
 #   locale's, not in Windows-1252, an English locale's or C's, where it becomes "?" and jpackage
 #   fails on it.
 # - --jdk: a Windows JDK 17, unpacked, for its bin/jpackage.exe.
-# - --jmods: the Windows JDK's jmods, unpacked, of the same version as this machine's jlink (Temurin
-#   ships them apart from the JDK, as OpenJDK25U-jmods_x64_windows_*.zip).
 # - --wix: WiX Toolset 3.14's binaries, unpacked, the directory holding candle.exe and light.exe
 #   (wix314-binaries.zip from github.com/wixtoolset/wix3). WiX 3 and 5 are free under the MS-RL;
 #   from WiX 6 on, the binaries come under the Open Source Maintenance Fee's EULA, and JDK 17's
 #   jpackage takes WiX 3 alone.
+#
+# tools/fetch_msi_tools_on_linux.sh downloads both into tools/cache, which git ignores. Each of --jdk
+# and --wix left out is taken from there, or from the directory --tools names.
 #
 # --app-version gives the MSI another version than gradle.properties' appVersion, as a test of an
 # upgrade needs a later one; the application in it stays the same.
@@ -59,7 +63,7 @@ die() {
 }
 
 usage() {
-    die "usage: $0 --jdk <Windows JDK 17> --jmods <the Windows JDK's jmods> --wix <WiX 3.14's binaries>
+    die "usage: $0 [--tools <directory>] [--jdk <Windows JDK 17>] [--wix <WiX 3.14's binaries>]
        [--app-version <version>] [--window compose|swing|cli]" 2
 }
 
@@ -79,25 +83,40 @@ require() {
 
 # The arguments.
 
-jdk="" jmods="" wix="" app_version="" window=compose
+tools="$root/tools/cache"
+jdk="" wix="" app_version="" window=""
 while (( $# > 0 )); do
     case "$1" in
+              --tools) tools="${2:-}";       shift 2 || usage ;;
                 --jdk) jdk="${2:-}";         shift 2 || usage ;;
-              --jmods) jmods="${2:-}";       shift 2 || usage ;;
                 --wix) wix="${2:-}";         shift 2 || usage ;;
         --app-version) app_version="${2:-}"; shift 2 || usage ;;
              --window) window="${2:-}";      shift 2 || usage ;;
         *) usage ;;
     esac
 done
-[[ -n "$jdk" && -n "$jmods" && -n "$wix" ]] || usage
+
+# Without --window, this again for each, with the same options.
+if [[ -z "$window" ]]; then
+    options=(--tools "$tools")
+    [[ -z "$jdk" ]] || options+=(--jdk "$jdk")
+    [[ -z "$wix" ]] || options+=(--wix "$wix")
+    [[ -z "$app_version" ]] || options+=(--app-version "$app_version")
+    for each in compose swing cli; do
+        "${BASH_SOURCE[0]}" "${options[@]}" --window "$each"
+    done
+    exit 0
+fi
+
+# What tools/fetch_msi_tools_on_linux.sh downloads, where an option does not name it.
+jdk="${jdk:-$tools/jdk17}"
+wix="${wix:-$tools/wix}"
+export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/dot_net_msi_builder}"
 
 # What each window's MSI is made of. Every later version's MSI replaces the one installed with the
 # same upgrade code, as Windows Installer tells versions of one product apart by it: never change
-# either, nor give both windows one, as installing the one would then remove the other. The
-# runtime's modules are the tar.gz's: for Compose those it always takes and the ones
-# gui-compose/build.gradle.kts adds, for Swing those gui-swing/build.gradle.kts names. Compose's launchers
-# pass the Java option, with which its application gives Swing the system's look.
+# either, nor give both windows one, as installing the one would then remove the other. Compose's
+# launchers pass the Java option, with which its application gives Swing the system's look.
 case "$window" in
     compose)
         name="dog-vision"
@@ -108,7 +127,6 @@ case "$window" in
         main_class="cz.loplex.dogvision.desktop.MainKt"
         description="How a dog or another animal sees a photo, a video or the camera"
         upgrade_uuid="602aa86b-3230-4786-8460-ba08bca42e45"
-        modules="java.base,java.desktop,java.logging,jdk.crypto.ec,java.instrument,jdk.unsupported"
         java_options=(--java-options "-Dcompose.application.configure.swing.globals=true")
         ;;
     swing)
@@ -120,7 +138,6 @@ case "$window" in
         main_class="cz.loplex.dogvision.swing.MainKt"
         description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
         upgrade_uuid="acf6164b-f4f9-4430-b4f0-939242f187fb"
-        modules="java.base,java.desktop,java.instrument,jdk.unsupported"
         java_options=()
         ;;
     cli)
@@ -132,8 +149,6 @@ case "$window" in
         main_class="cz.loplex.dogvision.cli.MainKt"
         description="How a dog or another animal sees a photo, from the command line"
         upgrade_uuid="bedc25f5-bde3-4837-86b0-26c5291beed3"
-        # What jdeps --print-module-deps finds the JAR using.
-        modules="java.base,java.desktop"
         java_options=()
         ;;
     *) usage ;;
@@ -141,7 +156,6 @@ esac
 
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
-require "jlink" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
 [[ "$window" != cli ]] || require "jimage" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
 if (( ${#missing[@]} > 0 )); then
     die "$(printf '%s\n' "Missing commands:" "${missing[@]/#/  }")"
@@ -149,14 +163,17 @@ fi
 locale -a | grep -ix 'cs_CZ\.utf-\?8' >/dev/null ||
     die "Missing locale cs_CZ.UTF-8: locale-gen cs_CZ.UTF-8, or dnf install glibc-langpack-cs"
 
+fetch_hint="tools/fetch_msi_tools_on_linux.sh downloads it"
+[[ -f "$jdk/bin/jpackage.exe" ]] || die "$jdk/bin/jpackage.exe does not exist: $fetch_hint" 2
 jpackage="$(realpath "$jdk")/bin/jpackage.exe"
-[[ -f "$jpackage" ]] || die "$jpackage does not exist" 2
-[[ -f "$jmods/java.base.jmod" ]] || die "$jmods has no java.base.jmod" 2
+[[ -f "$wix/light.exe" ]] || die "$wix has no light.exe: $fetch_hint" 2
 wix="$(realpath "$wix")"
-[[ -f "$wix/light.exe" ]] || die "$wix has no light.exe" 2
+
+[[ -f "$WINEPREFIX/drive_c/windows/system32/kernel32.dll" ]] ||
+    die "$WINEPREFIX is no Wine prefix: tools/make_wine_prefix_on_linux.sh makes it" 2
 
 
-# What jpackage takes in: the JAR and a runtime.
+# What jpackage takes in: the JAR and the runtime, which the module's build/windows/runtime holds.
 
 # The app's version, as gradle.properties gives it to the Linux packages and the JAR's name, unless
 # --app-version gives another. The pattern stays unquoted after =~, where quotes would make it a
@@ -165,7 +182,7 @@ version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
 gradle_version="${BASH_REMATCH[2]}"
 version="${app_version:-$gradle_version}"
-"$root/gradlew" --quiet "$jar_task"
+"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime"
 jar="$root/${jar_file/@VERSION@/$gradle_version}"
 
 staging="$root/$module/build/windows-msi"
@@ -174,13 +191,6 @@ rm -rf "${staging:?}"
 # jpackage takes every file in --input into the application, so the JAR goes there alone.
 mkdir -p "$staging/input"
 cp -p "$jar" "$staging/input/"
-
-# The options jpackage links a runtime with itself.
-jlink \
-    --module-path "$(realpath "$jmods")" \
-    --add-modules "$modules" \
-    --strip-native-commands --strip-debug --no-man-pages --no-header-files \
-    --output "$staging/runtime"
 
 mkdir -p "$output"
 msi="$output/$name-$version.msi"
@@ -243,7 +253,7 @@ if log="$(wine "$jpackage" \
     --main-jar "$(basename "$jar")" \
     --main-class "$main_class" \
     "${java_options[@]}" \
-    --runtime-image "$(windows_path "$staging/runtime")" \
+    --runtime-image "$(windows_path "$root/$module/build/windows/runtime")" \
     "${launcher_options[@]}" \
     --resource-dir "$(windows_path "$resources")" \
     --win-dir-chooser \
