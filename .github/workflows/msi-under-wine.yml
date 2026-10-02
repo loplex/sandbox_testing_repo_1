@@ -47,41 +47,16 @@ jobs:
           sudo chmod +x /usr/local/bin/winetricks
       - name: Start the virtual display
         run: Xvfb :99 -screen 0 1280x1024x24 &
-      # Without Mono and Gecko, whose installer wineboot otherwise waits on, on the virtual
-      # display, and leaves the prefix without its DLLs; .NET Framework 4.8 replaces Mono anyway.
-      # For wineboot alone, as mscoree disabled would keep .NET from running.
+      # The Windows JDK 17 and WiX 3.14, into tools/cache; Gradle downloads the runtime's jmods.
+      - name: Download the Windows JDK 17 and WiX 3.14
+        run: tools/fetch_msi_tools_on_linux.sh
       - name: Put .NET Framework 4.8 into the prefix
         timeout-minutes: 40
-        run: |
-          WINEDLLOVERRIDES="mscoree,mshtml=;$WINEDLLOVERRIDES" wineboot --init
-          wineserver -w
-          test -f "$WINEPREFIX/drive_c/windows/system32/kernel32.dll"
-          winetricks -q dotnet48
-          wineserver -w
-      # jpackage.exe from a Windows JDK 17, the runtime from the jmods of the Windows JDK of this
-      # jlink's version, and WiX 3.14's binaries.
-      - name: Download the Windows JDK 17, the Windows JDK 25's jmods and WiX 3.14
-        run: |
-          # 25.0.4+1-LTS, as java names it, is Adoptium's release jdk-25.0.4+1.
-          version="$(java -XshowSettings:properties -version 2>&1 | sed -n 's/^ *java.runtime.version = //p')"
-          version="${version%%-*}"
-          echo "jlink's JDK: $version"
-          mkdir -p "$RUNNER_TEMP/windows"
-          cd "$RUNNER_TEMP/windows"
-          curl -sSfL -o jdk17.zip https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse
-          curl -sSfL -o jmods.zip "https://api.adoptium.net/v3/binary/version/jdk-${version/+/%2B}/windows/x64/jmods/hotspot/normal/eclipse"
-          curl -sSfL -o wix.zip https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
-          unzip -q jdk17.zip -d jdk17 && unzip -q jmods.zip -d jmods && unzip -q wix.zip -d wix
-          echo "JDK17=$(echo "$PWD"/jdk17/*)" >> "$GITHUB_ENV"
-          echo "JMODS=$(dirname "$(find "$PWD/jmods" -name java.base.jmod)")" >> "$GITHUB_ENV"
-          echo "WIX=$PWD/wix" >> "$GITHUB_ENV"
+        run: tools/make_wine_prefix_on_linux.sh
       - name: Build the MSIs
         run: |
-          for window in compose swing cli; do
-            tools/package_msi_on_linux.sh --jdk "$JDK17" --jmods "$JMODS" --wix "$WIX" --window "$window"
-            tools/package_msi_on_linux.sh --jdk "$JDK17" --jmods "$JMODS" --wix "$WIX" --window "$window" \
-              --app-version 0.1.1
-          done
+          tools/package_msi_on_linux.sh
+          tools/package_msi_on_linux.sh --app-version 0.1.1
           mkdir -p wine-msi
           mv gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.{0,1}.msi wine-msi/
           mv gui-swing/build/packages/msi/dog-vision-swing-0.1.{0,1}.msi wine-msi/
@@ -89,7 +64,7 @@ jobs:
           ls -l wine-msi
       - name: Build the command line's zip
         run: |
-          tools/package_cli_zip_on_linux.sh --jdk "$JDK17"
+          tools/package_cli_zip_on_linux.sh --jdk tools/cache/jdk17
           mv cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip wine-msi/
       - uses: actions/upload-artifact@v5
         with:
