@@ -3,15 +3,16 @@
 # builds dog-vision-cli's, the command line's alone, as tools/package_msi_on_linux.sh says, which
 # puts its folder on the system's PATH.
 #
-# The same MSI as tools/package_msi_on_linux.sh builds through Wine, from the JAR that the window's
-# windowsUberJar task assembles and the runtime that its windowsRuntime task links, but with the
-# jpackage of the JDK this runs on, which makes the MSI through WiX Toolset 3, whose light.exe
-# validates it (ICE) here. It is
-# written to gui-compose/build/compose/binaries/main/msi/<version>, gui-swing/build/packages/msi/<version> or
+# The same MSI as tools/package_msi_on_linux.sh builds through Wine, of the arguments and the
+# resource directory that the window's windowsJpackage task writes, which say what it is made of,
+# with the JAR that its windowsUberJar task assembles and the runtime that its windowsRuntime task
+# links, but with the jpackage of the JDK this runs on, which makes the MSI through WiX Toolset 3,
+# whose light.exe validates it (ICE) here. It is written to
+# gui-compose/build/compose/binaries/main/msi/<version>, gui-swing/build/packages/msi/<version> or
 # cli/build/packages/msi/<version>.
 #
 # Needs:
-# - PowerShell 7 (pwsh), which reads this file as UTF-8, as the vendor's name needs.
+# - PowerShell 7 (pwsh), which reads this file as UTF-8.
 # - A JDK 25 as JAVA_HOME, for its jpackage.
 # - WiX Toolset 3.14's candle.exe and light.exe on the PATH, or its installation's WIX variable.
 #
@@ -25,64 +26,21 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-# The icons and dog-vision-cli's properties, which both windows' MSIs take.
-$packaging = Join-Path $root "gui-compose\packaging"
 
-# What each window's MSI is made of, as package_msi_on_linux.sh gives it, which says why the upgrade
-# codes and the windows' component GUIDs must never change and must differ, what the product's name
-# is shown as, what each fragment of main.wxs does, and where the Java option comes from. The JAR's
-# name takes the version for {0}.
+# Each window's module, whose build script says what its MSI is made of, the MSI's name, and where it
+# is written.
 if ($Window -eq "compose") {
+    $module = "gui-compose"
     $name = "dog-vision"
-    $suffix = ""
-    $module = Join-Path $root "gui-compose"
-    $jarTask = ":gui-compose:windowsUberJar"
-    $runtimeTask = ":gui-compose:windowsRuntime"
-    $licenseTask = ":gui-compose:windowsLicense"
-    $bitmapsTask = ":gui-compose:windowsBitmaps"
-    $jarFile = "build\compose\jars\dog-vision-windows-x64-{0}.jar"
-    $outputDir = Join-Path $module "build\compose\binaries\main\msi"
-    $mainClass = "cz.loplex.dogvision.desktop.MainKt"
-    $description = "How a dog or another animal sees a photo, a video or the camera"
-    $upgradeUuid = "602aa86b-3230-4786-8460-ba08bca42e45"
-    $fragmentFile = Join-Path $packaging "msi-data.xml"
-    $componentGroup = "DogVisionData"
-    $dataGuid = "40251de4-ef0f-4dc1-983b-ad8bc49cb1c5"
-    $javaOptions = @("--java-options", "-Dcompose.application.configure.swing.globals=true")
+    $outputDir = "build\compose\binaries\main\msi"
 } elseif ($Window -eq "swing") {
+    $module = "gui-swing"
     $name = "dog-vision-swing"
-    $suffix = " (Swing)"
-    $module = Join-Path $root "gui-swing"
-    $jarTask = ":gui-swing:windowsUberJar"
-    $runtimeTask = ":gui-swing:windowsRuntime"
-    $licenseTask = ":gui-swing:windowsLicense"
-    $bitmapsTask = ":gui-swing:windowsBitmaps"
-    $jarFile = "build\jars\dog-vision-swing-windows-x64-{0}.jar"
-    $outputDir = Join-Path $module "build\packages\msi"
-    $mainClass = "cz.loplex.dogvision.swing.MainKt"
-    $description = "How a dog or another animal sees a photo, a video or the camera, in Java Swing"
-    $upgradeUuid = "acf6164b-f4f9-4430-b4f0-939242f187fb"
-    $fragmentFile = Join-Path $packaging "msi-data.xml"
-    $componentGroup = "DogVisionData"
-    $dataGuid = "06dcc47f-bd8f-4e38-8aec-7f26ed952950"
-    $javaOptions = @()
+    $outputDir = "build\packages\msi"
 } else {
+    $module = "cli"
     $name = "dog-vision-cli"
-    $suffix = " (command line)"
-    $module = Join-Path $root "cli"
-    $jarTask = ":cli:uberJar"
-    $runtimeTask = ":cli:windowsRuntime"
-    $licenseTask = ":cli:windowsLicense"
-    $bitmapsTask = ":cli:windowsBitmaps"
-    $jarFile = "build\jars\dog-vision-cli.jar"
-    $outputDir = Join-Path $module "build\packages\msi"
-    $mainClass = "cz.loplex.dogvision.cli.MainKt"
-    $description = "How a dog or another animal sees a photo, from the command line"
-    $upgradeUuid = "bedc25f5-bde3-4837-86b0-26c5291beed3"
-    $fragmentFile = Join-Path $root "cli\packaging\msi-path.xml"
-    $componentGroup = "DogVisionCliPath"
-    $dataGuid = ""
-    $javaOptions = @()
+    $outputDir = "build\packages\msi"
 }
 
 # Runs a program and stops the script where it fails, as $ErrorActionPreference does not for them.
@@ -105,143 +63,45 @@ if (-not $env:JAVA_HOME) {
 $jdkBin = Join-Path $env:JAVA_HOME "bin"
 
 
-# What jpackage takes in: the JAR, and the runtime, the licence and the dialogs' bitmaps that the
-# module's build\windows holds.
+# What jpackage takes in: the arguments, with the JAR and the runtime they name, and the resource
+# directory, all of which windowsJpackage writes.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
     throw "gradle.properties has no appVersion"
 }
-$packageVersion = $Matches[1]
-# The app's name in English, as the window's title and the Linux packages' menu entries have it.
-$strings = Get-Content (Join-Path $root "texts\strings\values\strings.xml") -Raw
-if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
-    throw "texts\strings\values\strings.xml has no app_name"
+$gradleOptions = @("--quiet", ":${module}:windowsJpackage", "-PjpackageJdk=$env:JAVA_HOME")
+if ($AppVersion) {
+    $gradleOptions += "-PwindowsAppVersion=$AppVersion"
+} else {
+    $AppVersion = $Matches[1]
 }
-$appName = $Matches[1]
-$product = $appName + $suffix
-if (-not $AppVersion) {
-    $AppVersion = $packageVersion
-}
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask, $runtimeTask, $licenseTask, $bitmapsTask)
-$jar = Join-Path $module ($jarFile -f $packageVersion)
-$runtime = Join-Path $module "build\windows\runtime"
-$license = Join-Path $module "build\windows\LICENSE.rtf"
+Invoke-Checked (Join-Path $root "gradlew.bat") $gradleOptions
+$arguments = Join-Path $root "$module\build\windows\jpackage"
 
-$staging = Join-Path $module "build\windows-msi\$AppVersion"
+$staging = Join-Path $root "$module\build\windows-msi\$AppVersion"
 if (Test-Path $staging) {
     Remove-Item -Recurse -Force $staging
 }
-
-# jpackage takes every file in --input into the application, so the JAR goes there alone.
-$inputDir = Join-Path $staging "input"
-New-Item -ItemType Directory -Path $inputDir | Out-Null
-Copy-Item $jar $inputDir
-
-# The resource directory, less its code page file, which jpackage from JDK 25 on hands light.exe
-# after its own English strings, whose code page, 1252, light.exe then takes: in its place, those
-# strings of this JDK's jpackage with the code page 1250, which replace jpackage's by their name.
-$resources = Join-Path $staging "resources"
-Copy-Item -Recurse (Join-Path $packaging "windows") $resources
-Remove-Item (Join-Path $resources "MsiInstallerCodepage_en.wxl")
-$extracted = Join-Path $staging "jimage"
-Invoke-Checked (Join-Path $jdkBin "jimage.exe") @(
-    "extract", "--dir", $extracted, "--include", "regex:.*/MsiInstallerStrings_en\.wxl",
-    (Join-Path $env:JAVA_HOME "lib\modules")
-)
-$strings = Get-ChildItem -Recurse -File $extracted | Select-Object -First 1
-if (-not $strings) {
-    throw "This JDK's jpackage has no MsiInstallerStrings_en.wxl"
-}
-$text = [System.IO.File]::ReadAllText($strings.FullName)
-if ($text -notmatch 'Codepage="1252"') {
-    throw "jpackage's MsiInstallerStrings_en.wxl names no code page 1252"
-}
-$text = $text -replace 'Codepage="1252"', 'Codepage="1250"'
-[System.IO.File]::WriteAllText((Join-Path $resources "MsiInstallerStrings_en.wxl"), $text)
-
-# This JDK's main.wxs with the product's name and WiX's dialog bitmaps set to the module's, and its
-# fragment in it, as package_msi_on_linux.sh puts them there.
-Invoke-Checked (Join-Path $jdkBin "jimage.exe") @(
-    "extract", "--dir", $extracted, "--include", "regex:.*/jdk/jpackage/internal/resources/main\.wxs",
-    (Join-Path $env:JAVA_HOME "lib\modules")
-)
-$mainWxs = Get-ChildItem -Recurse -File -Filter "main.wxs" $extracted | Select-Object -First 1
-if (-not $mainWxs) {
-    throw "This JDK's jpackage has no main.wxs"
-}
-$text = [System.IO.File]::ReadAllText($mainWxs.FullName)
-$filesReference = '<ComponentGroupRef Id="Files"/>'
-$productName = 'Name="$(var.JpAppName)"'
-$anchors = @($productName, "</Product>", $filesReference, "</Wix>")
-foreach ($anchor in $anchors) {
-    if (([regex]::Matches($text, [regex]::Escape($anchor))).Count -ne 1) {
-        throw "This JDK's main.wxs has not one $anchor"
-    }
-}
-$banner = Join-Path $module "build\windows\banner.bmp"
-$dialog = Join-Path $module "build\windows\dialog.bmp"
-$bitmaps = "<WixVariable Id=`"WixUIBannerBmp`" Value=`"$banner`"/>`n" +
-    "  <WixVariable Id=`"WixUIDialogBmp`" Value=`"$dialog`"/>`n  </Product>"
-$text = $text.Replace("</Product>", $bitmaps)
-$text = $text.Replace($productName, "Name=`"$product`"")
-$fragment = [System.IO.File]::ReadAllText($fragmentFile)
-$fragment = $fragment.Replace("@APP_NAME@", $appName).Replace("@NAME@", $name).Replace("@GUID@", $dataGuid)
-$text = $text.Replace($filesReference, "$filesReference`n      <ComponentGroupRef Id=`"$componentGroup`"/>")
-$text = $text.Replace("</Wix>", "$fragment</Wix>")
-[System.IO.File]::WriteAllText((Join-Path $resources "main.wxs"), $text)
-
-# Each window's launcher has a shortcut in the Start menu, in a group of the package's name, and on
-# the desktop, and dog-vision-cli.exe beside it has none; the command line's MSI has no shortcut at
-# all, as package_msi_on_linux.sh says why.
-if ($Window -eq "cli") {
-    $launcherOptions = @("--win-console")
-} else {
-    $launcherOptions = @(
-        "--add-launcher", "dog-vision-cli=$(Join-Path $packaging "dog-vision-cli.properties")",
-        "--win-menu",
-        "--win-menu-group", $product,
-        "--win-shortcut"
-    )
-}
-
-$output = Join-Path $outputDir $AppVersion
+$output = Join-Path (Join-Path $root "$module\$outputDir") $AppVersion
 if (Test-Path $output) {
     Remove-Item -Recurse -Force $output
 }
 
 
-# jpackage, with package_msi_on_linux.sh's options.
+# jpackage, which reads the files of arguments in its default charset, UTF-8 from JDK 18 on, as
+# windowsJpackage writes them: Java reads its command line in the system's ANSI code page, which on
+# an English Windows, 1252, has no ř for the vendor's name.
 
-$arguments = @(
+Invoke-Checked (Join-Path $jdkBin "jpackage.exe") @(
+    "@$(Join-Path $arguments "package-arguments")",
+    "@$(Join-Path $arguments "image-arguments")",
+    "@$(Join-Path $arguments "msi-arguments")",
     "--type", "msi",
-    "--name", $name,
-    "--app-version", $AppVersion,
-    "--vendor", "Martin Lopatář",
-    "--description", $description,
-    "--license-file", $license,
-    "--icon", (Join-Path $packaging "dog-vision.ico"),
-    "--input", $inputDir,
-    "--main-jar", (Split-Path -Leaf $jar),
-    "--main-class", $mainClass
-) + $javaOptions + @(
-    "--runtime-image", $runtime
-) + $launcherOptions + @(
-    "--resource-dir", $resources,
-    "--win-dir-chooser",
-    "--win-upgrade-uuid", $upgradeUuid,
     "--temp", (Join-Path $staging "temp"),
     "--dest", $output,
     # What light.exe says where it fails, which jpackage prints only then.
     "--verbose"
 )
-
-# From a file in UTF-8, which jpackage reads as its default charset: Java reads its command line in
-# the system's ANSI code page, which on an English Windows, 1252, has no ř for the vendor's name.
-# Each argument in quotes, inside which a backslash escapes the next character.
-$argumentFile = Join-Path $staging "jpackage-arguments"
-$quoted = $arguments | ForEach-Object { '"' + ($_ -replace '\\', '\\' -replace '"', '\"') + '"' }
-[System.IO.File]::WriteAllLines($argumentFile, [string[]]$quoted, [System.Text.UTF8Encoding]::new($false))
-Invoke-Checked (Join-Path $jdkBin "jpackage.exe") @("@$argumentFile")
 
 Join-Path $output "$name-$AppVersion.msi"
