@@ -8,15 +8,15 @@
 # jpackage.exe under Wine, with WiX Toolset 3 making the MSI, over the app image that
 # tools/package_app_image_on_linux.sh builds first, which says what it holds: as the tar.gz has, a
 # runtime of its own, the window's launcher, dog-vision.exe or dog-vision-swing.exe, and
-# dog-vision-cli.exe, the command line alone, which runs in a console. It is written to
-# gui-compose/build/compose/binaries/main/msi or gui-swing/build/packages/msi.
+# dog-vision-cli.exe, the command line alone, which runs in a console. Each is written to
+# tools/build/msi, which git ignores, as tools/build/msi/dog-vision-0.1.0.msi.
 #
 # What the MSI is made of, its arguments and its resource directory with jpackage's main.wxs and a
 # fragment of the module's in it, the module's windowsJpackage task writes, which
 # tools/package_msi_on_windows.ps1 hands jpackage on Windows as well; the task says what each holds.
 #
 # The command line's MSI holds dog-vision-cli.exe alone, with no shortcut, and puts its folder on the
-# system's PATH, as cli/packaging/msi-path.xml says. It is written to cli/build/packages/msi.
+# system's PATH, as cli/packaging/msi-path.xml says.
 #
 # Three steps go round Wine 11.18, where they fail:
 # - Wine's TransmitFile, handed a file where Windows expects a socket, fails with another error than
@@ -114,14 +114,14 @@ jdk="${jdk:-$tools/jdk17}"
 wix="${wix:-$tools/wix}"
 export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/dot_net_msi_builder}"
 
-# Each window's module, whose build script says what its MSI is made of, the MSI's name, and where
-# it is written.
+# Each window's module, whose build script says what its MSI is made of, and the MSI's name.
 case "$window" in
-    compose) module="gui-compose" name="dog-vision"       output="$root/gui-compose/build/compose/binaries/main/msi" ;;
-      swing) module="gui-swing"   name="dog-vision-swing" output="$root/gui-swing/build/packages/msi" ;;
-        cli) module="cli"     name="dog-vision-cli"   output="$root/cli/build/packages/msi" ;;
+    compose) module="gui-compose" name="dog-vision" ;;
+      swing) module="gui-swing"   name="dog-vision-swing" ;;
+        cli) module="cli"     name="dog-vision-cli" ;;
           *) usage ;;
 esac
+output="$root/tools/build/msi"
 
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
@@ -155,7 +155,7 @@ image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
 arguments="$root/$module/build/windows/jpackage"
 resources="$arguments/resources"
 
-staging="$root/$module/build/windows-msi"
+staging="$root/tools/build/staging/$name-msi"
 rm -rf "${staging:?}"
 mkdir -p "$staging"
 
