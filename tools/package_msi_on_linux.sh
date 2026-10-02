@@ -173,7 +173,8 @@ wix="$(realpath "$wix")"
     die "$WINEPREFIX is no Wine prefix: tools/make_wine_prefix_on_linux.sh makes it" 2
 
 
-# What jpackage takes in: the JAR and the runtime, which the module's build/windows/runtime holds.
+# What jpackage takes in: the JAR, and the runtime and the licence that the module's build/windows
+# holds.
 
 # The app's version, as gradle.properties gives it to the Linux packages and the JAR's name, unless
 # --app-version gives another. The pattern stays unquoted after =~, where quotes would make it a
@@ -182,7 +183,7 @@ version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
 gradle_version="${BASH_REMATCH[2]}"
 version="${app_version:-$gradle_version}"
-"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime"
+"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime" ":$module:windowsLicense"
 jar="$root/${jar_file/@VERSION@/$gradle_version}"
 
 staging="$root/$module/build/windows-msi"
@@ -247,7 +248,7 @@ if log="$(wine "$jpackage" \
     --app-version "$version" \
     --vendor "Martin Lopatář" \
     --description "$description" \
-    --license-file "$(windows_path "$root/LICENSE")" \
+    --license-file "$(windows_path "$root/$module/build/windows/LICENSE.rtf")" \
     --icon "$(windows_path "$packaging/dog-vision.ico")" \
     --input "$(windows_path "$staging/input")" \
     --main-jar "$(basename "$jar")" \

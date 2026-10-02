@@ -36,6 +36,7 @@ if ($Window -eq "compose") {
     $module = Join-Path $root "gui-compose"
     $jarTask = ":gui-compose:windowsUberJar"
     $runtimeTask = ":gui-compose:windowsRuntime"
+    $licenseTask = ":gui-compose:windowsLicense"
     $jarFile = "build\compose\jars\dog-vision-windows-x64-{0}.jar"
     $outputDir = Join-Path $module "build\compose\binaries\main\msi"
     $mainClass = "cz.loplex.dogvision.desktop.MainKt"
@@ -47,6 +48,7 @@ if ($Window -eq "compose") {
     $module = Join-Path $root "gui-swing"
     $jarTask = ":gui-swing:windowsUberJar"
     $runtimeTask = ":gui-swing:windowsRuntime"
+    $licenseTask = ":gui-swing:windowsLicense"
     $jarFile = "build\jars\dog-vision-swing-windows-x64-{0}.jar"
     $outputDir = Join-Path $module "build\packages\msi"
     $mainClass = "cz.loplex.dogvision.swing.MainKt"
@@ -58,6 +60,7 @@ if ($Window -eq "compose") {
     $module = Join-Path $root "cli"
     $jarTask = ":cli:uberJar"
     $runtimeTask = ":cli:windowsRuntime"
+    $licenseTask = ":cli:windowsLicense"
     $jarFile = "build\jars\dog-vision-cli.jar"
     $outputDir = Join-Path $module "build\packages\msi"
     $mainClass = "cz.loplex.dogvision.cli.MainKt"
@@ -86,7 +89,8 @@ if (-not $env:JAVA_HOME) {
 $jdkBin = Join-Path $env:JAVA_HOME "bin"
 
 
-# What jpackage takes in: the JAR and the runtime, which the module's build\windows\runtime holds.
+# What jpackage takes in: the JAR, and the runtime and the licence that the module's build\windows
+# holds.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
@@ -96,9 +100,10 @@ $packageVersion = $Matches[1]
 if (-not $AppVersion) {
     $AppVersion = $packageVersion
 }
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask, $runtimeTask)
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask, $runtimeTask, $licenseTask)
 $jar = Join-Path $module ($jarFile -f $packageVersion)
 $runtime = Join-Path $module "build\windows\runtime"
+$license = Join-Path $module "build\windows\LICENSE.rtf"
 
 $staging = Join-Path $module "build\windows-msi\$AppVersion"
 if (Test-Path $staging) {
@@ -184,7 +189,7 @@ $arguments = @(
     "--app-version", $AppVersion,
     "--vendor", "Martin Lopatář",
     "--description", $description,
-    "--license-file", (Join-Path $root "LICENSE"),
+    "--license-file", $license,
     "--icon", (Join-Path $packaging "dog-vision.ico"),
     "--input", $inputDir,
     "--main-jar", (Split-Path -Leaf $jar),
