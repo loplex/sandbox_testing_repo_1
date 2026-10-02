@@ -5,23 +5,22 @@
 # window but is made the same way.
 #
 # jpackage makes an installer only on the system the installer is for, so this runs a Windows JDK's
-# jpackage.exe under Wine, over the JAR that the window's windowsUberJar task assembles, with WiX
-# Toolset 3 making the MSI. As the tar.gz has, it has a runtime of its own, the window's launcher,
-# dog-vision.exe or dog-vision-swing.exe, and dog-vision-cli.exe, the command line alone, which
-# runs in a console. It is written to gui-compose/build/compose/binaries/main/msi or
-# gui-swing/build/packages/msi.
+# jpackage.exe under Wine, with WiX Toolset 3 making the MSI, over the app image that
+# tools/package_app_image_on_linux.sh builds first, which says what it holds: as the tar.gz has, a
+# runtime of its own, the window's launcher, dog-vision.exe or dog-vision-swing.exe, and
+# dog-vision-cli.exe, the command line alone, which runs in a console. It is written to
+# gui-compose/build/compose/binaries/main/msi or gui-swing/build/packages/msi.
 #
-# The command line's MSI holds dog-vision-cli.exe alone, over the JAR of cli's uberJar task, with no
-# shortcut, and puts its folder on the system's PATH: jpackage's main.wxs, from the JDK's own
-# jpackage, takes the fragment in cli/packaging/msi-path.xml, which says what it does. It is written
-# to cli/build/packages/msi.
+# The command line's MSI holds dog-vision-cli.exe alone, with no shortcut, and puts its folder on the
+# system's PATH: jpackage's main.wxs, from the JDK's own jpackage, takes the fragment in
+# cli/packaging/msi-path.xml, which says what it does. It is written to cli/build/packages/msi.
 #
 # Three steps go round Wine 11.18, where they fail:
 # - Wine's TransmitFile, handed a file where Windows expects a socket, fails with another error than
 #   Windows's WSAENOTSOCK, which the JDK from 18 on takes for a failed copy ("transfer failed"). So
 #   jpackage.exe comes from a JDK 17, which copies files without it, and the runtime is the
 #   window's windowsRuntime task's, which Gradle links from Temurin's jmods for Windows of the
-#   release in gradle/libs.versions.toml.
+#   release in gradle/libs.versions.toml; package_app_image_on_linux.sh takes both the same way.
 # - light.exe's validation of the MSI (ICE) fails in Wine's msi.dll with 0x65B, so light.exe runs a
 #   second time without it (-sval), as electron-builder runs it off Windows; jpackage has no way to
 #   pass the switch. .github/workflows/msi-under-wine.yml validates the MSI on Windows instead.
@@ -37,7 +36,8 @@
 #   ANSI code page, which Wine takes from the locale, and the vendor's ř is in Windows-1250, a Czech
 #   locale's, not in Windows-1252, an English locale's or C's, where it becomes "?" and jpackage
 #   fails on it.
-# - --jdk: a Windows JDK 17, unpacked, for its bin/jpackage.exe.
+# - --jdk: a Windows JDK 17, unpacked, for its bin/jpackage.exe, which package_app_image_on_linux.sh
+#   is given as well.
 # - --wix: WiX Toolset 3.14's binaries, unpacked, the directory holding candle.exe and light.exe
 #   (wix314-binaries.zip from github.com/wixtoolset/wix3). WiX 3 and 5 are free under the MS-RL;
 #   from WiX 6 on, the binaries come under the Open Source Maintenance Fee's EULA, and JDK 17's
@@ -46,14 +46,14 @@
 # tools/fetch_msi_tools_on_linux.sh downloads both into tools/cache, which git ignores. Each of --jdk
 # and --wix left out is taken from there, or from the directory --tools names.
 #
-# --app-version gives the MSI another version than gradle.properties' appVersion, as a test of an
-# upgrade needs a later one; the application in it stays the same.
+# --app-version gives the MSI and its image another version than gradle.properties' appVersion, as
+# a test of an upgrade needs a later one; the application in it stays the same.
 #
 # Run it from anywhere.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# The icons and dog-vision-cli's properties, which both windows' MSIs take.
+# The icon and the code page's file, which every MSI takes.
 packaging="$root/gui-compose/packaging"
 
 # Says why on the standard error and exits, with 1 or the status given.
@@ -115,41 +115,28 @@ export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/
 
 # What each window's MSI is made of. Every later version's MSI replaces the one installed with the
 # same upgrade code, as Windows Installer tells versions of one product apart by it: never change
-# either, nor give both windows one, as installing the one would then remove the other. Compose's
-# launchers pass the Java option, with which its application gives Swing the system's look.
+# either, nor give both windows one, as installing the one would then remove the other.
 case "$window" in
     compose)
         name="dog-vision"
         module="gui-compose"
-        jar_task=":gui-compose:windowsUberJar"
-        jar_file="gui-compose/build/compose/jars/dog-vision-windows-x64-@VERSION@.jar"
         output="$root/gui-compose/build/compose/binaries/main/msi"
-        main_class="cz.loplex.dogvision.desktop.MainKt"
         description="How a dog or another animal sees a photo, a video or the camera"
         upgrade_uuid="602aa86b-3230-4786-8460-ba08bca42e45"
-        java_options=(--java-options "-Dcompose.application.configure.swing.globals=true")
         ;;
     swing)
         name="dog-vision-swing"
         module="gui-swing"
-        jar_task=":gui-swing:windowsUberJar"
-        jar_file="gui-swing/build/jars/dog-vision-swing-windows-x64-@VERSION@.jar"
         output="$root/gui-swing/build/packages/msi"
-        main_class="cz.loplex.dogvision.swing.MainKt"
         description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
         upgrade_uuid="acf6164b-f4f9-4430-b4f0-939242f187fb"
-        java_options=()
         ;;
     cli)
         name="dog-vision-cli"
         module="cli"
-        jar_task=":cli:uberJar"
-        jar_file="cli/build/jars/dog-vision-cli.jar"
         output="$root/cli/build/packages/msi"
-        main_class="cz.loplex.dogvision.cli.MainKt"
         description="How a dog or another animal sees a photo, from the command line"
         upgrade_uuid="bedc25f5-bde3-4837-86b0-26c5291beed3"
-        java_options=()
         ;;
     *) usage ;;
 esac
@@ -173,26 +160,22 @@ wix="$(realpath "$wix")"
     die "$WINEPREFIX is no Wine prefix: tools/make_wine_prefix_on_linux.sh makes it" 2
 
 
-# What jpackage takes in: the JAR, and the runtime, the licence and the dialogs' bitmaps that the
-# module's build/windows holds.
+# What jpackage takes in: the app image, and the licence and the dialogs' bitmaps that the module's
+# build/windows holds.
 
-# The app's version, as gradle.properties gives it to the Linux packages and the JAR's name, unless
-# --app-version gives another. The pattern stays unquoted after =~, where quotes would make it a
-# plain string.
+# The app's version, as gradle.properties gives it to the Linux packages, unless --app-version gives
+# another. The pattern stays unquoted after =~, where quotes would make it a plain string.
 version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
-gradle_version="${BASH_REMATCH[2]}"
-version="${app_version:-$gradle_version}"
-"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime" ":$module:windowsLicense" \
-    ":$module:windowsBitmaps"
-jar="$root/${jar_file/@VERSION@/$gradle_version}"
+version="${app_version:-${BASH_REMATCH[2]}}"
+image_options=(--jdk "$jdk" --window "$window")
+[[ -z "$app_version" ]] || image_options+=(--app-version "$app_version")
+image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
+"$root/gradlew" --quiet ":$module:windowsLicense" ":$module:windowsBitmaps"
 
 staging="$root/$module/build/windows-msi"
 rm -rf "${staging:?}"
-
-# jpackage takes every file in --input into the application, so the JAR goes there alone.
-mkdir -p "$staging/input"
-cp -p "$jar" "$staging/input/"
+mkdir -p "$staging"
 
 mkdir -p "$output"
 msi="$output/$name-$version.msi"
@@ -229,14 +212,9 @@ printf '%s\n' "$text" >"$resources/main.wxs"
 # JDK 17's jpackage gives it all the same. The command line's MSI asks for no shortcut at all, as
 # dog-vision-cli.exe started from one only prints its usage.
 if [[ "$window" == cli ]]; then
-    launcher_options=(--win-console)
+    shortcut_options=()
 else
-    launcher_options=(
-        --add-launcher "dog-vision-cli=$(windows_path "$packaging/dog-vision-cli.properties")"
-        --win-menu
-        --win-menu-group "$name"
-        --win-shortcut
-    )
+    shortcut_options=(--win-menu --win-menu-group "$name" --win-shortcut)
 fi
 
 
@@ -257,12 +235,8 @@ if log="$(wine "$jpackage" \
     --description "$description" \
     --license-file "$(windows_path "$root/$module/build/windows/LICENSE.rtf")" \
     --icon "$(windows_path "$packaging/dog-vision.ico")" \
-    --input "$(windows_path "$staging/input")" \
-    --main-jar "$(basename "$jar")" \
-    --main-class "$main_class" \
-    "${java_options[@]}" \
-    --runtime-image "$(windows_path "$root/$module/build/windows/runtime")" \
-    "${launcher_options[@]}" \
+    --app-image "$(windows_path "$image")" \
+    "${shortcut_options[@]}" \
     --resource-dir "$(windows_path "$resources")" \
     --win-dir-chooser \
     --win-upgrade-uuid "$upgrade_uuid" \
