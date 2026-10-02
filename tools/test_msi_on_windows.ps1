@@ -41,8 +41,18 @@ function Test-Check([string]$What, [bool]$Holds) {
     }
 }
 
+# The product's name, as package_msi_on_windows.ps1 gives it: the app's English name, with the
+# variant after it, which the list of installed programs and the Start menu's group show.
+$root = Split-Path -Parent $PSScriptRoot
+$strings = Get-Content (Join-Path $root "texts\strings\values\strings.xml") -Raw
+if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
+    throw "texts\strings\values\strings.xml has no app_name"
+}
+$suffix = @{ "dog-vision" = ""; "dog-vision-swing" = " (Swing)"; "dog-vision-cli" = " (command line)" }[$Name]
+$product = $Matches[1] + $suffix
+
 $installDir = Join-Path $env:ProgramFiles $Name
-$startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$Name"
+$startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$product"
 $desktop = Join-Path $env:PUBLIC "Desktop"
 $isCli = $Name -eq "dog-vision-cli"
 
@@ -53,13 +63,14 @@ function Invoke-Msiexec([string]$Log, [string[]]$Arguments) {
     return $process.ExitCode -in @(0, 3010)
 }
 
-# The products of the name in the list of installed programs, as Windows Installer registers them.
+# The products of the product's name in the list of installed programs, as Windows Installer
+# registers them.
 function Get-Installed {
     @(
         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     ) | ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } |
-        Where-Object { $_.PSObject.Properties["DisplayName"] -and $_.DisplayName -eq $Name }
+        Where-Object { $_.PSObject.Properties["DisplayName"] -and $_.DisplayName -eq $product }
 }
 
 # The MSI against Windows Installer's rules (ICE), less ICE27, which jpackage's own run of light.exe
