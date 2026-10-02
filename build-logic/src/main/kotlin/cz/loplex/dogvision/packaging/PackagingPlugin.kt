@@ -8,7 +8,7 @@ import org.gradle.api.Project
  * it puts this package's tasks on the module's build script classpath,
  * gives each [DebPackage] and [RpmPackage] what every package of the project shares,
  * which the module's script registers with what is its own,
- * and registers windowsLicense, the licence its MSI shows.
+ * and registers windowsLicense, the licence its MSI shows, and windowsBitmaps, the pictures of its dialogs.
  */
 @Suppress("unused", "RedundantSuppression") // named only by implementationClass in build.gradle.kts
 class PackagingPlugin : Plugin<Project> {
@@ -37,6 +37,15 @@ class PackagingPlugin : Plugin<Project> {
             group = "distribution"
             text.set(licenseText)
             rtf.set(project.layout.buildDirectory.file("windows/LICENSE.rtf"))
+        }
+        val root = project.rootProject.layout.projectDirectory
+        project.tasks.register("windowsBitmaps", InstallerBitmaps::class.java) {
+            description = "Draws build/windows/banner.bmp and dialog.bmp, the pictures of the MSI's dialogs."
+            group = "distribution"
+            icon.set(root.file("gui-compose/packaging/dog-vision.png"))
+            background.set(root.file("android/src/main/res/values/ic_launcher_background.xml"))
+            banner.set(project.layout.buildDirectory.file("windows/banner.bmp"))
+            dialog.set(project.layout.buildDirectory.file("windows/dialog.bmp"))
         }
     }
 
