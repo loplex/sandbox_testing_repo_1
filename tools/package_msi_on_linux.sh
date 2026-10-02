@@ -156,7 +156,7 @@ esac
 
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
-[[ "$window" != cli ]] || require "jimage" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
+require "jimage" "openjdk-25-jdk-headless" "java-25-openjdk-devel"
 if (( ${#missing[@]} > 0 )); then
     die "$(printf '%s\n' "Missing commands:" "${missing[@]/#/  }")"
 fi
@@ -173,8 +173,8 @@ wix="$(realpath "$wix")"
     die "$WINEPREFIX is no Wine prefix: tools/make_wine_prefix_on_linux.sh makes it" 2
 
 
-# What jpackage takes in: the JAR, and the runtime and the licence that the module's build/windows
-# holds.
+# What jpackage takes in: the JAR, and the runtime, the licence and the dialogs' bitmaps that the
+# module's build/windows holds.
 
 # The app's version, as gradle.properties gives it to the Linux packages and the JAR's name, unless
 # --app-version gives another. The pattern stays unquoted after =~, where quotes would make it a
@@ -183,7 +183,8 @@ version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
 gradle_version="${BASH_REMATCH[2]}"
 version="${app_version:-$gradle_version}"
-"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime" ":$module:windowsLicense"
+"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime" ":$module:windowsLicense" \
+    ":$module:windowsBitmaps"
 jar="$root/${jar_file/@VERSION@/$gradle_version}"
 
 staging="$root/$module/build/windows-msi"
@@ -198,24 +199,30 @@ msi="$output/$name-$version.msi"
 rm -f "$msi"
 
 # The resource directory holds MsiInstallerCodepage_en.wxl, for the code page the vendor's name
-# needs, and for the command line the main.wxs of the JDK's jpackage, with msi-path.xml in it. The
-# build fails where that main.wxs has not exactly one reference to Files and one </Wix>.
+# needs, and the main.wxs of the JDK's jpackage with WiX's dialog bitmaps set to the module's, and
+# for the command line msi-path.xml in it as well. The build fails where that main.wxs has not
+# exactly one </Product>, or for the command line one reference to Files and one </Wix>.
 resources="$staging/resources"
 cp -r "$packaging/windows" "$resources"
+jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal/resources/main\.wxs" \
+    "$(realpath "$jdk")/lib/modules"
+main_wxs="$(find "$staging/jimage" -name main.wxs)"
+[[ -f "$main_wxs" ]] || die "$jdk's jpackage has no main.wxs"
+files_reference='<ComponentGroupRef Id="Files"/>'
+anchors=("</Product>")
+[[ "$window" != cli ]] || anchors+=("$files_reference" "</Wix>")
+for anchor in "${anchors[@]}"; do
+    (( $(grep -c -F "$anchor" "$main_wxs") == 1 )) || die "$jdk's main.wxs has not one $anchor"
+done
+text="$(<"$main_wxs")"
+bitmaps="<WixVariable Id=\"WixUIBannerBmp\" Value=\"$(windows_path "$root/$module/build/windows/banner.bmp")\"/>
+  <WixVariable Id=\"WixUIDialogBmp\" Value=\"$(windows_path "$root/$module/build/windows/dialog.bmp")\"/>"
+text="${text/"</Product>"/"$bitmaps"$'\n  </Product>'}"
 if [[ "$window" == cli ]]; then
-    jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal/resources/main\.wxs" \
-        "$(realpath "$jdk")/lib/modules"
-    main_wxs="$(find "$staging/jimage" -name main.wxs)"
-    [[ -f "$main_wxs" ]] || die "$jdk's jpackage has no main.wxs"
-    files_reference='<ComponentGroupRef Id="Files"/>'
-    for anchor in "$files_reference" "</Wix>"; do
-        (( $(grep -c -F "$anchor" "$main_wxs") == 1 )) || die "$jdk's main.wxs has not one $anchor"
-    done
-    text="$(<"$main_wxs")"
     text="${text/"$files_reference"/"$files_reference"$'\n      <ComponentGroupRef Id="DogVisionCliPath"/>'}"
     text="${text/"</Wix>"/"$(<"$root/cli/packaging/msi-path.xml")"$'\n</Wix>'}"
-    printf '%s\n' "$text" >"$resources/main.wxs"
 fi
+printf '%s\n' "$text" >"$resources/main.wxs"
 
 # Each window's launcher has a shortcut in the Start menu, in a group of the package's name rather
 # than jpackage's "Unknown", and on the desktop; dog-vision-cli.exe beside it asks for none, which
