@@ -3,7 +3,6 @@ package cz.loplex.dogvision.desktop
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.channels.Channels
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.abs
@@ -47,13 +46,18 @@ class FfmpegFeed private constructor(
     private val reader = thread(name = "ffmpeg-frames", isDaemon = true) { read() }
 
     private fun read() {
-        val channel = Channels.newChannel(process.inputStream)
+        val input = process.inputStream
         val buffer = ByteBuffer.allocateDirect(width * height * 4)
+        // Read in pieces, without asking the pipe what it holds as Channels.newChannel does before each: under Wine,
+        // both asking and reading a whole frame at once are slow enough to fall behind a camera.
+        val piece = ByteArray(READ_SIZE)
         try {
             while (true) {
                 buffer.clear()
                 while (buffer.hasRemaining()) {
-                    if (channel.read(buffer) < 0) return end()
+                    val read = input.read(piece, 0, minOf(piece.size, buffer.remaining()))
+                    if (read < 0) return end()
+                    buffer.put(piece, 0, read)
                 }
                 onFrame(Frame(width, height, buffer.flip()))
             }
@@ -88,6 +92,9 @@ class FfmpegFeed private constructor(
     companion object {
         private const val KEPT_ERROR_LINES = 20
         private const val END_WAIT_MILLIS = 2000L
+
+        /** How much of a frame one read asks the pipe for: under Wine, 64 KiB reads faster than less or more. */
+        private const val READ_SIZE = 64 * 1024
 
         /** The size a camera is asked for, as the Android app's and the web page's are. */
         private const val CAMERA_WIDTH = 1280
