@@ -12,13 +12,12 @@
 # Wine's msi.dll with 0x65B, so light.exe runs without it (-sval), as electron-builder runs it off
 # Windows. .github/workflows/msi-under-wine.yml validates the MSI on Windows instead.
 #
-# candle.exe and light.exe are .NET Framework programs, which run here in a prefix with
-# Microsoft's .NET Framework 4.8 (`winetricks dotnet48`).
+# candle.exe and light.exe are .NET Framework programs, which run here on Wine Mono.
 #
 # Needs:
-# - Wine, and a prefix: WINEPREFIX's, or without it dot_net_msi_builder among winetricks' named
-#   prefixes, in WINE_PREFIXES or ~/.local/share/wineprefixes, which
-#   tools/make_wine_prefix_on_linux.sh makes with .NET Framework 4.8.
+# - Wine, and a prefix with Wine Mono: WINEPREFIX's, or without it mono_msi_builder among
+#   winetricks' named prefixes, in WINE_PREFIXES or ~/.local/share/wineprefixes, which
+#   tools/make_wine_prefix_on_linux.sh makes.
 # - What package_app_image_on_linux.sh needs, which --tools and --jdk are handed to: the locale
 #   cs_CZ.UTF-8, and a Windows JDK 17.
 # - --wix: WiX Toolset 3.14's binaries, unpacked, the directory holding candle.exe and light.exe
@@ -77,7 +76,7 @@ done
 
 # What tools/fetch_msi_tools_on_linux.sh downloads, where an option does not name it.
 wix="${wix:-$tools/wix}"
-export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/dot_net_msi_builder}"
+export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/mono_msi_builder}"
 
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
@@ -87,8 +86,8 @@ fi
 
 [[ -f "$wix/light.exe" ]] || die "$wix has no light.exe: tools/fetch_msi_tools_on_linux.sh downloads it" 2
 wix="$(realpath "$wix")"
-[[ -f "$WINEPREFIX/drive_c/windows/system32/kernel32.dll" ]] ||
-    die "$WINEPREFIX is no Wine prefix: tools/make_wine_prefix_on_linux.sh makes it" 2
+[[ -d "$WINEPREFIX/drive_c/windows/mono/mono-2.0" ]] ||
+    die "$WINEPREFIX is no Wine prefix with Wine Mono: tools/make_wine_prefix_on_linux.sh makes it" 2
 
 
 # What WiX takes in: the app image, and what :packaging's windowsWix task writes of it.
