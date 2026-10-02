@@ -1,8 +1,9 @@
 import cz.loplex.dogvision.packaging.DebPackage
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
-import cz.loplex.dogvision.packaging.WindowsJpackageFiles
 import cz.loplex.dogvision.packaging.artifact
+import cz.loplex.dogvision.packaging.windowsAppImage
+import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntimeImage
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -80,19 +81,20 @@ val uberJar = tasks.register<Jar>("uberJar") {
 }
 artifact(uberJar)
 
-// What jpackage makes dog-vision-cli's app image and MSI for Windows of, as the scripts in tools hand it: the command
-// line alone, in a console, whose MSI's fragment puts its folder on the system's PATH.
-tasks.named<WindowsJpackageFiles>("windowsJpackage") {
-    packageName = "dog-vision-cli"
-    productSuffix = " (command line)"
-    packageDescription = "How a dog or another animal sees a photo, from the command line"
-    mainJar = uberJar.flatMap { it.archiveFile }
-    mainClass = mainClassName
-    commandLine = true
-    upgradeCode = "bedc25f5-bde3-4837-86b0-26c5291beed3"
-    fragment = layout.projectDirectory.file("packaging/msi-path.xml")
-    componentGroup = "DogVisionCliPath"
-}
+/**
+ * The modules of the runtime on Windows: what jdeps --print-module-deps finds the JAR using; ImageIO, which reads and
+ * writes the photos, is in java.desktop.
+ */
+val windowsModules = listOf("java.base", "java.desktop")
+
+// dog-vision-cli.exe, in a console: in the MSI beside the windows, which :packaging takes, and alone in the zip.
+val windowsLauncher = windowsLauncher(
+    name = "dog-vision-cli",
+    jar = uberJar.flatMap { it.archiveFile },
+    mainClass = mainClassName,
+    console = true,
+    runtimeModules = windowsModules,
+)
 
 // The deb and the rpm, dog-vision-cli, on the system's Java: its JARs in /usr/share/dog-vision-cli/lib and a launcher
 // in /usr/bin, which finds a Java 17 or newer. It has no natives, so one package serves every architecture, and it
@@ -164,6 +166,11 @@ val packageRpm = tasks.register<RpmPackage>("packageRpm") {
 }
 artifact(packageRpm)
 
-// The runtime of the command line's zip and MSI for Windows on x86-64, which the scripts in tools hand jpackage. What
-// jdeps --print-module-deps finds the JAR using: ImageIO, which reads and writes the photos, is in java.desktop.
-windowsRuntimeImage("the command line's runtime for Windows", listOf("java.base", "java.desktop"))
+// What jpackage makes the app image of the command line's zip for Windows on x86-64 of, as the scripts in tools hand
+// it: the command line alone, on a runtime of its own.
+windowsAppImage(
+    packageName = "dog-vision-cli",
+    description = "How a dog or another animal sees a photo, from the command line",
+    launchers = files(windowsLauncher.flatMap { it.destination }, uberJar),
+    runtime = windowsRuntimeImage("the command line's runtime for Windows", windowsModules),
+)

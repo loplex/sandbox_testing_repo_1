@@ -1,7 +1,7 @@
 # The checks on Linux and the Linux packages, installed, upgraded and removed; on Windows what Linux
-# cannot show: the windows' GL contexts, ANGLE's and WGL's, their MSIs and the command line's,
-# built with jpackage and installed, upgraded and removed, and the command line's zip, built with
-# jpackage and run.
+# cannot show: the windows' GL contexts, ANGLE's and WGL's, the one MSI of both windows and the
+# command line, built with WiX and installed, upgraded and removed, and the command line's zip,
+# built with jpackage and run.
 name: CI
 
 on:
@@ -151,39 +151,20 @@ jobs:
           distribution: temurin
           java-version: 25
       - uses: gradle/actions/setup-gradle@v5
-      # WiX Toolset 3.14 comes with the runner's image, which names it by WIX. Each window's MSI and
-      # the command line's, and a later version of each.
+      # WiX Toolset 3.14 comes with the runner's image, which names it by WIX. The MSI, and a later
+      # version of it.
       - name: Build the MSIs
-        id: msis
         shell: pwsh
         run: |
-          foreach ($window in "compose", "swing", "cli") {
-            ./tools/package_msi_on_windows.ps1 -Window $window
-            ./tools/package_msi_on_windows.ps1 -Window $window -AppVersion 0.1.1
-          }
-      - name: Install, upgrade and remove dog-vision's
+          ./tools/package_msi_on_windows.ps1
+          ./tools/package_msi_on_windows.ps1 -AppVersion 0.1.1
+      - name: Install, upgrade and remove it
         shell: pwsh
         run: >-
           ./tools/test_msi_on_windows.ps1
           -Msi tools/build/msi/dog-vision-0.1.0.msi -Version 0.1.0
           -UpgradeMsi tools/build/msi/dog-vision-0.1.1.msi -UpgradeVersion 0.1.1
-          -LogDir msi-logs/dog-vision
-      - name: Install, upgrade and remove dog-vision-swing's
-        if: (success() || failure()) && steps.msis.outcome == 'success'
-        shell: pwsh
-        run: >-
-          ./tools/test_msi_on_windows.ps1 -Name dog-vision-swing
-          -Msi tools/build/msi/dog-vision-swing-0.1.0.msi -Version 0.1.0
-          -UpgradeMsi tools/build/msi/dog-vision-swing-0.1.1.msi -UpgradeVersion 0.1.1
-          -LogDir msi-logs/dog-vision-swing
-      - name: Install, upgrade and remove dog-vision-cli's
-        if: (success() || failure()) && steps.msis.outcome == 'success'
-        shell: pwsh
-        run: >-
-          ./tools/test_msi_on_windows.ps1 -Name dog-vision-cli
-          -Msi tools/build/msi/dog-vision-cli-0.1.0.msi -Version 0.1.0
-          -UpgradeMsi tools/build/msi/dog-vision-cli-0.1.1.msi -UpgradeVersion 0.1.1
-          -LogDir msi-logs/dog-vision-cli
+          -LogDir msi-logs
       - if: always()
         uses: actions/upload-artifact@v5
         with:

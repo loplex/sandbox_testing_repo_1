@@ -13,8 +13,9 @@ What each program does is [Using it](using.md)'s.
   `./gradlew` tasks and what they write.
 - [The command line's zip for Windows](#the-command-lines-zip-for-windows) — `dog-vision-cli.exe`
   on a runtime of its own, built by jpackage on Windows or under Wine.
-- [The desktop packages](#the-desktop-packages) — the deb, the rpm, the tar.gz and the MSI of each
-  window: the tools they need, what they install, their dependencies, and the scripts that try them.
+- [The desktop packages](#the-desktop-packages) — the deb, the rpm and the tar.gz of each window,
+  and the one MSI of both and the command line: the tools they need, what they install, their
+  dependencies, and the scripts that try them.
 
 ## What the build needs
 
@@ -49,7 +50,7 @@ Each artifact lands here:
 | Swing window   | the JARs, Linux's, Windows's | `gui-swing/build/jars`                           |
 | Swing window   | the deb, the rpm, the tar.gz | `gui-swing/build/packages/deb`, `…/rpm`, `…/tar` |
 
-The MSIs and the command line's zip for Windows are not among them, as jpackage builds an installer
+The MSI and the command line's zip for Windows are not among them, as jpackage builds an installer
 or a native launcher only on the system it is for:
 [The MSI, built under Wine or on Windows](#the-msi-built-under-wine-or-on-windows) and
 [The command line's zip for Windows](#the-command-lines-zip-for-windows) say how.
@@ -100,8 +101,8 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ```
 
 - **It is to unpack and run without installing it**, as `dog-vision-cli\dog-vision-cli.exe`, on
-  Windows on x86-64; it adds itself to neither the `PATH` nor the Start menu, where the command
-  line's MSI, in [What each package holds](#what-each-package-holds), puts it on the `PATH`.
+  Windows on x86-64; it adds itself to neither the `PATH` nor the Start menu, where the MSI, in
+  [What each package holds](#what-each-package-holds), puts it on the `PATH`.
 - **It holds jpackage's app image**: `dog-vision-cli.exe`, a native launcher that runs in a
   console, the JAR in `app`, a runtime of its own in `runtime`, and the licence.
 - **Its runtime is Temurin's JDK 25, cut down by jlink to `java.base` and `java.desktop`**, which
@@ -116,7 +117,7 @@ pwsh tools/package_cli_zip_on_windows.ps1
     JDK 25 that `JAVA_HOME` names;
   - [`tools/package_cli_zip_on_linux.sh`](../tools/package_cli_zip_on_linux.sh) zips the image
     that [`package_app_image_on_linux.sh`](../tools/package_app_image_on_linux.sh) builds under
-    Wine, the one the command line's MSI installs, and needs `zip`.
+    Wine, and needs `zip`.
 - **[`tools/test_cli_zip_on_windows.ps1`](../tools/test_cli_zip_on_windows.ps1) tries it on
   Windows**: it unpacks it into a folder whose name has a space, and runs `dog-vision-cli` from the
   `PATH` with `--help`, on a photo and with an unknown option.
@@ -159,20 +160,14 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 ./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
-                                     # once: what the MSIs are built with, into tools/cache
+                                     # once: what the MSI is built with, into tools/cache
 tools/make_wine_prefix_on_linux.sh
-                                     # once: their Wine prefix, ~/.local/share/wineprefixes/dot_net_msi_builder
+                                     # once: its Wine prefix, ~/.local/share/wineprefixes/dot_net_msi_builder
 tools/package_app_image_on_linux.sh
-                                     # the folders the MSIs install: tools/build/app-image/dog-vision, …
-tools/package_msi_on_linux.sh        # all three MSIs below, or with --window compose, swing or cli one
-tools/package_msi_on_linux.sh --window compose
-                                     # tools/build/msi/dog-vision-0.1.0.msi
-tools/package_msi_on_linux.sh --window swing
-                                     # tools/build/msi/dog-vision-swing-0.1.0.msi
-tools/package_msi_on_linux.sh --window cli
-                                     # tools/build/msi/dog-vision-cli-0.1.0.msi
+                                     # the folders the MSI and the zip hold: tools/build/app-image/dog-vision, …
+tools/package_msi_on_linux.sh        # tools/build/msi/dog-vision-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1
-                                     # on Windows: the same, the Compose window's, or with -Window swing or cli
+                                     # on Windows: the same
 ```
 
 Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
@@ -186,7 +181,7 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,
   so that build needs the network: jpackage runs from it, and it is the tar.gzs' runtime.
-  Its jlink links the MSIs' runtime as well, from Temurin's jmods for Windows, which Gradle
+  Its jlink links the MSI's runtime as well, from Temurin's jmods for Windows, which Gradle
   downloads too, of the release `temurin-windows-jmods` in
   [`libs.versions.toml`](../gradle/libs.versions.toml) gives.
   The Compose window's tar.gz comes from Compose's own jpackage task, the Swing window's from
@@ -230,31 +225,28 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   where `dog-vision-cli` brought a headless Java and a window a full one of another version,
   `java` may be the headless one.
 - **The tar.gz and the MSI bring a runtime of their own**, Temurin's JDK 25, which jlink cuts down
-  to the modules the window uses, and both launchers, the window's and `dog-vision-cli`.
+  to the modules their launchers use: each tar.gz the window's and `dog-vision-cli`, the MSI both
+  windows' and `dog-vision-cli`.
   Temurin brings its own image and font libraries, which a distribution's OpenJDK takes from the
   system, so the tar.gz needs little more than glibc 2.28 or later, which LWJGL's natives ask for,
   X11 and ALSA, and for the Compose window fontconfig and the C++ runtime as well, which skiko
   links.
   It is to run as `dog-vision/bin/dog-vision` or `dog-vision-swing/bin/dog-vision-swing` without
   installing it.
-- **The MSI installs into `Program Files\<package>`** and adds the window to the Start menu, in a
-  group of the window's name, *Dog Vision* or *Dog Vision (Swing)*, and to the desktop.
-  The installer and the system's list of programs name it the same, and the command line's MSI
-  *Dog Vision (command line)*.
-  A window's MSI removes `%ProgramData%\Dog Vision`, where the window downloads ffmpeg, with the
-  product, and leaves it over an upgrade, as
-  [`gui-compose/packaging/msi-data.xml`](../gui-compose/packaging/msi-data.xml) says how.
-  Each window's MSI carries a fixed upgrade code of its own, so that a later version's MSI replaces
-  it, and installing the one window leaves the other.
-- **The command line's MSI, `dog-vision-cli`, holds `dog-vision-cli.exe` alone**, on a runtime of
-  `java.base` and `java.desktop`, with no shortcut, as started from one it would only print its
-  usage.
-  It puts `Program Files\dog-vision-cli` at the end of the system's `PATH`, for the consoles opened
-  after, and takes it off again when it is removed: jpackage cannot, so the module's
-  `windowsJpackage` task adds [`cli/packaging/msi-path.xml`](../cli/packaging/msi-path.xml) to
-  jpackage's own `main.wxs`, taken from the JDK whose jpackage builds the MSI, and fails where that
-  `main.wxs` has changed so that it cannot.
-  It installs beside either window's MSI, whose `dog-vision-cli.exe` is not on the `PATH`.
+- **The MSI, `dog-vision`, installs both windows and the command line** into
+  `Program Files\dog-vision`, each a launcher on the one runtime: `dog-vision.exe`,
+  `dog-vision-swing.exe` and `dog-vision-cli.exe`.
+  The installer and the system's list of programs name it *Dog Vision*.
+- **Each window gets a shortcut in the Start menu and on the desktop**, *Dog Vision* and
+  *Dog Vision (Swing)*, the Start menu's in a group *Dog Vision*.
+  The command line gets none, as started from one it would only print its usage, but
+  `Program Files\dog-vision` goes at the end of the system's `PATH`, for the consoles opened after,
+  and comes off it again when the MSI is removed.
+- **It removes `%ProgramData%\Dog Vision`, where a window downloads ffmpeg, with the product**, and
+  leaves it over an upgrade.
+- **[`packaging/windows/dog-vision.wxs`](../packaging/windows/dog-vision.wxs) says what it does**,
+  the WiX source the MSI is made of, with its upgrade code, which stays the same from one version
+  to the next, so that a later version's MSI replaces the one installed.
 
 ### The Linux packages' dependencies
 
@@ -313,16 +305,14 @@ runtime into its packages.
 
 ### The MSI, built under Wine or on Windows
 
-jpackage builds an installer only on the system it is for, so each window's MSI and the command
-line's are built either under Wine on Linux or on Windows.
-`package_msi_on_linux.sh` builds all three, and with `--window compose`, `swing` or `cli` one of
-them; `package_msi_on_windows.ps1` builds the Compose window's, with `-Window swing` the Swing
-window's and with `-Window cli` the command line's.
+jpackage builds an app image for Windows only on Windows, so the MSI is built either under Wine on
+Linux, by `package_msi_on_linux.sh`, or on Windows, by `package_msi_on_windows.ps1`, the same MSI
+both.
 
 - **On Windows, [`tools/package_msi_on_windows.ps1`](../tools/package_msi_on_windows.ps1) builds
-  it** with the jpackage of the JDK 25 it runs on and WiX 3.14, and light.exe validates it.
+  it** with the jpackage of the JDK 25 it runs on and WiX 3.14, whose light.exe validates it.
 - **Under Wine, [`tools/package_msi_on_linux.sh`](../tools/package_msi_on_linux.sh) builds it**,
-  with three detours round Wine that the script describes.
+  with the detours round Wine that it and `package_app_image_on_linux.sh` describe.
   [`tools/fetch_msi_tools_on_linux.sh`](../tools/fetch_msi_tools_on_linux.sh) downloads what it
   builds with, once: a Windows JDK 17 and WiX 3.14, into `tools/cache`.
   [`tools/make_wine_prefix_on_linux.sh`](../tools/make_wine_prefix_on_linux.sh) makes the Wine
@@ -334,33 +324,31 @@ window's and with `-Window cli` the command line's.
 - **Under Wine, [`tools/package_app_image_on_linux.sh`](../tools/package_app_image_on_linux.sh)
   builds the app image first**, the folder the MSI installs, in `tools/build/app-image`, which
   `package_msi_on_linux.sh` runs it for.
-  Its `.exe` runs under Wine from there, without installing the MSI:
+  Its `.exe` run under Wine from there, without installing the MSI:
   `wine tools/build/app-image/dog-vision/dog-vision.exe`.
+- **One app image holds the three launchers**, from one run of jpackage, of the arguments that
+  `:packaging`'s `windowsJpackage` task writes into `packaging/build/windows/jpackage`.
+  Each of `gui-compose`, `gui-swing` and `cli` hands it its launcher through its `windowsLauncher`
+  task: the JAR, the main class and the Java options, and the modules the runtime needs.
+  jpackage puts every JAR of the image on each launcher's classpath, so the `windowsLauncherConfigs`
+  task writes each launcher's `.cfg` with its own JAR alone, which the scripts copy into the image.
 - **Both take the runtime from Gradle**, so that it is the same on Windows and under Wine:
-  `./gradlew :gui-compose:windowsRuntime`, `:gui-swing:windowsRuntime` and `:cli:windowsRuntime`
-  link it, on any system, as the command line's zip's above.
-- **Both take what the MSI is made of from Gradle**, so that the two make the same MSI: each
-  module's `windowsJpackage` task writes, into its `build/windows/jpackage`, jpackage's arguments
-  and resource directory, from what the module's build script says of its package and the
-  `main.wxs` of the JDK that `-PjpackageJdk` names, whose jpackage the script runs.
+  `./gradlew :packaging:windowsRuntime` links it, of every module a launcher needs, on any system,
+  as the command line's zip's above.
+- **WiX makes the MSI of the project's own source**, not of jpackage's: the `windowsWix` task writes
+  into `packaging/build/windows/wix`
+  [`packaging/windows/dog-vision.wxs`](../packaging/windows/dog-vision.wxs), a component for each
+  file of the app image, and the values the source takes, which the scripts hand candle.exe and
+  light.exe.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
-  machine to throw away**: it installs the MSI, runs the command line, looks at the shortcuts,
-  installs a later version over it and removes that; `-Name dog-vision-swing` tries the Swing
-  window's, and `-Name dog-vision-cli` the command line's, whose folder it checks is on the `PATH`
-  once and off it after.
-- **The licence dialog shows [`LICENSE`](../LICENSE) line for line**, from the RTF that each
-  module's `windowsLicense` task writes: jpackage's own conversion of a text file runs a
-  paragraph's lines together, which the GPL has broken by hand.
-- **The dialogs show the dog**, on the bitmaps that each module's `windowsBitmaps` task draws from
-  the icon in place of WiX's: the banner across the top of most of them, and a panel on the left
-  of the first and the last, in the icon's background.
-- **The MSI's code page is Windows-1250**, as the vendor's name has a ř that jpackage's
-  Windows-1252 lacks:
-  [`MsiInstallerCodepage_en.wxl`](../gui-compose/packaging/windows/MsiInstallerCodepage_en.wxl) says
-  how for each JDK's jpackage.
-
-#### Caveat: the MSI built under Wine gives `dog-vision-cli` shortcuts too
-
-It adds a Start menu entry and a desktop shortcut for `dog-vision-cli` as well, which started from
-there only prints its usage: JDK 17's jpackage cannot leave one launcher out, where JDK 25's, on
-Windows, does.
+  machine to throw away**: it installs the MSI, runs the command line, from the `PATH` too, looks
+  at the shortcuts, installs a later version over it and removes that, and checks that the
+  installation folder is on the `PATH` once and off it after.
+- **The licence dialog shows [`LICENSE`](../LICENSE) line for line**, from the RTF that the
+  `windowsLicense` task writes, as the GPL has its lines broken by hand.
+- **The dialogs show the dog**, on the bitmaps that the `windowsBitmaps` task draws from the icon in
+  place of WiX's: the banner across the top of most of them, and a panel on the left of the first
+  and the last, in the icon's background.
+- **The MSI's code page is Windows-1250**, as the vendor's name has a ř that the Windows-1252 of
+  WiX's own English strings lacks:
+  [`packaging/windows/codepage.wxl`](../packaging/windows/codepage.wxl) says how.

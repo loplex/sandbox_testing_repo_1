@@ -3,6 +3,7 @@ package cz.loplex.dogvision.packaging
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
+import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RelativePath
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Sync
@@ -32,11 +33,15 @@ fun Project.packagingJdk(): Provider<JavaLauncher> =
 
 /**
  * Registers windowsRuntime, which links in build/windows/runtime [what], the runtime for Windows on x86-64 that the
- * scripts in tools hand jpackage: [modules] alone, with [packagingJdk]'s jlink, from Temurin's jmods for Windows of
- * [temurinRelease], which windowsJmods unpacks into build/windows/jmods. So it is the same runtime on Windows and on
- * Linux, where jpackage runs under Wine, whatever JDK either runs on. windowsJpackage hands it jpackage.
+ * scripts in tools hand jpackage: [modules] and those [moduleLists] name alone, with [packagingJdk]'s jlink, from
+ * Temurin's jmods for Windows of [temurinRelease], which windowsJmods unpacks into build/windows/jmods. So it is the
+ * same runtime on Windows and on Linux, where jpackage runs under Wine, whatever JDK either runs on.
  */
-fun Project.windowsRuntimeImage(what: String, modules: List<String>): TaskProvider<RuntimeImage> {
+fun Project.windowsRuntimeImage(
+    what: String,
+    modules: List<String>,
+    moduleLists: FileCollection = files(),
+): TaskProvider<RuntimeImage> {
     val release = temurinRelease()
     val jmodsScope = configurations.dependencyScope("windowsJmods")
     val jmodsZip = configurations.resolvable("windowsJmodsZip") { extendsFrom(jmodsScope.get()) }
@@ -66,10 +71,8 @@ fun Project.windowsRuntimeImage(what: String, modules: List<String>): TaskProvid
         jdkHome.set(packagingJdk().map { it.metadata.installationPath.asFile.path })
         this.jmods.set(layout.dir(jmods.map { it.destinationDir }))
         this.modules.set(modules)
+        this.moduleLists.from(moduleLists)
         destination.set(layout.buildDirectory.dir("windows/runtime"))
-    }
-    tasks.named("windowsJpackage", WindowsJpackageFiles::class.java) {
-        this.runtime.set(runtime.flatMap { it.destination })
     }
     return runtime
 }

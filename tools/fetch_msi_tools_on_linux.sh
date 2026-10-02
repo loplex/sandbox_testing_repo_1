@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Downloads what tools/package_msi_on_linux.sh builds the MSIs with into one tools directory, from
+# Downloads what tools/package_msi_on_linux.sh builds the MSI with into one tools directory, from
 # which that script then takes it without arguments:
-# - jdk17: a Windows JDK 17, Temurin's latest at the time, for its jpackage.exe.
+# - jdk17: a Windows JDK 17, Temurin's latest at the time, for its jpackage.exe, which
+#   tools/package_app_image_on_linux.sh runs.
 # - wix: WiX Toolset 3.14's binaries.
 #
 # The tools directory is tools/cache, which git ignores, unless --tools names another.
@@ -9,8 +10,8 @@
 # Each download is unpacked beside its place first and renamed into it once whole, so that one
 # stopped halfway is downloaded again on the next run.
 #
-# The runtime is no download of this script's: each window's windowsRuntime task links it, from
-# Temurin's jmods for Windows, which Gradle downloads.
+# The runtime is no download of this script's: the windowsRuntime tasks of :packaging and :cli link
+# it, from Temurin's jmods for Windows, which Gradle downloads.
 #
 # Needs curl and unzip.
 #
