@@ -5,6 +5,7 @@ import cz.loplex.dogvision.desktop.Area
 import cz.loplex.dogvision.desktop.LiveSession
 import cz.loplex.dogvision.desktop.Picture
 import cz.loplex.dogvision.texts.Str
+import java.awt.Desktop
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridBagLayout
@@ -13,6 +14,7 @@ import java.awt.event.ComponentEvent
 import java.awt.event.HierarchyEvent
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
+import java.net.URI
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.JButton
@@ -38,7 +40,7 @@ internal class Preview(private val session: LiveSession<BufferedImage>) : JPanel
 
     private val message = WrappedText(centred = true)
     private val install = JButton().apply { addActionListener { session.installFfmpeg() } }
-    private val installFailure = WrappedText(centred = true)
+    private val installFailure = WrappedText(centred = true).apply { onLink = ::browse }
     private val failure = Column().apply {
         val padding = UIScale.scale(24)
         border = BorderFactory.createEmptyBorder(padding, padding, padding, padding)
@@ -71,6 +73,7 @@ internal class Preview(private val session: LiveSession<BufferedImage>) : JPanel
         install.text = state.texts.get(if (state.installingFfmpeg) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG)
         installFailure.isVisible = state.offersFfmpeg && state.ffmpegFailure != null
         installFailure.pieces = state.ffmpegFailure?.words(state.texts)?.split(' ').orEmpty()
+        installFailure.link = state.ffmpegFailure?.link
         repaint()
     }
 
@@ -140,4 +143,9 @@ internal class Preview(private val session: LiveSession<BufferedImage>) : JPanel
         const val CAPTION_HEIGHT = 40
         const val GAP = 6
     }
+}
+
+/** Opens [link] in the browser, where this system has one that Java can start. */
+private fun browse(link: String) {
+    runCatching { if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(URI(link)) }
 }

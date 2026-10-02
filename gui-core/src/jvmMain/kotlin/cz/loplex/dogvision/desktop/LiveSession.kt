@@ -2,15 +2,14 @@ package cz.loplex.dogvision.desktop
 
 import cz.loplex.dogvision.cli.Arguments
 import cz.loplex.dogvision.core.View
+import cz.loplex.dogvision.desktop.FfmpegPrograms.DOWNLOAD_PAGE
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.awt.Desktop
 import java.awt.EventQueue
 import java.io.File
-import java.net.URI
 import java.util.Locale
 import kotlin.concurrent.thread
 
@@ -30,7 +29,7 @@ class LiveSession<I>(
     private val arguments: Arguments,
     makeRenderer: (onPicture: (Picture<I>) -> Unit, onFailure: (String) -> Unit) -> Renderer,
     private val feed: (Source, Renderer, (Failure) -> Unit) -> AutoCloseable = ::startFeed,
-    private val ffmpegInstaller: () -> FfmpegInstall = ::installFfmpegOrOpenItsPage,
+    private val ffmpegInstaller: () -> FfmpegInstall = FfmpegPrograms::install,
     private val canInstallFfmpeg: Boolean = onWindows,
     private val post: (() -> Unit) -> Unit = { EventQueue.invokeLater(it) },
     private val systemLanguage: () -> String = { Locale.getDefault().toLanguageTag() },
@@ -129,7 +128,7 @@ class LiveSession<I>(
             post {
                 val failure = when (installed) {
                     FfmpegInstall.Found -> null
-                    FfmpegInstall.NoWinget -> Failure { it.get(Str.NO_WINGET, FfmpegPrograms.DOWNLOAD_PAGE) }
+                    FfmpegInstall.NoWinget -> Failure(link = DOWNLOAD_PAGE) { it.get(Str.NO_WINGET, DOWNLOAD_PAGE) }
                     is FfmpegInstall.Failed -> Failure { it.get(Str.FFMPEG_NOT_INSTALLED, installed.reason) }
                 }
                 change { copy(installingFfmpeg = false, ffmpegFailure = failure) }
@@ -175,14 +174,5 @@ class LiveSession<I>(
             LiveSession(arguments, { onPicture, onFailure ->
                 GlRenderer(arguments.windowsGl, imageMaker, onPicture, onFailure)
             })
-    }
-}
-
-/** Installs ffmpeg as [FfmpegPrograms.install] does, and opens ffmpeg's download page where winget is missing. */
-private fun installFfmpegOrOpenItsPage(): FfmpegInstall = FfmpegPrograms.install().also { installed ->
-    if (installed == FfmpegInstall.NoWinget) {
-        runCatching {
-            if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(URI(FfmpegPrograms.DOWNLOAD_PAGE))
-        }
     }
 }

@@ -6,13 +6,17 @@ import java.awt.BasicStroke
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.LayoutManager
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.Toolkit
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
@@ -50,7 +54,8 @@ internal open class Column : Row() {
  * Text broken into lines between its [pieces], each kept whole where it fits on a line, so that a share stays with its
  * source's opening and a citation's authors together, and a piece wider than the line on lines of its own, broken at
  * its spaces, as the Compose controls and the web page break one; its lines [centred] or from the left, and at most
- * [maxWidth] wide. Its height follows the width it is given.
+ * [maxWidth] wide. Its height follows the width it is given. A piece that is [link] is drawn as a link, which
+ * [onLink] is given when it is clicked.
  */
 internal class WrappedText(private val centred: Boolean = false) : JComponent() {
     var pieces: List<String> = emptyList()
@@ -61,6 +66,15 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
             repaint()
         }
 
+    var link: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            repaint()
+        }
+
+    var onLink: (String) -> Unit = {}
+
     var maxWidth = Int.MAX_VALUE
         set(value) {
             if (field == value) return
@@ -70,6 +84,19 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
 
     init {
         lookAsLabel()
+        val mouse = object : MouseAdapter() {
+            override fun mouseClicked(event: MouseEvent) {
+                val link = link ?: return
+                if (linkArea()?.contains(event.point) == true) onLink(link)
+            }
+
+            override fun mouseMoved(event: MouseEvent) {
+                val overLink = linkArea()?.contains(event.point) == true
+                cursor = Cursor.getPredefinedCursor(if (overLink) Cursor.HAND_CURSOR else Cursor.DEFAULT_CURSOR)
+            }
+        }
+        addMouseListener(mouse)
+        addMouseMotionListener(mouse)
     }
 
     override fun updateUI() {
@@ -148,17 +175,59 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
         if (lines(textWidth()).size != before) SwingUtilities.invokeLater(::revalidate)
     }
 
+    /** Where [line] starts, on the left. */
+    private fun lineX(line: String): Int {
+        val inner = width - insets.left - insets.right
+        return insets.left + if (centred) (inner - getFontMetrics(font).stringWidth(line)) / 2 else 0
+    }
+
+    /** Where in [line] [link] starts as a piece of its own, or -1 where it is none of its pieces. */
+    private fun linkIn(line: String): Int {
+        val link = link ?: return -1
+        val at = line.indexOf(link)
+        val end = at + link.length
+        val whole = at >= 0 && (at == 0 || line[at - 1] == ' ') && (end == line.length || line[end] == ' ')
+        return if (whole) at else -1
+    }
+
+    /** Where [link] is drawn, on the first line it is a piece of, or null where it is none. */
+    private fun linkArea(): Rectangle? {
+        val link = link ?: return null
+        val metrics = getFontMetrics(font)
+        lines(textWidth()).forEachIndexed { i, line ->
+            val at = linkIn(line)
+            if (at >= 0) {
+                val x = lineX(line) + metrics.stringWidth(line.substring(0, at))
+                return Rectangle(x, insets.top + i * metrics.height, metrics.stringWidth(link), metrics.height)
+            }
+        }
+        return null
+    }
+
     override fun paintComponent(g: Graphics) {
         val g2 = g.create() as Graphics2D
         try {
             antialiased(g2)
             g2.font = font
-            g2.color = if (isEnabled) foreground else UIManager.getColor("Label.disabledForeground")
+            val text = if (isEnabled) foreground else UIManager.getColor("Label.disabledForeground")
             val metrics = g2.fontMetrics
-            val inner = width - insets.left - insets.right
             lines(textWidth()).forEachIndexed { i, line ->
-                val x = insets.left + if (centred) (inner - metrics.stringWidth(line)) / 2 else 0
-                g2.drawString(line, x, insets.top + i * metrics.height + metrics.ascent)
+                val x = lineX(line)
+                val y = insets.top + i * metrics.height + metrics.ascent
+                val at = linkIn(line)
+                g2.color = text
+                if (at < 0) {
+                    g2.drawString(line, x, y)
+                    return@forEachIndexed
+                }
+                val link = line.substring(at, at + checkNotNull(link).length)
+                val before = line.substring(0, at)
+                val linkX = x + metrics.stringWidth(before)
+                g2.drawString(before, x, y)
+                g2.drawString(line.substring(at + link.length), linkX + metrics.stringWidth(link), y)
+                g2.color = UIManager.getColor("Component.linkColor") ?: text
+                g2.drawString(link, linkX, y)
+                g2.fillRect(linkX, y + 1, metrics.stringWidth(link), max(1, UIScale.scale(1)))
             }
         } finally {
             g2.dispose()
