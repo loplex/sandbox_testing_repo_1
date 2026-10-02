@@ -37,6 +37,7 @@ if ($Window -eq "compose") {
     $jarTask = ":gui-compose:windowsUberJar"
     $runtimeTask = ":gui-compose:windowsRuntime"
     $licenseTask = ":gui-compose:windowsLicense"
+    $bitmapsTask = ":gui-compose:windowsBitmaps"
     $jarFile = "build\compose\jars\dog-vision-windows-x64-{0}.jar"
     $outputDir = Join-Path $module "build\compose\binaries\main\msi"
     $mainClass = "cz.loplex.dogvision.desktop.MainKt"
@@ -49,6 +50,7 @@ if ($Window -eq "compose") {
     $jarTask = ":gui-swing:windowsUberJar"
     $runtimeTask = ":gui-swing:windowsRuntime"
     $licenseTask = ":gui-swing:windowsLicense"
+    $bitmapsTask = ":gui-swing:windowsBitmaps"
     $jarFile = "build\jars\dog-vision-swing-windows-x64-{0}.jar"
     $outputDir = Join-Path $module "build\packages\msi"
     $mainClass = "cz.loplex.dogvision.swing.MainKt"
@@ -61,6 +63,7 @@ if ($Window -eq "compose") {
     $jarTask = ":cli:uberJar"
     $runtimeTask = ":cli:windowsRuntime"
     $licenseTask = ":cli:windowsLicense"
+    $bitmapsTask = ":cli:windowsBitmaps"
     $jarFile = "build\jars\dog-vision-cli.jar"
     $outputDir = Join-Path $module "build\packages\msi"
     $mainClass = "cz.loplex.dogvision.cli.MainKt"
@@ -89,8 +92,8 @@ if (-not $env:JAVA_HOME) {
 $jdkBin = Join-Path $env:JAVA_HOME "bin"
 
 
-# What jpackage takes in: the JAR, and the runtime and the licence that the module's build\windows
-# holds.
+# What jpackage takes in: the JAR, and the runtime, the licence and the dialogs' bitmaps that the
+# module's build\windows holds.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
@@ -100,7 +103,7 @@ $packageVersion = $Matches[1]
 if (-not $AppVersion) {
     $AppVersion = $packageVersion
 }
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask, $runtimeTask, $licenseTask)
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", $jarTask, $runtimeTask, $licenseTask, $bitmapsTask)
 $jar = Join-Path $module ($jarFile -f $packageVersion)
 $runtime = Join-Path $module "build\windows\runtime"
 $license = Join-Path $module "build\windows\LICENSE.rtf"
@@ -137,29 +140,38 @@ if ($text -notmatch 'Codepage="1252"') {
 $text = $text -replace 'Codepage="1252"', 'Codepage="1250"'
 [System.IO.File]::WriteAllText((Join-Path $resources "MsiInstallerStrings_en.wxl"), $text)
 
-# For the command line, this JDK's main.wxs with msi-path.xml in it, as package_msi_on_linux.sh puts
-# it there.
+# This JDK's main.wxs with WiX's dialog bitmaps set to the module's, and for the command line
+# msi-path.xml in it as well, as package_msi_on_linux.sh puts them there.
+Invoke-Checked (Join-Path $jdkBin "jimage.exe") @(
+    "extract", "--dir", $extracted, "--include", "regex:.*/jdk/jpackage/internal/resources/main\.wxs",
+    (Join-Path $env:JAVA_HOME "lib\modules")
+)
+$mainWxs = Get-ChildItem -Recurse -File -Filter "main.wxs" $extracted | Select-Object -First 1
+if (-not $mainWxs) {
+    throw "This JDK's jpackage has no main.wxs"
+}
+$text = [System.IO.File]::ReadAllText($mainWxs.FullName)
+$filesReference = '<ComponentGroupRef Id="Files"/>'
+$anchors = @("</Product>")
 if ($Window -eq "cli") {
-    Invoke-Checked (Join-Path $jdkBin "jimage.exe") @(
-        "extract", "--dir", $extracted, "--include", "regex:.*/jdk/jpackage/internal/resources/main\.wxs",
-        (Join-Path $env:JAVA_HOME "lib\modules")
-    )
-    $mainWxs = Get-ChildItem -Recurse -File -Filter "main.wxs" $extracted | Select-Object -First 1
-    if (-not $mainWxs) {
-        throw "This JDK's jpackage has no main.wxs"
+    $anchors += @($filesReference, "</Wix>")
+}
+foreach ($anchor in $anchors) {
+    if (([regex]::Matches($text, [regex]::Escape($anchor))).Count -ne 1) {
+        throw "This JDK's main.wxs has not one $anchor"
     }
-    $text = [System.IO.File]::ReadAllText($mainWxs.FullName)
-    $filesReference = '<ComponentGroupRef Id="Files"/>'
-    foreach ($anchor in $filesReference, "</Wix>") {
-        if (([regex]::Matches($text, [regex]::Escape($anchor))).Count -ne 1) {
-            throw "This JDK's main.wxs has not one $anchor"
-        }
-    }
+}
+$banner = Join-Path $module "build\windows\banner.bmp"
+$dialog = Join-Path $module "build\windows\dialog.bmp"
+$bitmaps = "<WixVariable Id=`"WixUIBannerBmp`" Value=`"$banner`"/>`n" +
+    "  <WixVariable Id=`"WixUIDialogBmp`" Value=`"$dialog`"/>`n  </Product>"
+$text = $text.Replace("</Product>", $bitmaps)
+if ($Window -eq "cli") {
     $fragment = [System.IO.File]::ReadAllText((Join-Path $module "packaging\msi-path.xml"))
     $text = $text.Replace($filesReference, "$filesReference`n      <ComponentGroupRef Id=`"DogVisionCliPath`"/>")
     $text = $text.Replace("</Wix>", "$fragment</Wix>")
-    [System.IO.File]::WriteAllText((Join-Path $resources "main.wxs"), $text)
 }
+[System.IO.File]::WriteAllText((Join-Path $resources "main.wxs"), $text)
 
 # Each window's launcher has a shortcut in the Start menu, in a group of the package's name, and on
 # the desktop, and dog-vision-cli.exe beside it has none; the command line's MSI has no shortcut at
