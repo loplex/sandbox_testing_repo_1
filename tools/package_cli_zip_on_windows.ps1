@@ -2,12 +2,13 @@
 # anywhere without installing it.
 #
 # jpackage makes its app image with dog-vision-cli.exe, a native launcher that runs in a console,
-# beside the JAR that cli's uberJar task assembles and the runtime that its windowsRuntime task links
-# from Temurin's jmods for Windows; the zip holds that image and the licence. It is written to
-# cli/build/packages/zip. tools/package_cli_zip_on_linux.sh builds the same zip through Wine.
+# of the arguments that cli's windowsJpackage task writes, with the JAR that its uberJar task
+# assembles and the runtime that its windowsRuntime task links from Temurin's jmods for Windows; the
+# zip holds that image and the licence. It is written to cli/build/packages/zip.
+# tools/package_cli_zip_on_linux.sh builds the same zip through Wine.
 #
 # Needs:
-# - PowerShell 7 (pwsh), which reads this file as UTF-8, as the vendor's name needs.
+# - PowerShell 7 (pwsh), which reads this file as UTF-8.
 # - A JDK 25 as JAVA_HOME, whose jpackage makes the app image.
 $ErrorActionPreference = "Stop"
 
@@ -27,51 +28,34 @@ if (-not $env:JAVA_HOME) {
 }
 
 
-# What jpackage takes in: the JAR and the runtime.
+# What jpackage takes in: the arguments, with the JAR and the runtime they name.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
     throw "gradle.properties has no appVersion"
 }
 $version = $Matches[1]
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:uberJar", ":cli:windowsRuntime")
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsJpackage", "-PjpackageJdk=$env:JAVA_HOME")
+$jpackageFiles = Join-Path $cli "build\windows\jpackage"
 
 $staging = Join-Path $cli "build\windows-zip"
 if (Test-Path $staging) {
     Remove-Item -Recurse -Force $staging
 }
 
-# jpackage takes every file in --input into the application, so the JAR goes there alone.
-$inputDir = Join-Path $staging "input"
-New-Item -ItemType Directory -Path $inputDir | Out-Null
-Copy-Item (Join-Path $cli "build\jars\dog-vision-cli.jar") $inputDir
-
 
 # jpackage, and the zip of its image.
 
+# The files of arguments, which jpackage reads in its default charset, UTF-8 from JDK 18 on, as
+# windowsJpackage writes them: Java reads its command line in the system's ANSI code page, which on
+# an English Windows, 1252, has no ř for the vendor's name.
 $image = Join-Path $staging "image"
-$arguments = @(
+Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
+    "@$(Join-Path $jpackageFiles "package-arguments")",
+    "@$(Join-Path $jpackageFiles "image-arguments")",
     "--type", "app-image",
-    "--name", "dog-vision-cli",
-    "--app-version", $version,
-    "--vendor", "Martin Lopatář",
-    "--description", "How a dog or another animal sees a photo, from the command line",
-    "--icon", (Join-Path $root "gui-compose\packaging\dog-vision.ico"),
-    "--input", $inputDir,
-    "--main-jar", "dog-vision-cli.jar",
-    "--main-class", "cz.loplex.dogvision.cli.MainKt",
-    "--runtime-image", (Join-Path $cli "build\windows\runtime"),
-    "--win-console",
     "--dest", $image
 )
-
-# From a file in UTF-8, which jpackage reads as its default charset: Java reads its command line in
-# the system's ANSI code page, which on an English Windows, 1252, has no ř for the vendor's name.
-# Each argument in quotes, inside which a backslash escapes the next character.
-$argumentFile = Join-Path $staging "jpackage-arguments"
-$quoted = $arguments | ForEach-Object { '"' + ($_ -replace '\\', '\\' -replace '"', '\"') + '"' }
-[System.IO.File]::WriteAllLines($argumentFile, [string[]]$quoted, [System.Text.UTF8Encoding]::new($false))
-Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @("@$argumentFile")
 
 $app = Join-Path $image "dog-vision-cli"
 Copy-Item (Join-Path $root "LICENSE") $app
