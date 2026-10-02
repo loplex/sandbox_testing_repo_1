@@ -30,13 +30,14 @@ class OpenDialogTest {
 
     @Test
     fun theDialogStartsBesideTheFileShown() {
+        // Its absolute path, which on Windows, where the tests run too, is a drive's and has backslashes.
         val shown = File("/home/someone/photos/a.jpg")
         assertEquals(
-            listOf("kdialog", "--title", "Open", "--getopenfilename", "/home/someone/photos/a.jpg"),
+            listOf("kdialog", "--title", "Open", "--getopenfilename", shown.absolutePath),
             dialogCommand("Open", shown, "KDE", both::contains),
         )
         assertEquals(
-            listOf("zenity", "--file-selection", "--title=Open", "--filename=/home/someone/photos/a.jpg"),
+            listOf("zenity", "--file-selection", "--title=Open", "--filename=${shown.absolutePath}"),
             dialogCommand("Open", shown, "GNOME", both::contains),
         )
         assertEquals(

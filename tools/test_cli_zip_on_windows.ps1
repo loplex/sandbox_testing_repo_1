@@ -41,3 +41,6 @@ if ($LASTEXITCODE -ne 2) {
     throw "An unknown option exited with $LASTEXITCODE, not 2"
 }
 Write-Host "The zip's dog-vision-cli runs from the PATH"
+# The unknown option's 2 is still in $LASTEXITCODE, which GitHub Actions' pwsh exits with after the
+# script: every failure above has thrown.
+exit 0
