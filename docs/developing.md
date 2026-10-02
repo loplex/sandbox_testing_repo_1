@@ -23,6 +23,7 @@ Building the programs is [Building it](building.md)'s.
 | [`gui-core`](../gui-core)         | what the desktop windows share             | the JVM             |
 | [`gui-compose`](../gui-compose)   | the desktop window, in Compose             | the JVM             |
 | [`gui-swing`](../gui-swing)       | the desktop window, in Swing               | the JVM             |
+| [`packaging`](../packaging)       | the MSI, both windows and the command line | Windows             |
 | [`testing`](../testing)           | what the renderers' tests hold them to     | the JVM, JavaScript |
 
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one.\
@@ -162,6 +163,25 @@ graph TD
     class android,web program
 ```
 
+What the MSI takes, which `packaging` makes of the windows and the command line:
+
+```mermaid
+graph TD
+    subgraph packages [the packages of more than one module]
+        packaging
+    end
+    subgraph programs [the programs]
+        gui-compose
+        gui-swing
+        cli
+    end
+    packaging --> gui-compose
+    packaging --> gui-swing
+    packaging --> cli
+    classDef program font-weight:bold
+    class packaging,gui-compose,gui-swing,cli program
+```
+
 - **`texts` has a graph of its own, as with it in the first one lines have to cross**, however the modules are placed:
   `android`, `web`, and `cli` with `gui-core`, are three that each reach the same three,
   `core`, `gl` and `texts`, and no drawing on a plane joins three to three without a crossing.\
@@ -171,10 +191,12 @@ graph TD
 - **`gui-compose` and `gui-swing` reach `core` and `texts` through `gui-core`**,
   which passes on `cli` and, through it, the two `cli` uses.
 - **`ui` passes on `texts`**, as its `text` and `InfoButton` take an entry of `texts`' `Str`.
+- **`packaging` has no code of its own**: it takes each launcher of the MSI,
+  its JAR and what it runs on, from the module that has it, through that module's `windowsLauncher` task.
 - **Only tests use `testing`**, so no program ships it.\
   `core`'s tests use `testing`, which in turn uses `core`;
   Gradle builds `core` itself first, as its code does not use `testing`.
-- **`./gradlew checkModuleGraph` holds the three graphs together to the modules' build files**, and runs in `check`:
+- **`./gradlew checkModuleGraph` holds the four graphs together to the modules' build files**, and runs in `check`:
   every arrow declared is drawn in one of them, and none is drawn that is not.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
@@ -253,15 +275,14 @@ The style is [ktlint](https://pinterest.github.io/ktlint/)'s, as IntelliJ IDEA f
   and each window's tar.gz, unpacked on the runner, where its command line runs and its window's main converts a photo.
 - **On Windows Server 2022, `./gradlew :gui-core:jvmTest`**, over ANGLE on WARP and over WGL on Mesa's llvmpipe,
   which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
-- **On Windows Server 2022, each window's MSI and the command line's**,
-  built by `package_msi_on_windows.ps1` in two versions and tried by `test_msi_on_windows.ps1`;
-  the MSIs are the run's artifacts.
+- **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions
+  and tried by `test_msi_on_windows.ps1`; the MSIs are the run's artifacts.
 - **On Windows Server 2022, the command line's zip**,
   built by `package_cli_zip_on_windows.ps1` and tried by `test_cli_zip_on_windows.ps1`; the zip is the run's artifact.
 
 [`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs when started by hand,
 as it installs Wine and .NET Framework 4.8 each time:
-each window's MSI and the command line's that `package_msi_on_linux.sh` builds under Wine,
+the MSI that `package_msi_on_linux.sh` builds under Wine, in two versions,
 validated by `smoke.exe` and tried by `test_msi_on_windows.ps1` on Windows Server 2022, and the command line's zip
 that `package_cli_zip_on_linux.sh` builds under Wine, tried by `test_cli_zip_on_windows.ps1` there.
 
@@ -298,6 +319,8 @@ WGL chosen and WGL taken where Direct3D 11 is switched off, and the command line
 - **Installing the MSI under Wine writes into the home**:
   Wine turns its shortcuts into the Linux desktop's unless `WINEDLLOVERRIDES=winemenubuilder.exe=d` is set,
   and the prefix's folders link into the home unless `winetricks sandbox` removed the links.
+- **Removing the MSI under Wine leaves the files in `%ProgramData%\Dog Vision`**:
+  msiexec's log shows WiX's RemoveFolderEx finding them under Wine 11.18, and they stay.
 - **The Compose window's button that installs ffmpeg is tried on Linux**,
   with scripts in place of winget and PowerShell, as Wine has neither winget nor a registry that winget writes to.\
   winget's install itself ran on GitHub's Windows Server 2025, whose image has winget.
