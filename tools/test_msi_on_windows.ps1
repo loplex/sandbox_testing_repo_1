@@ -1,16 +1,13 @@
-# Installs a desktop window's MSI, upgrades it to a later one and removes it, checking each step.
+# Installs the MSI, upgrades it to a later one and removes it, checking each step: the windows'
+# launchers with their shortcuts in the Start menu and on the desktop, and the command line's with
+# none but the installation folder on the system's PATH. The MSI also removes the folder ffmpeg is
+# downloaded into, %ProgramData%\<the app's name>, which the script makes before the upgrade, as a
+# window would, and which has to stay over that.
 #
-# A window's MSI also removes the folder ffmpeg is downloaded into, %ProgramData%\<the app's name>,
-# which the script makes before the upgrade, as a window would, and which has to stay over that.
-#
-# The MSIs are tools/package_msi_on_windows.ps1's: -Msi of -Version, and -UpgradeMsi of the later
-# -UpgradeVersion, of the product -Name, dog-vision, the default, dog-vision-swing, or
-# dog-vision-cli, the command line's, which has no shortcut and puts its folder on the system's
-# PATH. Each check says whether it held, and every check runs, so that one failing does not hide the
-# others; the script fails if any did. msiexec's logs go to -LogDir.
-#
-# -BuiltUnderWine takes MSIs of tools/package_msi_on_linux.sh instead, whose JDK 17's jpackage
-# gives dog-vision-cli shortcuts too: the checks then hold them there.
+# The MSIs are tools/package_msi_on_windows.ps1's or tools/package_msi_on_linux.sh's: -Msi of
+# -Version, and -UpgradeMsi of the later -UpgradeVersion. Each check says whether it held, and every
+# check runs, so that one failing does not hide the others; the script fails if any did. msiexec's
+# logs go to -LogDir.
 #
 # It installs for every user and changes the machine, so it is for one that is thrown away after,
 # such as a CI runner, run as an administrator in PowerShell 7 (pwsh). WIX names WiX Toolset 3,
@@ -20,9 +17,7 @@ param(
     [Parameter(Mandatory)] [string]$Version,
     [Parameter(Mandatory)] [string]$UpgradeMsi,
     [Parameter(Mandatory)] [string]$UpgradeVersion,
-    [Parameter(Mandatory)] [string]$LogDir,
-    [ValidateSet("dog-vision", "dog-vision-swing", "dog-vision-cli")] [string]$Name = "dog-vision",
-    [switch]$BuiltUnderWine
+    [Parameter(Mandatory)] [string]$LogDir
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,23 +39,22 @@ function Test-Check([string]$What, [bool]$Holds) {
     }
 }
 
-# The product's name, as package_msi_on_windows.ps1 gives it: the app's English name, with the
-# variant after it, which the list of installed programs and the Start menu's group show.
+# The product's name, as packaging/windows/dog-vision.wxs gives it: the app's English name, which
+# the list of installed programs, the Start menu's group and the Compose window's shortcuts show.
 $root = Split-Path -Parent $PSScriptRoot
 $strings = Get-Content (Join-Path $root "texts\strings\values\strings.xml") -Raw
 if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
     throw "texts\strings\values\strings.xml has no app_name"
 }
-$suffix = @{ "dog-vision" = ""; "dog-vision-swing" = " (Swing)"; "dog-vision-cli" = " (command line)" }[$Name]
-$appName = $Matches[1]
-$product = $appName + $suffix
+$product = $Matches[1]
 
-$installDir = Join-Path $env:ProgramFiles $Name
+$installDir = Join-Path $env:ProgramFiles "dog-vision"
 $startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$product"
 $desktop = Join-Path $env:PUBLIC "Desktop"
-$isCli = $Name -eq "dog-vision-cli"
-# Where a window downloads ffmpeg, which its MSI removes with the product, but not over an upgrade.
-$data = Join-Path $env:ProgramData $appName
+# The windows' shortcuts, each in the Start menu's group and on the desktop.
+$shortcuts = @("$product.lnk", "$product (Swing).lnk")
+# Where a window downloads ffmpeg, which the MSI removes with the product, but not over an upgrade.
+$data = Join-Path $env:ProgramData $product
 
 # msiexec with [Arguments], waited for; 3010 is success that asks for a restart.
 function Invoke-Msiexec([string]$Log, [string[]]$Arguments) {
@@ -79,10 +73,9 @@ function Get-Installed {
         Where-Object { $_.PSObject.Properties["DisplayName"] -and $_.DisplayName -eq $product }
 }
 
-# The MSI against Windows Installer's rules (ICE), less ICE27, which jpackage's own run of light.exe
-# leaves out too.
+# The MSI against Windows Installer's rules (ICE).
 function Test-Ice([string]$Package) {
-    & (Join-Path $env:WIX "bin\smoke.exe") -nologo -sice:ICE27 $Package
+    & (Join-Path $env:WIX "bin\smoke.exe") -nologo $Package
     Test-Check "$(Split-Path -Leaf $Package) passes ICE validation" ($LASTEXITCODE -eq 0)
 }
 
@@ -93,17 +86,16 @@ function Get-OnPath {
     @($entries | Where-Object { $_.TrimEnd("\") -eq $installDir }).Count
 }
 
-# The installed product: one, of [Expected] version, with both launchers, or dog-vision-cli's alone,
-# and only dog-vision-cli's folder on the PATH, once.
+# The installed product: one, of [Expected] version, with the three launchers, and its folder on
+# the PATH once.
 function Test-Installed([string]$Expected) {
     $installed = @(Get-Installed)
-    Test-Check "one $Name is installed" ($installed.Count -eq 1)
+    Test-Check "one $product is installed" ($installed.Count -eq 1)
     Test-Check "the installed version is $Expected" (@($installed | Where-Object DisplayVersion -eq $Expected).Count -eq 1)
-    foreach ($launcher in @("$Name.exe", "dog-vision-cli.exe") | Select-Object -Unique) {
+    foreach ($launcher in @("dog-vision.exe", "dog-vision-swing.exe", "dog-vision-cli.exe")) {
         Test-Check "$launcher is installed" (Test-Path (Join-Path $installDir $launcher))
     }
-    $onPath = if ($isCli) { 1 } else { 0 }
-    Test-Check "the installation folder is on the PATH $onPath time(s)" ((Get-OnPath) -eq $onPath)
+    Test-Check "the installation folder is on the PATH once" ((Get-OnPath) -eq 1)
 }
 
 
@@ -127,59 +119,45 @@ Test-Check "dog-vision-cli.exe converts a photo" (
     $LASTEXITCODE -eq 0 -and @(Get-ChildItem $converted.FullName -Filter "*.png").Count -eq 1
 )
 
-# The window's launcher has a shortcut in the Start menu and on the desktop; the command line alone,
-# which only prints its usage when started from one, has none, but beside a window in an MSI built
-# under Wine.
+# Each window has a shortcut in the Start menu and on the desktop; the command line, which only
+# prints its usage when started from one, has none.
 Write-Host "Start menu: $(@(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Name -join ', ')"
-Write-Host "Desktop: $(@(Get-ChildItem $desktop -Filter 'dog-vision*' -ErrorAction SilentlyContinue).Name -join ', ')"
-if ($isCli) {
-    Test-Check "dog-vision-cli has no Start menu folder" (-not (Test-Path $startMenu))
-    Test-Check "dog-vision-cli has no desktop shortcut" (-not (Test-Path (Join-Path $desktop "dog-vision-cli.lnk")))
-} else {
-    Test-Check "$Name has a Start menu shortcut" (Test-Path (Join-Path $startMenu "$Name.lnk"))
-    Test-Check "$Name has a desktop shortcut" (Test-Path (Join-Path $desktop "$Name.lnk"))
-    $cliShortcuts = if ($BuiltUnderWine) { "has" } else { "has no" }
-    Test-Check "dog-vision-cli $cliShortcuts Start menu shortcut" (
-        (Test-Path (Join-Path $startMenu "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
-    )
-    Test-Check "dog-vision-cli $cliShortcuts desktop shortcut" (
-        (Test-Path (Join-Path $desktop "dog-vision-cli.lnk")) -eq [bool]$BuiltUnderWine
-    )
+Write-Host "Desktop: $(@(Get-ChildItem $desktop -Filter "$product*" -ErrorAction SilentlyContinue).Name -join ', ')"
+foreach ($shortcut in $shortcuts) {
+    Test-Check "the Start menu has $shortcut" (Test-Path (Join-Path $startMenu $shortcut))
+    Test-Check "the desktop has $shortcut" (Test-Path (Join-Path $desktop $shortcut))
 }
+Test-Check "the Start menu's group holds the windows' shortcuts alone" (
+    @(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Count -eq $shortcuts.Count
+)
 
-# The command line's MSI: dog-vision-cli runs by its name alone, from the PATH a process started
-# after the installation has, from the registry, as this script's own is the one it started with.
-if ($isCli) {
-    $env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-        [Environment]::GetEnvironmentVariable("Path", "User")
-    $found = Get-Command "dog-vision-cli" -CommandType Application -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    Test-Check "dog-vision-cli on the PATH is the installed one" (
-        $found -and $found.Source -eq (Join-Path $installDir "dog-vision-cli.exe")
-    )
-    if ($found) {
-        dog-vision-cli --help | Out-Null
-    }
-    Test-Check "dog-vision-cli runs from the PATH" ($found -and $LASTEXITCODE -eq 0)
+# dog-vision-cli runs by its name alone, from the PATH a process started after the installation
+# has, from the registry, as this script's own is the one it started with.
+$env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+    [Environment]::GetEnvironmentVariable("Path", "User")
+$found = Get-Command "dog-vision-cli" -CommandType Application -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+Test-Check "dog-vision-cli on the PATH is the installed one" (
+    $found -and $found.Source -eq (Join-Path $installDir "dog-vision-cli.exe")
+)
+if ($found) {
+    dog-vision-cli --help | Out-Null
 }
+Test-Check "dog-vision-cli runs from the PATH" ($found -and $LASTEXITCODE -eq 0)
 
 
 # The later version, over it, with a file in the folder a window downloads ffmpeg into, as if it had.
 
-if (-not $isCli) {
-    New-Item -ItemType Directory -Force -Path (Join-Path $data "ffmpeg\bin") | Out-Null
-    Set-Content (Join-Path $data "ffmpeg\bin\ffmpeg.exe") "downloaded"
-}
+New-Item -ItemType Directory -Force -Path (Join-Path $data "ffmpeg\bin") | Out-Null
+Set-Content (Join-Path $data "ffmpeg\bin\ffmpeg.exe") "downloaded"
 Test-Ice $UpgradeMsi
 Test-Check "the MSI of $UpgradeVersion installs over $Version" (
     Invoke-Msiexec "install-$UpgradeVersion.log" @("/i", "`"$UpgradeMsi`"")
 )
 Test-Installed $UpgradeVersion
-if (-not $isCli) {
-    Test-Check "the folder ffmpeg is downloaded into stays over the upgrade" (
-        Test-Path (Join-Path $data "ffmpeg\bin\ffmpeg.exe")
-    )
-}
+Test-Check "the folder ffmpeg is downloaded into stays over the upgrade" (
+    Test-Path (Join-Path $data "ffmpeg\bin\ffmpeg.exe")
+)
 
 
 # Removing it.
@@ -187,12 +165,13 @@ if (-not $isCli) {
 Test-Check "the MSI of $UpgradeVersion uninstalls" (
     Invoke-Msiexec "uninstall-$UpgradeVersion.log" @("/x", "`"$UpgradeMsi`"")
 )
-Test-Check "no $Name is installed after" (@(Get-Installed).Count -eq 0)
+Test-Check "no $product is installed after" (@(Get-Installed).Count -eq 0)
 Test-Check "the installation folder is gone" (-not (Test-Path $installDir))
 Test-Check "the Start menu folder is gone" (-not (Test-Path $startMenu))
-if (-not $isCli) {
-    Test-Check "the folder ffmpeg is downloaded into is gone" (-not (Test-Path $data))
+foreach ($shortcut in $shortcuts) {
+    Test-Check "the desktop's $shortcut is gone" (-not (Test-Path (Join-Path $desktop $shortcut)))
 }
+Test-Check "the folder ffmpeg is downloaded into is gone" (-not (Test-Path $data))
 Test-Check "the installation folder is not on the PATH" ((Get-OnPath) -eq 0)
 Test-Check "the PATH is as it was before, separators included" (
     [Environment]::GetEnvironmentVariable("Path", "Machine") -eq $pathBefore

@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
-# Builds the app images for Windows on x86-64 on Linux, through Wine: each the folder an MSI
-# installs, with its launchers, its JAR and a runtime of its own, which runs under Wine as it is,
-# without being installed. Without --window all three, one after the other; with --window compose
-# dog-vision's, the Compose window's, with dog-vision.exe and dog-vision-cli.exe; with --window
-# swing dog-vision-swing's, with dog-vision-swing.exe and dog-vision-cli.exe; with --window cli
-# dog-vision-cli's, with dog-vision-cli.exe alone, which runs in a console.
+# Builds the app images for Windows on x86-64 on Linux, through Wine: each a folder with its
+# launchers, their JARs and a runtime of its own, which runs under Wine as it is, without being
+# installed. Without --image both, one after the other; with --image dog-vision the one the MSI
+# installs, with the Compose window's dog-vision.exe, the Swing window's dog-vision-swing.exe and
+# the command line's dog-vision-cli.exe, which runs in a console; with --image dog-vision-cli the
+# command line's, with dog-vision-cli.exe alone.
 #
 # Each is written to tools/build/app-image, as tools/build/app-image/dog-vision, and its folder
 # printed; tools/build holds what the scripts in tools build, which git ignores.
-# tools/package_msi_on_linux.sh makes the MSIs from them, and tools/package_cli_zip_on_linux.sh the
-# command line's zip.
+# tools/package_msi_on_linux.sh makes the MSI of the one, and tools/package_cli_zip_on_linux.sh the
+# command line's zip of the other.
 #
 # jpackage makes an app image for Windows only on Windows, so this runs a Windows JDK 17's
-# jpackage.exe under Wine, in the locale cs_CZ.UTF-8, as tools/package_msi_on_linux.sh runs it,
-# with the arguments that the module's windowsJpackage task writes, which
-# tools/package_msi_on_windows.ps1 hands jpackage on Windows as well: what the package is, and
-# what the image runs, its JAR and the runtime that the module's windowsRuntime task links. An app
-# image needs neither WiX nor .NET.
+# jpackage.exe under Wine, in the locale cs_CZ.UTF-8, with the arguments that the module's
+# windowsJpackage task writes, :packaging's or :cli's, which tools/package_msi_on_windows.ps1 and
+# tools/package_cli_zip_on_windows.ps1 hand jpackage on Windows as well: what the package is, and
+# what the image runs, its launchers' JARs and the runtime that the module's windowsRuntime task
+# links. jpackage puts every JAR on each launcher's classpath, so in dog-vision this then copies
+# the launchers' .cfg that :packaging's windowsLauncherConfigs task writes, each with its own JAR
+# alone. An app image needs neither WiX nor .NET.
+#
+# The JDK is a 17, as Wine 11.18's TransmitFile, handed a file where Windows expects a socket, fails
+# with another error than Windows's WSAENOTSOCK, which the JDK from 18 on takes for a failed copy
+# ("transfer failed"), and JDK 17's jpackage copies files without it. The runtime is no JDK 17's:
+# windowsRuntime links it from Temurin's jmods for Windows of the release in
+# gradle/libs.versions.toml.
 #
 # Needs:
 # - Wine. Its prefix is WINEPREFIX's, or without it dot_net_msi_builder among winetricks' named
@@ -43,7 +51,7 @@ die() {
 
 usage() {
     die "usage: $0 [--tools <directory>] [--jdk <Windows JDK 17>] [--app-version <version>]
-       [--window compose|swing|cli]" 2
+       [--image dog-vision|dog-vision-cli]" 2
 }
 
 # The path as Windows programs under Wine see it: through the drive Wine maps to the root, Z:.
@@ -63,24 +71,24 @@ require() {
 # The arguments.
 
 tools="$root/tools/cache"
-jdk="" app_version="" window=""
+jdk="" app_version="" name=""
 while (( $# > 0 )); do
     case "$1" in
               --tools) tools="${2:-}";       shift 2 || usage ;;
                 --jdk) jdk="${2:-}";         shift 2 || usage ;;
         --app-version) app_version="${2:-}"; shift 2 || usage ;;
-             --window) window="${2:-}";      shift 2 || usage ;;
+              --image) name="${2:-}";        shift 2 || usage ;;
         *) usage ;;
     esac
 done
 
-# Without --window, this again for each, with the same options.
-if [[ -z "$window" ]]; then
+# Without --image, this again for each, with the same options.
+if [[ -z "$name" ]]; then
     options=(--tools "$tools")
     [[ -z "$jdk" ]] || options+=(--jdk "$jdk")
     [[ -z "$app_version" ]] || options+=(--app-version "$app_version")
-    for each in compose swing cli; do
-        "${BASH_SOURCE[0]}" "${options[@]}" --window "$each"
+    for each in dog-vision dog-vision-cli; do
+        "${BASH_SOURCE[0]}" "${options[@]}" --image "$each"
     done
     exit 0
 fi
@@ -91,12 +99,11 @@ if [[ -z "${WINEPREFIX:-}" && -f "$msi_prefix/drive_c/windows/system32/kernel32.
     export WINEPREFIX="$msi_prefix"
 fi
 
-# Each window's module, whose build script says what its image is made of, and the image's name.
-case "$window" in
-    compose) module="gui-compose" name="dog-vision" ;;
-      swing) module="gui-swing"   name="dog-vision-swing" ;;
-        cli) module="cli"     name="dog-vision-cli" ;;
-          *) usage ;;
+# The module whose build script says what the image is made of.
+case "$name" in
+        dog-vision) module="packaging" ;;
+    dog-vision-cli) module="cli" ;;
+                 *) usage ;;
 esac
 
 require "wine" "wine" "wine"
@@ -117,7 +124,7 @@ jpackage="$jdk/bin/jpackage.exe"
 
 # What jpackage takes in: the arguments, with the JAR and the runtime they name.
 
-gradle_options=("-PjpackageJdk=$jdk")
+gradle_options=()
 [[ -z "$app_version" ]] || gradle_options+=("-PwindowsAppVersion=$app_version")
 "$root/gradlew" --quiet ":$module:windowsJpackage" "${gradle_options[@]}"
 arguments="$root/$module/build/windows/jpackage"
@@ -135,9 +142,17 @@ export WINEDEBUG="${WINEDEBUG:--all}"
 export LC_ALL="cs_CZ.UTF-8"
 wine "$jpackage" \
     -J-Dfile.encoding=UTF-8 \
-    "@$(windows_path "$arguments/package-arguments")" \
-    "@$(windows_path "$arguments/image-arguments")" \
+    "@$(windows_path "$arguments/arguments")" \
     --type "app-image" \
     --dest "$(windows_path "$destination")" >&2
+image="$destination/$name"
 
-echo "$destination/$name"
+
+# Each launcher with its own JAR alone on its classpath, where the image has more than one.
+
+if [[ "$module" == "packaging" ]]; then
+    "$root/gradlew" --quiet ":packaging:windowsLauncherConfigs" "-PwindowsAppImage=$image" "${gradle_options[@]}"
+    cp "$root/packaging/build/windows/launchers/"*.cfg "$image/app/"
+fi
+
+echo "$image"

@@ -3,8 +3,8 @@
 # tools/package_cli_zip_on_windows.ps1 builds on Windows, which says what it holds, written to
 # tools/build/zip, which git ignores.
 #
-# It zips the command line's app image, which tools/package_app_image_on_linux.sh builds under
-# Wine, the same image that the command line's MSI installs, with the licence beside it.
+# It zips the command line's app image, dog-vision-cli, which tools/package_app_image_on_linux.sh
+# builds under Wine, with the licence beside it.
 #
 # Needs:
 # - What package_app_image_on_linux.sh needs, which --tools and --jdk are handed to.
@@ -28,7 +28,7 @@ usage() {
 
 # The arguments.
 
-image_options=(--window cli)
+image_options=(--image dog-vision-cli)
 while (( $# > 0 )); do
     case "$1" in
         --tools|--jdk) [[ -n "${2:-}" ]] || usage; image_options+=("$1" "$2"); shift 2 ;;
@@ -48,7 +48,7 @@ version_pattern=$'(^|\n)appVersion=([^\n]+)'
 version="${BASH_REMATCH[2]}"
 image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
 
-# A copy, as the licence beside it is the zip's alone, which the MSI shows in its dialog instead.
+# A copy, with the licence beside it, which the zip holds and the image does not.
 staging="$root/tools/build/staging/cli-zip"
 rm -rf "${staging:?}"
 mkdir -p "$staging"
