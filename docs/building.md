@@ -6,6 +6,8 @@ What each program does is [Using it](using.md)'s.
 - [What the build needs](#what-the-build-needs) — the JDK, the Android SDK, Chrome.
 - [Every artifact at once](#every-artifact-at-once) — `./gradlew packageAll`, and the folder each
   artifact lands in.
+- [Starting over](#starting-over) — `tools/clean_all.sh`, a clean with `.gradle` and the
+  configuration cache.
 - [The Android app](#the-android-app), [the web page](#the-web-page),
   [the command line](#the-command-line) and [the desktop window](#the-desktop-window) — the
   `./gradlew` tasks and what they write.
@@ -51,6 +53,19 @@ The MSIs and the command line's zip for Windows are not among them, as jpackage 
 or a native launcher only on the system it is for:
 [The MSI, built under Wine or on Windows](#the-msi-built-under-wine-or-on-windows) and
 [The command line's zip for Windows](#the-command-lines-zip-for-windows) say how.
+
+## Starting over
+
+```sh
+tools/clean_all.sh
+```
+
+- **It deletes everything the build has made in the repository**: each module's `build`
+  directory, `build-logic`'s too, which `./gradlew clean` leaves, as it is a build of its own, and
+  in both builds `.gradle`, Gradle's project cache, with the configuration cache, for which Gradle
+  has no task, and `.kotlin`, the Kotlin daemon's session files.
+- **It leaves Gradle's build cache in the home**, from which the next build takes back each task's
+  outputs: `--no-build-cache` or `--rerun-tasks` on that build runs the tasks all the same.
 
 ## The Android app
 
