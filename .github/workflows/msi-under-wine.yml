@@ -64,7 +64,7 @@ jobs:
           ls -l wine-msi
       - name: Build the command line's zip
         run: |
-          tools/package_cli_zip_on_linux.sh --jdk tools/cache/jdk17
+          tools/package_cli_zip_on_linux.sh
           mv cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip wine-msi/
       - uses: actions/upload-artifact@v5
         with:
