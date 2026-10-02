@@ -220,8 +220,8 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     run time: skiko's and LWJGL's for `dog-vision`, LWJGL's alone for `dog-vision-swing`;
   - the launchers, `dog-vision`, `dog-vision-swing` and `dog-vision-cli`, in `/usr/bin`, on `PATH`;
   - each window's menu entry, named in the system's language, and its icons in the hicolor theme:
-    `cz.loplex.dogvision.desktop` ("Dog vision", "Psí vidění") and
-    `cz.loplex.dogvision.swing.desktop` ("Dog vision (Swing)", "Psí vidění (Swing)"), in
+    `cz.loplex.dogvision.desktop` ("Dog Vision", "Psí vidění") and
+    `cz.loplex.dogvision.swing.desktop` ("Dog Vision (Swing)", "Psí vidění (Swing)"), in
     `/usr/share/applications`.
 - **FlatLaf's natives stay in its JAR** in `dog-vision-swing`: it loads them on Linux only for
   window decorations of its own, which the window does not use, and they link GTK 3.
@@ -242,7 +242,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   It is to run as `dog-vision/bin/dog-vision` or `dog-vision-swing/bin/dog-vision-swing` without
   installing it.
 - **The MSI installs into `Program Files\<package>`** and adds the window to the Start menu, in a
-  group of the package's name, and to the desktop.
+  group of the window's name, *Dog Vision* or *Dog Vision (Swing)*, and to the desktop.
+  The installer and the system's list of programs name it the same, and the command line's MSI
+  *Dog Vision (command line)*.
   Each window's MSI carries a fixed upgrade code of its own, so that a later version's MSI replaces
   it, and installing the one window leaves the other.
 - **The command line's MSI, `dog-vision-cli`, holds `dog-vision-cli.exe` alone**, on a runtime of

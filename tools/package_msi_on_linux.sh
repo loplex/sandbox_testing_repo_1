@@ -113,12 +113,15 @@ jdk="${jdk:-$tools/jdk17}"
 wix="${wix:-$tools/wix}"
 export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/share}/wineprefixes}/dot_net_msi_builder}"
 
-# What each window's MSI is made of. Every later version's MSI replaces the one installed with the
-# same upgrade code, as Windows Installer tells versions of one product apart by it: never change
+# What each window's MSI is made of: its name is its files' and its folder's, and its product,
+# which the installer, the system's list of programs and the Start menu's group show, is the app's
+# name with the suffix after it. Every later version's MSI replaces the one installed with the same
+# upgrade code, as Windows Installer tells versions of one product apart by it: never change
 # either, nor give both windows one, as installing the one would then remove the other.
 case "$window" in
     compose)
         name="dog-vision"
+        suffix=""
         module="gui-compose"
         output="$root/gui-compose/build/compose/binaries/main/msi"
         description="How a dog or another animal sees a photo, a video or the camera"
@@ -126,6 +129,7 @@ case "$window" in
         ;;
     swing)
         name="dog-vision-swing"
+        suffix=" (Swing)"
         module="gui-swing"
         output="$root/gui-swing/build/packages/msi"
         description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
@@ -133,6 +137,7 @@ case "$window" in
         ;;
     cli)
         name="dog-vision-cli"
+        suffix=" (command line)"
         module="cli"
         output="$root/cli/build/packages/msi"
         description="How a dog or another animal sees a photo, from the command line"
@@ -168,6 +173,11 @@ wix="$(realpath "$wix")"
 version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
 version="${app_version:-${BASH_REMATCH[2]}}"
+# The app's name in English, as the window's title and the Linux packages' menu entries have it.
+name_pattern='<string name="app_name">([^<]+)</string>'
+[[ "$(<"$root/texts/strings/values/strings.xml")" =~ $name_pattern ]] ||
+    die "texts/strings/values/strings.xml has no app_name"
+product="${BASH_REMATCH[1]}$suffix"
 image_options=(--jdk "$jdk" --window "$window")
 [[ -z "$app_version" ]] || image_options+=(--app-version "$app_version")
 image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
@@ -182,9 +192,10 @@ msi="$output/$name-$version.msi"
 rm -f "$msi"
 
 # The resource directory holds MsiInstallerCodepage_en.wxl, for the code page the vendor's name
-# needs, and the main.wxs of the JDK's jpackage with WiX's dialog bitmaps set to the module's, and
-# for the command line msi-path.xml in it as well. The build fails where that main.wxs has not
-# exactly one </Product>, or for the command line one reference to Files and one </Wix>.
+# needs, and the main.wxs of the JDK's jpackage with the product's name and WiX's dialog bitmaps
+# set to the module's, and for the command line msi-path.xml in it as well. The build fails where
+# that main.wxs has not exactly one product's name and one </Product>, or for the command line one
+# reference to Files and one </Wix>.
 resources="$staging/resources"
 cp -r "$packaging/windows" "$resources"
 jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal/resources/main\.wxs" \
@@ -192,12 +203,14 @@ jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal
 main_wxs="$(find "$staging/jimage" -name main.wxs)"
 [[ -f "$main_wxs" ]] || die "$jdk's jpackage has no main.wxs"
 files_reference='<ComponentGroupRef Id="Files"/>'
-anchors=("</Product>")
+product_name="Name=\"\$(var.JpAppName)\""
+anchors=("$product_name" "</Product>")
 [[ "$window" != cli ]] || anchors+=("$files_reference" "</Wix>")
 for anchor in "${anchors[@]}"; do
     (( $(grep -c -F "$anchor" "$main_wxs") == 1 )) || die "$jdk's main.wxs has not one $anchor"
 done
 text="$(<"$main_wxs")"
+text="${text/"$product_name"/"Name=\"$product\""}"
 bitmaps="<WixVariable Id=\"WixUIBannerBmp\" Value=\"$(windows_path "$root/$module/build/windows/banner.bmp")\"/>
   <WixVariable Id=\"WixUIDialogBmp\" Value=\"$(windows_path "$root/$module/build/windows/dialog.bmp")\"/>"
 text="${text/"</Product>"/"$bitmaps"$'\n  </Product>'}"
@@ -207,14 +220,14 @@ if [[ "$window" == cli ]]; then
 fi
 printf '%s\n' "$text" >"$resources/main.wxs"
 
-# Each window's launcher has a shortcut in the Start menu, in a group of the package's name rather
+# Each window's launcher has a shortcut in the Start menu, in a group of the product's name rather
 # than jpackage's "Unknown", and on the desktop; dog-vision-cli.exe beside it asks for none, which
 # JDK 17's jpackage gives it all the same. The command line's MSI asks for no shortcut at all, as
 # dog-vision-cli.exe started from one only prints its usage.
 if [[ "$window" == cli ]]; then
     shortcut_options=()
 else
-    shortcut_options=(--win-menu --win-menu-group "$name" --win-shortcut)
+    shortcut_options=(--win-menu --win-menu-group "$product" --win-shortcut)
 fi
 
 

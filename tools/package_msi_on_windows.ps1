@@ -29,10 +29,11 @@ $root = Split-Path -Parent $PSScriptRoot
 $packaging = Join-Path $root "gui-compose\packaging"
 
 # What each window's MSI is made of, as package_msi_on_linux.sh gives it, which says why the upgrade
-# codes must never change and must differ, and where the Java option comes from. The JAR's name
-# takes the version for {0}.
+# codes must never change and must differ, what the product's name is shown as, and where the Java
+# option comes from. The JAR's name takes the version for {0}.
 if ($Window -eq "compose") {
     $name = "dog-vision"
+    $suffix = ""
     $module = Join-Path $root "gui-compose"
     $jarTask = ":gui-compose:windowsUberJar"
     $runtimeTask = ":gui-compose:windowsRuntime"
@@ -46,6 +47,7 @@ if ($Window -eq "compose") {
     $javaOptions = @("--java-options", "-Dcompose.application.configure.swing.globals=true")
 } elseif ($Window -eq "swing") {
     $name = "dog-vision-swing"
+    $suffix = " (Swing)"
     $module = Join-Path $root "gui-swing"
     $jarTask = ":gui-swing:windowsUberJar"
     $runtimeTask = ":gui-swing:windowsRuntime"
@@ -59,6 +61,7 @@ if ($Window -eq "compose") {
     $javaOptions = @()
 } else {
     $name = "dog-vision-cli"
+    $suffix = " (command line)"
     $module = Join-Path $root "cli"
     $jarTask = ":cli:uberJar"
     $runtimeTask = ":cli:windowsRuntime"
@@ -100,6 +103,12 @@ if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
     throw "gradle.properties has no appVersion"
 }
 $packageVersion = $Matches[1]
+# The app's name in English, as the window's title and the Linux packages' menu entries have it.
+$strings = Get-Content (Join-Path $root "texts\strings\values\strings.xml") -Raw
+if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
+    throw "texts\strings\values\strings.xml has no app_name"
+}
+$product = $Matches[1] + $suffix
 if (-not $AppVersion) {
     $AppVersion = $packageVersion
 }
@@ -140,8 +149,8 @@ if ($text -notmatch 'Codepage="1252"') {
 $text = $text -replace 'Codepage="1252"', 'Codepage="1250"'
 [System.IO.File]::WriteAllText((Join-Path $resources "MsiInstallerStrings_en.wxl"), $text)
 
-# This JDK's main.wxs with WiX's dialog bitmaps set to the module's, and for the command line
-# msi-path.xml in it as well, as package_msi_on_linux.sh puts them there.
+# This JDK's main.wxs with the product's name and WiX's dialog bitmaps set to the module's, and for
+# the command line msi-path.xml in it as well, as package_msi_on_linux.sh puts them there.
 Invoke-Checked (Join-Path $jdkBin "jimage.exe") @(
     "extract", "--dir", $extracted, "--include", "regex:.*/jdk/jpackage/internal/resources/main\.wxs",
     (Join-Path $env:JAVA_HOME "lib\modules")
@@ -152,7 +161,8 @@ if (-not $mainWxs) {
 }
 $text = [System.IO.File]::ReadAllText($mainWxs.FullName)
 $filesReference = '<ComponentGroupRef Id="Files"/>'
-$anchors = @("</Product>")
+$productName = 'Name="$(var.JpAppName)"'
+$anchors = @($productName, "</Product>")
 if ($Window -eq "cli") {
     $anchors += @($filesReference, "</Wix>")
 }
@@ -166,6 +176,7 @@ $dialog = Join-Path $module "build\windows\dialog.bmp"
 $bitmaps = "<WixVariable Id=`"WixUIBannerBmp`" Value=`"$banner`"/>`n" +
     "  <WixVariable Id=`"WixUIDialogBmp`" Value=`"$dialog`"/>`n  </Product>"
 $text = $text.Replace("</Product>", $bitmaps)
+$text = $text.Replace($productName, "Name=`"$product`"")
 if ($Window -eq "cli") {
     $fragment = [System.IO.File]::ReadAllText((Join-Path $module "packaging\msi-path.xml"))
     $text = $text.Replace($filesReference, "$filesReference`n      <ComponentGroupRef Id=`"DogVisionCliPath`"/>")
@@ -182,7 +193,7 @@ if ($Window -eq "cli") {
     $launcherOptions = @(
         "--add-launcher", "dog-vision-cli=$(Join-Path $packaging "dog-vision-cli.properties")",
         "--win-menu",
-        "--win-menu-group", $name,
+        "--win-menu-group", $product,
         "--win-shortcut"
     )
 }

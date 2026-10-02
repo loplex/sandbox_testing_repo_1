@@ -92,7 +92,7 @@ converts() {
         [ "$(od -An -tx1 -N8 /tmp/photo/test_photo.dog.png | tr -d ' \n')" = 89504e470d0a1a0a ]
 }
 # The package's window, dog-vision's or dog-vision-swing's, shows the photo in a window called Dog
-# vision on the display :99, which Xvfb draws in memory; the window's output is in /tmp/window.log,
+# Vision on the display :99, which Xvfb draws in memory; the window's output is in /tmp/window.log,
 # and its home is /tmp/home.
 window_opens() {
     [ -e /tmp/.X11-unix/X99 ] || { Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & }
@@ -102,7 +102,7 @@ window_opens() {
     window=$!
     shown=""
     for _ in $(seq 60); do
-        if DISPLAY=:99 xwininfo -root -tree 2>/dev/null | grep -q '"Dog vision"'; then
+        if DISPLAY=:99 xwininfo -root -tree 2>/dev/null | grep -q '"Dog Vision"'; then
             shown=yes
             break
         fi

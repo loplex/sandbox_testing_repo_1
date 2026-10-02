@@ -69,7 +69,7 @@ camera, and a message says so.
 
 ### Saving
 
-Images go to *Pictures/Dog vision* and videos to *Movies/Dog vision*, where the gallery shows them:
+Images go to *Pictures/Dog Vision* and videos to *Movies/Dog Vision*, where the gallery shows them:
 
 - **The arrow button saves a snapshot** of the view as shown, at the size the images are rendered:
   the camera's resolution, or a photo's or a video's scaled-down view.
@@ -95,7 +95,7 @@ Before Android 10, saving asks for the storage permission.
   stops it.
 - **The video has 30 frames a second, without sound**, each frame repeated for as long as it was
   shown, as the desktop program records.
-- **It is called `dog-<species>-<time>.mp4`** and goes to *Movies/Dog vision*.
+- **It is called `dog-<species>-<time>.mp4`** and goes to *Movies/Dog Vision*.
 - **While it records, whatever would change the video's size is locked**: the source and the
   camera, *Side by side*, *Map of differences*, and the screen's orientation.
 - **It stops when the app leaves the screen**, and the video recorded so far is saved.
@@ -232,7 +232,7 @@ program's.
 on the right](images/window.png)
 
 - **On Linux it installs from the deb or the rpm `dog-vision`**, as `dog-vision` on the `PATH` and
-  *Dog vision* in the desktop's menu (*Psí vidění* in Czech), on the system's Java 17 or newer,
+  *Dog Vision* in the desktop's menu (*Psí vidění* in Czech), on the system's Java 17 or newer,
   which the package manager installs with it where there is none.
   It recommends `dog-vision-cli`, the command line alone, which is a package of its own.
 - **The tar.gz runs without installing**, unpacked anywhere, as `dog-vision/bin/dog-vision`, on a
@@ -270,7 +270,7 @@ widgets](images/window-swing.png)
 - **It needs neither Compose nor skiko**, so its packages leave out Compose's JARs and skiko's
   natives.
 - **On Linux it installs from the deb or the rpm `dog-vision-swing`**, as `dog-vision-swing` on the
-  `PATH` and *Dog vision (Swing)* in the desktop's menu (*Psí vidění (Swing)* in Czech), beside
+  `PATH` and *Dog Vision (Swing)* in the desktop's menu (*Psí vidění (Swing)* in Czech), beside
   `dog-vision` where both are installed.
   Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`, and on Windows its MSI installs it.
 - **It is light or dark as the desktop asks**: on Linux as the desktop portal's colour scheme says,
