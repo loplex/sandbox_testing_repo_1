@@ -6,6 +6,7 @@ import cz.loplex.dogvision.desktop.LiveSession
 import cz.loplex.dogvision.desktop.Picture
 import cz.loplex.dogvision.texts.Str
 import java.awt.Desktop
+import java.awt.FlowLayout
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridBagLayout
@@ -39,13 +40,19 @@ internal class Preview(private val session: LiveSession<BufferedImage>) : JPanel
     private var area: Area? = null
 
     private val message = WrappedText(centred = true)
+    private val download = JButton().apply { addActionListener { session.downloadFfmpeg() } }
     private val install = JButton().apply { addActionListener { session.installFfmpeg() } }
+    private val ffmpegButtons = JPanel(FlowLayout(FlowLayout.CENTER, UIScale.scale(8), 0)).apply {
+        isOpaque = false
+        add(download)
+        add(install)
+    }
     private val installFailure = WrappedText(centred = true).apply { onLink = ::browse }
     private val failure = Column().apply {
         val padding = UIScale.scale(24)
         border = BorderFactory.createEmptyBorder(padding, padding, padding, padding)
-        for (part in listOf(message, install, installFailure)) part.alignmentX = CENTER_ALIGNMENT
-        addAll(message, Box.createVerticalStrut(UIScale.scale(16)), install, installFailure)
+        for (part in listOf(message, ffmpegButtons, installFailure)) part.alignmentX = CENTER_ALIGNMENT
+        addAll(message, Box.createVerticalStrut(UIScale.scale(16)), ffmpegButtons, installFailure)
     }
 
     init {
@@ -68,8 +75,16 @@ internal class Preview(private val session: LiveSession<BufferedImage>) : JPanel
         val failure = state.failure
         this.failure.isVisible = failure != null
         message.pieces = failure?.words(state.texts)?.split(' ').orEmpty()
-        install.isVisible = state.offersFfmpeg
-        install.isEnabled = !state.installingFfmpeg
+        ffmpegButtons.isVisible = state.offersFfmpeg
+        val percent = state.downloadingFfmpeg
+        download.isEnabled = !state.gettingFfmpeg
+        download.text = if (percent == null) {
+            state.texts.get(Str.DOWNLOAD_FFMPEG)
+        } else {
+            state.texts.get(Str.DOWNLOADING_FFMPEG, percent)
+        }
+        install.isVisible = state.offersWinget
+        install.isEnabled = !state.gettingFfmpeg
         install.text = state.texts.get(if (state.installingFfmpeg) Str.INSTALLING_FFMPEG else Str.INSTALL_FFMPEG)
         installFailure.isVisible = state.offersFfmpeg && state.ffmpegFailure != null
         installFailure.pieces = state.ffmpegFailure?.words(state.texts)?.split(' ').orEmpty()

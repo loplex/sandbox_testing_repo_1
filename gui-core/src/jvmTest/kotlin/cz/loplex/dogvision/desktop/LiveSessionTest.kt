@@ -66,13 +66,17 @@ class LiveSessionTest {
         arguments: Arguments = Arguments(file = File("a.jpg"), window = true),
         feed: (Source, Renderer, (Failure) -> Unit) -> AutoCloseable = this.feed,
         installer: () -> FfmpegInstall = { FfmpegInstall.Found },
+        downloader: ((Int) -> Unit) -> FfmpegInstall = { FfmpegInstall.Found },
         canInstallFfmpeg: Boolean = true,
+        wingetFound: Boolean = true,
     ) = LiveSession<Unit>(
         arguments,
         { _, _ -> renderer },
         feed,
-        installer,
-        canInstallFfmpeg,
+        ffmpegInstaller = installer,
+        ffmpegDownloader = downloader,
+        canInstallFfmpeg = canInstallFfmpeg,
+        wingetFound = wingetFound,
         post = { it() },
         systemLanguage = { "en" },
     )
@@ -197,10 +201,56 @@ class LiveSessionTest {
         assertEquals(texts.get(Str.NO_WINGET, FfmpegPrograms.DOWNLOAD_PAGE), failure?.words(texts))
     }
 
+    @Test
+    fun downloadingFfmpegSaysHowFarItIsAndStartsTheSourceAgain() {
+        val percents = Collections.synchronizedList(mutableListOf<Int?>())
+        lateinit var session: LiveSession<Unit>
+        session = session(
+            arguments = Arguments(),
+            downloader = { onPercent ->
+                for (percent in listOf(0, 50, 100)) {
+                    onPercent(percent)
+                    percents += session.state.value.downloadingFfmpeg
+                }
+                FfmpegInstall.Found
+            },
+        )
+        feedFailures.last()(Failure(ffmpegMissing = true) { "missing" })
+        session.downloadFfmpeg()
+        awaitInstalled(session)
+        assertEquals(listOf<Int?>(0, 50, 100), percents)
+        assertEquals(listOf("start camera 0", "close camera 0", "start camera 0"), log)
+        assertNull(session.state.value.ffmpegFailure)
+    }
+
+    @Test
+    fun ffmpegNotDownloadedIsSaidAndTheSourceNotStartedAgain() {
+        val session = session(arguments = Arguments(), downloader = { FfmpegInstall.Failed("no network") })
+        session.downloadFfmpeg()
+        awaitInstalled(session)
+        assertEquals(listOf("start camera 0"), log)
+        val texts = Texts.of("en")
+        val said = session.state.value.ffmpegFailure?.words(texts)
+        assertEquals(texts.get(Str.FFMPEG_NOT_DOWNLOADED, "no network"), said)
+    }
+
+    @Test
+    fun wingetIsOfferedBesideTheDownloadOnlyWhereItIsFound() {
+        val missing = Failure(ffmpegMissing = true) { "missing" }
+        val withWinget = session(arguments = Arguments())
+        feedFailures.last()(missing)
+        assertTrue(withWinget.state.value.offersFfmpeg)
+        assertTrue(withWinget.state.value.offersWinget)
+        val withoutWinget = session(arguments = Arguments(), wingetFound = false)
+        feedFailures.last()(missing)
+        assertTrue(withoutWinget.state.value.offersFfmpeg)
+        assertFalse(withoutWinget.state.value.offersWinget)
+    }
+
     private fun awaitInstalled(session: LiveSession<Unit>) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS)
-        while (session.state.value.installingFfmpeg && System.nanoTime() < deadline) Thread.sleep(10)
-        assertFalse(session.state.value.installingFfmpeg, "ffmpeg is still being installed")
+        while (session.state.value.gettingFfmpeg && System.nanoTime() < deadline) Thread.sleep(10)
+        assertFalse(session.state.value.gettingFfmpeg, "ffmpeg is still being downloaded or installed")
     }
 
     @Test

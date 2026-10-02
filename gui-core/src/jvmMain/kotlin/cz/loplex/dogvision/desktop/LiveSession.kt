@@ -21,23 +21,26 @@ import kotlin.concurrent.thread
  * Its methods are called on the AWT event thread, and its flows change only there, through [post]: Compose Desktop
  * composes on that thread, and Swing collects on it. It starts on what [arguments] ask for, as the window does.
  *
- * The renderer is made by [makeRenderer] once, the feed of each source by [feed], and ffmpeg installed by
- * [ffmpegInstaller], which [canInstallFfmpeg] says whether to offer where it is missing; the tests give their own of
- * each, and a [post] that runs what it is given there and then.
+ * The renderer is made by [makeRenderer] once, the feed of each source by [feed], ffmpeg downloaded by
+ * [ffmpegDownloader] and installed through winget by [ffmpegInstaller], which [canInstallFfmpeg] says whether to offer
+ * where it is missing, and [wingetFound] whether to offer winget as well; the tests give their own of each, and a
+ * [post] that runs what it is given there and then.
  */
 class LiveSession<I>(
     private val arguments: Arguments,
     makeRenderer: (onPicture: (Picture<I>) -> Unit, onFailure: (String) -> Unit) -> Renderer,
     private val feed: (Source, Renderer, (Failure) -> Unit) -> AutoCloseable = ::startFeed,
     private val ffmpegInstaller: () -> FfmpegInstall = FfmpegPrograms::install,
+    private val ffmpegDownloader: (onPercent: (Int) -> Unit) -> FfmpegInstall = FfmpegDownload::download,
     private val canInstallFfmpeg: Boolean = onWindows,
+    private val wingetFound: Boolean = canInstallFfmpeg && FfmpegPrograms.wingetOnPath(),
     private val post: (() -> Unit) -> Unit = { EventQueue.invokeLater(it) },
     private val systemLanguage: () -> String = { Locale.getDefault().toLanguageTag() },
 ) : AutoCloseable {
     /**
      * What the window shows besides the picture: [source], [view], [language], a tag or "" for the system's, and
      * [texts] in it; why the source cannot be shown, [sourceFailure], which another source clears, and why nothing can
-     * be drawn, [drawFailure], which stays; how installing ffmpeg is going; and whether the controls are shown.
+     * be drawn, [drawFailure], which stays; how getting ffmpeg is going; and whether the controls are shown.
      */
     data class State(
         val source: Source,
@@ -46,19 +49,28 @@ class LiveSession<I>(
         val texts: Texts,
         val sourceFailure: Failure? = null,
         val drawFailure: Failure? = null,
-        /** Whether ffmpeg is being installed, which takes as long as its download. */
+        /** Whether winget is installing ffmpeg, which takes as long as its download. */
         val installingFfmpeg: Boolean = false,
-        /** Why ffmpeg was not installed, the last time it was tried. */
+        /** How much of ffmpeg has been downloaded, in percent, while it is being downloaded; null otherwise. */
+        val downloadingFfmpeg: Int? = null,
+        /** Why ffmpeg was neither downloaded nor installed, the last time either was tried. */
         val ffmpegFailure: Failure? = null,
         /** Whether the panel of controls is shown, or the images have the whole window, as F9 toggles it. */
         val panelShown: Boolean = true,
         private val canInstallFfmpeg: Boolean = false,
+        private val wingetFound: Boolean = false,
     ) {
         /** Why nothing is shown, if something is why: that nothing can be drawn goes before the source's failure. */
         val failure: Failure? get() = drawFailure ?: sourceFailure
 
-        /** Whether the window offers to install ffmpeg: where it is missing, and on Windows, which has none. */
+        /** Whether the window offers to download ffmpeg: where it is missing, and on Windows, which has none. */
         val offersFfmpeg: Boolean get() = failure?.ffmpegMissing == true && canInstallFfmpeg
+
+        /** Whether it offers to install ffmpeg through winget as well: where it offers ffmpeg, and winget is there. */
+        val offersWinget: Boolean get() = offersFfmpeg && wingetFound
+
+        /** Whether ffmpeg is being downloaded or installed, which neither may start again meanwhile. */
+        val gettingFfmpeg: Boolean get() = installingFfmpeg || downloadingFfmpeg != null
     }
 
     private val mutableState = MutableStateFlow(
@@ -68,6 +80,7 @@ class LiveSession<I>(
             "",
             textsIn(""),
             canInstallFfmpeg = canInstallFfmpeg,
+            wingetFound = wingetFound,
         ),
     )
     val state: StateFlow<State> = mutableState.asStateFlow()
@@ -117,11 +130,32 @@ class LiveSession<I>(
     fun setArea(area: Area) = renderer.setArea(area)
 
     /**
-     * Installs ffmpeg on a thread of its own, unless it is being installed already, and starts the source again once it
-     * is found, or says why it was not.
+     * Downloads ffmpeg on a thread of its own, unless it is being downloaded or installed already, and starts the
+     * source again once it is unpacked, or says why it was not.
+     */
+    fun downloadFfmpeg() {
+        if (closed || mutableState.value.gettingFfmpeg) return
+        change { copy(downloadingFfmpeg = 0, ffmpegFailure = null) }
+        thread(name = "dog-vision-ffmpeg-download", isDaemon = true) {
+            val downloaded = ffmpegDownloader { percent ->
+                post { if (!closed) change { copy(downloadingFfmpeg = percent) } }
+            }
+            post {
+                val failure = (downloaded as? FfmpegInstall.Failed)?.let { failed ->
+                    Failure { it.get(Str.FFMPEG_NOT_DOWNLOADED, failed.reason) }
+                }
+                change { copy(downloadingFfmpeg = null, ffmpegFailure = failure) }
+                if (downloaded == FfmpegInstall.Found && !closed) start(mutableState.value.source)
+            }
+        }
+    }
+
+    /**
+     * Installs ffmpeg through winget on a thread of its own, unless it is being downloaded or installed already, and
+     * starts the source again once it is found, or says why it was not.
      */
     fun installFfmpeg() {
-        if (closed || mutableState.value.installingFfmpeg) return
+        if (closed || mutableState.value.gettingFfmpeg) return
         change { copy(installingFfmpeg = true, ffmpegFailure = null) }
         thread(name = "dog-vision-ffmpeg-install", isDaemon = true) {
             val installed = ffmpegInstaller()

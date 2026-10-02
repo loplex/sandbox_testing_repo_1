@@ -53,7 +53,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# The icon and the code page's file, which every MSI takes.
+# The icon, the code page's file and the windows' fragment of main.wxs, which the MSIs take.
 packaging="$root/gui-compose/packaging"
 
 # Says why on the standard error and exits, with 1 or the status given.
@@ -117,7 +117,10 @@ export WINEPREFIX="${WINEPREFIX:-${WINE_PREFIXES:-${XDG_DATA_HOME:-$HOME/.local/
 # which the installer, the system's list of programs and the Start menu's group show, is the app's
 # name with the suffix after it. Every later version's MSI replaces the one installed with the same
 # upgrade code, as Windows Installer tells versions of one product apart by it: never change
-# either, nor give both windows one, as installing the one would then remove the other.
+# either, nor give both windows one, as installing the one would then remove the other. Each
+# adds a fragment to main.wxs, its component group, which says what it does: a window's removes the
+# folder ffmpeg is downloaded into, with a component GUID of the window's own that never changes
+# either; the command line's puts its folder on the PATH.
 case "$window" in
     compose)
         name="dog-vision"
@@ -126,6 +129,9 @@ case "$window" in
         output="$root/gui-compose/build/compose/binaries/main/msi"
         description="How a dog or another animal sees a photo, a video or the camera"
         upgrade_uuid="602aa86b-3230-4786-8460-ba08bca42e45"
+        fragment="$packaging/msi-data.xml"
+        component_group="DogVisionData"
+        data_guid="40251de4-ef0f-4dc1-983b-ad8bc49cb1c5"
         ;;
     swing)
         name="dog-vision-swing"
@@ -134,6 +140,9 @@ case "$window" in
         output="$root/gui-swing/build/packages/msi"
         description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
         upgrade_uuid="acf6164b-f4f9-4430-b4f0-939242f187fb"
+        fragment="$packaging/msi-data.xml"
+        component_group="DogVisionData"
+        data_guid="06dcc47f-bd8f-4e38-8aec-7f26ed952950"
         ;;
     cli)
         name="dog-vision-cli"
@@ -142,6 +151,9 @@ case "$window" in
         output="$root/cli/build/packages/msi"
         description="How a dog or another animal sees a photo, from the command line"
         upgrade_uuid="bedc25f5-bde3-4837-86b0-26c5291beed3"
+        fragment="$root/cli/packaging/msi-path.xml"
+        component_group="DogVisionCliPath"
+        data_guid=""
         ;;
     *) usage ;;
 esac
@@ -177,7 +189,8 @@ version="${app_version:-${BASH_REMATCH[2]}}"
 name_pattern='<string name="app_name">([^<]+)</string>'
 [[ "$(<"$root/texts/strings/values/strings.xml")" =~ $name_pattern ]] ||
     die "texts/strings/values/strings.xml has no app_name"
-product="${BASH_REMATCH[1]}$suffix"
+app_name="${BASH_REMATCH[1]}"
+product="$app_name$suffix"
 image_options=(--jdk "$jdk" --window "$window")
 [[ -z "$app_version" ]] || image_options+=(--app-version "$app_version")
 image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
@@ -193,9 +206,8 @@ rm -f "$msi"
 
 # The resource directory holds MsiInstallerCodepage_en.wxl, for the code page the vendor's name
 # needs, and the main.wxs of the JDK's jpackage with the product's name and WiX's dialog bitmaps
-# set to the module's, and for the command line msi-path.xml in it as well. The build fails where
-# that main.wxs has not exactly one product's name and one </Product>, or for the command line one
-# reference to Files and one </Wix>.
+# set to the module's and its fragment in it. The build fails where that main.wxs has not exactly
+# one product's name, one </Product>, one reference to Files and one </Wix>.
 resources="$staging/resources"
 cp -r "$packaging/windows" "$resources"
 jimage extract --dir "$staging/jimage" --include "regex:.*/jdk/jpackage/internal/resources/main\.wxs" \
@@ -204,8 +216,7 @@ main_wxs="$(find "$staging/jimage" -name main.wxs)"
 [[ -f "$main_wxs" ]] || die "$jdk's jpackage has no main.wxs"
 files_reference='<ComponentGroupRef Id="Files"/>'
 product_name="Name=\"\$(var.JpAppName)\""
-anchors=("$product_name" "</Product>")
-[[ "$window" != cli ]] || anchors+=("$files_reference" "</Wix>")
+anchors=("$product_name" "</Product>" "$files_reference" "</Wix>")
 for anchor in "${anchors[@]}"; do
     (( $(grep -c -F "$anchor" "$main_wxs") == 1 )) || die "$jdk's main.wxs has not one $anchor"
 done
@@ -214,10 +225,13 @@ text="${text/"$product_name"/"Name=\"$product\""}"
 bitmaps="<WixVariable Id=\"WixUIBannerBmp\" Value=\"$(windows_path "$root/$module/build/windows/banner.bmp")\"/>
   <WixVariable Id=\"WixUIDialogBmp\" Value=\"$(windows_path "$root/$module/build/windows/dialog.bmp")\"/>"
 text="${text/"</Product>"/"$bitmaps"$'\n  </Product>'}"
-if [[ "$window" == cli ]]; then
-    text="${text/"$files_reference"/"$files_reference"$'\n      <ComponentGroupRef Id="DogVisionCliPath"/>'}"
-    text="${text/"</Wix>"/"$(<"$root/cli/packaging/msi-path.xml")"$'\n</Wix>'}"
-fi
+reference="<ComponentGroupRef Id=\"$component_group\"/>"
+text="${text/"$files_reference"/"$files_reference"$'\n      '"$reference"}"
+fragment_text="$(<"$fragment")"
+fragment_text="${fragment_text//@APP_NAME@/$app_name}"
+fragment_text="${fragment_text//@NAME@/$name}"
+fragment_text="${fragment_text//@GUID@/$data_guid}"
+text="${text/"</Wix>"/"$fragment_text"$'\n</Wix>'}"
 printf '%s\n' "$text" >"$resources/main.wxs"
 
 # Each window's launcher has a shortcut in the Start menu, in a group of the product's name rather
