@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Makes the Wine prefix that tools/package_msi_on_linux.sh runs jpackage in, with Microsoft's .NET Framework 4.8,
-# which WiX 3 finds its own version through, as that script says:
-# WINEPREFIX's, or without it dot_net_msi_builder among winetricks' named prefixes,
+# Makes the Wine prefix that tools/package_msi_on_linux.sh runs WiX 3's candle.exe and light.exe in,
+# with Microsoft's .NET Framework 4.8: WINEPREFIX's, or without it dot_net_msi_builder among winetricks' named prefixes,
 # in WINE_PREFIXES or ~/.local/share/wineprefixes, where that script takes it from.
 #
 # A prefix that has .NET Framework 4.8 already stays as it is, so a second run does nothing.
