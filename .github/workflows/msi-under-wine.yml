@@ -58,14 +58,12 @@ jobs:
           tools/package_msi_on_linux.sh
           tools/package_msi_on_linux.sh --app-version 0.1.1
           mkdir -p wine-msi
-          mv gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.{0,1}.msi wine-msi/
-          mv gui-swing/build/packages/msi/dog-vision-swing-0.1.{0,1}.msi wine-msi/
-          mv cli/build/packages/msi/dog-vision-cli-0.1.{0,1}.msi wine-msi/
+          mv tools/build/msi/dog-vision{,-swing,-cli}-0.1.{0,1}.msi wine-msi/
           ls -l wine-msi
       - name: Build the command line's zip
         run: |
           tools/package_cli_zip_on_linux.sh
-          mv cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip wine-msi/
+          mv tools/build/zip/dog-vision-cli-0.1.0-windows-x64.zip wine-msi/
       - uses: actions/upload-artifact@v5
         with:
           name: wine-msi
