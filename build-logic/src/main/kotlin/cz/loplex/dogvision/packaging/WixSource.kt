@@ -23,8 +23,10 @@ import java.util.UUID
  * - variables.wxi: the preprocessor variables [product] takes, each of this task's values, the paths of its files, and
  *   ProductCode, as [productCode] says.
  * - files.wxs: every file of [image] but app/.jpackage.xml, jpackage's record of the image, which its own MSIs leave
- *   out too, each a component of its own whose key path it is, in the folder INSTALLDIR, which [product] defines, and
- *   the component group Files of them all.
+ *   out too, each a component of its own whose key path it is, in the folder INSTALLDIR, which [product] defines. A
+ *   launcher's files are in a component group of its own, which [product]'s Feature of that launcher takes:
+ *   Launcher.dog_vision_swing holds dog-vision-swing.exe, app/dog-vision-swing.cfg and each JAR on that .cfg's
+ *   classpath and on no other launcher's. Every other file is in the component group Files.
  * - [codePage], the localization that sets the MSI's code page, as it is.
  *
  * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision.exe, by which [product]
@@ -138,7 +140,9 @@ abstract class WixSource : DefaultTask() {
 
     private fun files(): String {
         val root = image.get().asFile
-        val components = mutableListOf<String>()
+        val groups = launcherGroups(root)
+        val components = sortedMapOf(FILES to mutableListOf<String>())
+        val grouped = groups.keys.toMutableSet()
         val body = StringBuilder()
 
         fun folder(directory: File, depth: Int) {
@@ -154,7 +158,8 @@ abstract class WixSource : DefaultTask() {
                     val file = if (directory == root) entry.name.replace('-', '_') else "f${hash(relative)}"
                     check(Regex("[A-Za-z_][A-Za-z0-9_.]*").matches(file)) { "$relative gives no WiX ID: $file" }
                     val component = "c${hash(relative)}"
-                    components += component
+                    components.getOrPut(groups[relative] ?: FILES, ::mutableListOf) += component
+                    grouped -= relative
                     body.append(
                         "$indent<Component Id=\"$component\" Guid=\"{${uuid("${upgradeCode.get()}/$relative")}}\"" +
                             " Win64=\"yes\">\n" +
@@ -165,22 +170,51 @@ abstract class WixSource : DefaultTask() {
             }
         }
         folder(root, 3)
-        check(components.isNotEmpty()) { "$root holds no file" }
+        check(grouped.isEmpty()) { "A launcher's .cfg names what $root does not hold: $grouped" }
+        check(components.getValue(FILES).isNotEmpty()) { "$root holds no file but its launchers'" }
 
-        val references = components.joinToString("") { "      <ComponentRef Id=\"$it\"/>\n" }
+        val references = components.entries.joinToString("") { (group, members) ->
+            "    <ComponentGroup Id=\"$group\">\n" +
+                members.joinToString("") { "      <ComponentRef Id=\"$it\"/>\n" } +
+                "    </ComponentGroup>\n"
+        }
         return """
             |<?xml version="1.0" encoding="utf-8"?>
-            |<!-- Written by the $path task: every file of the app image, each its own component. -->
+            |<!-- Written by the $path task: every file of the app image, each its own component, by launcher. -->
             |<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
             |  <Fragment>
             |    <DirectoryRef Id="INSTALLDIR">
             |$body    </DirectoryRef>
-            |    <ComponentGroup Id="Files">
-            |$references    </ComponentGroup>
-            |  </Fragment>
+            |$references  </Fragment>
             |</Wix>
             |
         """.trimMargin()
+    }
+
+    /**
+     * The component group of each file of [root] that belongs to one launcher alone, by the file's path in [root]: each
+     * .exe directly in [root] is a launcher, which the group Launcher. and its name, its dashes as underscores, holds
+     * with its app/ .cfg and each JAR on that .cfg's classpath and on no other launcher's.
+     */
+    private fun launcherGroups(root: File): Map<String, String> {
+        val launchers = root.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".exe") }.map { it.name }
+        check(launchers.isNotEmpty()) { "$root holds no launcher" }
+        val classpaths = launchers.associateWith { launcher ->
+            val config = File(root, "app/${launcher.removeSuffix(".exe")}.cfg")
+            check(config.isFile) { "$launcher has no ${config.relativeTo(root)}" }
+            config.readLines(Charsets.UTF_8).filter { it.startsWith(LAUNCHER_CLASSPATH) }.map { line ->
+                val entry = line.removePrefix(LAUNCHER_CLASSPATH).trimEnd()
+                check(entry.startsWith($$"$APPDIR\\")) { "$config's classpath holds a file outside app: $entry" }
+                "app/" + entry.removePrefix($$"$APPDIR\\").replace('\\', '/')
+            }
+        }
+        val shared = classpaths.values.flatten().groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        return classpaths.entries.flatMap { (launcher, classpath) ->
+            val name = launcher.removeSuffix(".exe")
+            val group = "Launcher." + name.replace('-', '_')
+            check(Regex("[A-Za-z_][A-Za-z0-9_.]*").matches(group)) { "$launcher gives no WiX ID: $group" }
+            (listOf(launcher, "app/$name.cfg") + (classpath - shared)).map { it to group }
+        }.toMap()
     }
 
     /** [file]'s path as candle.exe sees it: Windows's own, or under Wine through its drive Z:. */
@@ -198,5 +232,8 @@ abstract class WixSource : DefaultTask() {
 
     private companion object {
         const val JPACKAGE_RECORD = "app/.jpackage.xml"
+
+        /** The component group of the files that belong to no launcher alone. */
+        const val FILES = "Files"
     }
 }
