@@ -20,9 +20,10 @@ sealed interface Source {
 
 /**
  * Why nothing is shown, worded when it is shown, in the language chosen then; [ffmpegMissing] if it is that ffmpeg
- * cannot be run, which the window offers to install on Windows.
+ * cannot be run, which the window offers to install on Windows; [link], an address in the words that the window shows
+ * as a link, which opens it in the browser when it is clicked.
  */
-class Failure(val ffmpegMissing: Boolean = false, val words: (Texts) -> String)
+class Failure(val ffmpegMissing: Boolean = false, val link: String? = null, val words: (Texts) -> String)
 
 /**
  * Starts showing [source] through [renderer], on a thread of its own, since a large photo takes a moment to read and
