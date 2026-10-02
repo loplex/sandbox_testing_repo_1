@@ -22,8 +22,10 @@ lifecycle = "2.11.0"
 lwjgl = "3.4.3"
 nucleus-angle = "8037.1"
 media3 = "1.11.1"
-# Temurin's jmods for Windows, which the command line's Windows runtime is linked from: of JDK 25, as the jlink that
-# links it, and of any update of it, as jlink asks only for its own feature release.
+# Temurin's release the packages' runtimes come from: the jmods for Windows, which each MSI's and the command line's
+# zip's runtime is linked from, are of it exactly; the JDK that links them, and the tar.gzs' runtime, is Gradle's
+# toolchain of its feature release, 25, as jlink asks only for its own. That release is an LTS one, as the packages ship
+# the runtime to users. A new feature release renames the module below.
 temurin-windows-jmods = "25.0.4.1+1"
 
 [libraries]

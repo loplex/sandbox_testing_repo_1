@@ -1,7 +1,9 @@
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
+import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsRuntime
+import cz.loplex.dogvision.packaging.windowsRuntimeImage
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -45,15 +47,8 @@ windowsRuntime(listOf(libs.compose.multiplatform.desktop.windows.x64))
 /** The icons, the second launcher's properties and what else the packages take. */
 val packaging = layout.projectDirectory.dir("packaging")
 
-/**
- * The JDK the tar.gz's runtime is linked from and jpackage runs from: Temurin, which brings its own libjpeg, giflib,
- * libpng, lcms2, HarfBuzz and FreeType, where a distribution's OpenJDK, Ubuntu's among them, links the system's, and
- * the tar.gz would then need that distribution's. Gradle downloads it where this machine has none.
- */
-val packagingJdk = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(25)
-    vendor = JvmVendorSpec.ADOPTIUM
-}
+/** The JDK the tar.gz's runtime is linked from and jpackage runs from, Temurin, which build-logic says why. */
+val packagingJdk = packagingJdk()
 
 // packageUberJarForCurrentOS writes build/compose/jars/dog-vision-linux-x64-<version>.jar, which runs alone on a JDK
 // 17 or newer, with this machine's natives in it. createDistributable writes jpackage's app image, with a runtime of
@@ -75,6 +70,9 @@ compose.desktop {
         }
     }
 }
+
+// The MSI's runtime, of the modules the app image's has: Compose's own and those added above.
+windowsRuntimeImage("the window's runtime for Windows", compose.desktop.application.nativeDistributions.modules)
 
 // The JAR with this machine's natives, whose task Compose's plugin registers.
 artifact("packageUberJarForCurrentOS")

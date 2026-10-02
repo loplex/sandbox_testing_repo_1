@@ -1,8 +1,10 @@
 import cz.loplex.dogvision.packaging.AppImage
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
+import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsRuntime
+import cz.loplex.dogvision.packaging.windowsRuntimeImage
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -95,14 +97,12 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
 }
 artifact(windowsUberJar)
 
-/**
- * The JDK the tar.gz's runtime is linked from and jpackage runs from: Temurin, as the Compose window's build says why.
- * Gradle downloads it where this machine has none.
- */
-val packagingJdk = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(25)
-    vendor = JvmVendorSpec.ADOPTIUM
-}
+/** The JDK the tar.gz's runtime is linked from and jpackage runs from, Temurin, which build-logic says why. */
+val packagingJdk = packagingJdk()
+
+/** The modules of the tar.gz's runtime and the MSI's: what jdeps --print-module-deps finds the JARs using. */
+val runtimeModules = listOf("java.base", "java.desktop", "java.instrument", "jdk.unsupported")
+windowsRuntimeImage("the window's runtime for Windows", runtimeModules)
 
 // jpackage's app image with a runtime of its own, and dog-vision-cli beside dog-vision-swing, as the Compose window's.
 val appImage = tasks.register<AppImage>("appImage") {
@@ -114,8 +114,7 @@ val appImage = tasks.register<AppImage>("appImage") {
     mainClass = mainClassName
     imageName = "dog-vision-swing"
     appVersion = packageVersion
-    // What jdeps --print-module-deps finds the JARs using.
-    modules = listOf("java.base", "java.desktop", "java.instrument", "jdk.unsupported")
+    modules = runtimeModules
     javaOptions = emptyList()
     icon = packaging.file("dog-vision.png")
     launchers = mapOf("dog-vision-cli" to packaging.file("dog-vision-cli.properties").asFile)

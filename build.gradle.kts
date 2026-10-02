@@ -9,6 +9,14 @@ plugins {
     id("cz.loplex.dogvision.packaging") apply false
 }
 
+// tools/cache, what tools/fetch_msi_tools_on_linux.sh downloads, stays out of IntelliJ IDEA's index: the IDE's Gradle
+// sync marks the idea plugin's module.excludeDirs excluded. Applied during a sync only, which the IDE announces with
+// -Didea.sync.active=true, so that no other build gets the idea plugin.
+if (gradle.startParameter.systemPropertiesArgs["idea.sync.active"] == "true") {
+    pluginManager.apply("idea")
+    the<org.gradle.plugins.ide.idea.model.IdeaModel>().module.excludeDirs.add(file("tools/cache"))
+}
+
 // The Kotlin/JS modules download Node.js from the repository declared in settings.gradle.kts, which is where the build
 // declares every repository, instead of adding one of their own; the root project sets it up for them.
 allprojects {
