@@ -142,10 +142,61 @@ val checkModuleGraph = tasks.register("checkModuleGraph") {
     }
 }
 
+// docs/building.md's table in "Every artifact at once" says which folder each artifact lands in; it is held here to the
+// outputs that the tasks packageAll runs declare, in each module's `check`: each output is a folder of the table or
+// lies directly in one, and each folder holds one. A folder `…/rpm` is beside the one before it in its cell. The
+// tasks' outputs are read once every module is evaluated, by task, but for the work files in build/intermediates,
+// Android's plugin's, and in build/tmp, Gradle's.
+val artifactOutputs = objects.mapProperty<String, List<String>>()
+gradle.projectsEvaluated {
+    artifactOutputs.set(
+        subprojects.flatMap { module ->
+            val packageAll = module.tasks.findByName("packageAll") ?: return@flatMap emptyList()
+            packageAll.taskDependencies.getDependencies(packageAll).map { task ->
+                task.path to task.outputs.files.files.map { it.relativeTo(rootDir).invariantSeparatorsPath }
+                    .filter { "/build/intermediates/" !in it && "/build/tmp/" !in it }.sorted()
+            }
+        }.toMap(),
+    )
+}
+val checkArtifactFolders = tasks.register("checkArtifactFolders") {
+    description = "Fails when docs/building.md's folders of the artifacts differ from what packageAll's tasks write."
+    val doc = file("docs/building.md")
+    val outputs = artifactOutputs
+    inputs.file(doc)
+    inputs.property("artifactOutputs", outputs)
+    doLast {
+        val section = doc.readText().substringAfter("\n## Every artifact at once\n", "").substringBefore("\n## ")
+        val rows = section.lines().filter { it.startsWith("|") }.drop(2)
+        if (rows.isEmpty()) throw GradleException("docs/building.md: no table under \"Every artifact at once\"")
+        val folders = rows.flatMap { row ->
+            val cell = row.split("|").getOrNull(3)?.trim()
+                ?: throw GradleException("docs/building.md: a row of the artifacts has no folder: $row")
+            val paths = cell.split(",").map { it.trim().removeSurrounding("`") }
+            paths.map { path ->
+                if (path.startsWith("…/")) paths.first().substringBeforeLast("/") + path.removePrefix("…") else path
+            }
+        }.toSet()
+        val written = outputs.get()
+        val all = written.values.flatten()
+        val problems = written.filterValues { it.isEmpty() }.keys.sorted()
+            .map { "$it declares no output, so no folder of it can be checked" } +
+            written.toSortedMap().flatMap { (task, files) ->
+                files.filter { it !in folders && it.substringBeforeLast("/") !in folders }
+                    .map { "$task writes $it, in no folder of the table" }
+            } +
+            folders.filter { folder -> all.none { it == folder || it.substringBeforeLast("/") == folder } }.sorted()
+                .map { folder -> "the table's folder $folder holds nothing packageAll writes" }
+        if (problems.isNotEmpty()) {
+            throw GradleException("docs/building.md's folders of the artifacts:\n" + problems.joinToString("\n"))
+        }
+    }
+}
+
 // build-logic is a build of its own, which `check` here does not reach otherwise: its ktlint, in each module's `check`.
 val buildLogicCheck = gradle.includedBuild("build-logic").task(":check")
 subprojects {
     tasks.matching { it.name == "check" }.configureEach {
-        dependsOn(checkLineLength, checkModuleGraph, buildLogicCheck)
+        dependsOn(checkLineLength, checkModuleGraph, checkArtifactFolders, buildLogicCheck)
     }
 }
