@@ -93,8 +93,8 @@ android {
     }
 }
 
-// The app's artifact, the debug APK, whose task Android's plugin registers.
-artifact("assembleDebug")
+// The app's artifact, the debug APK, by the task of Android's plugin that writes it: assembleDebug declares no output.
+artifact("packageDebug")
 
 dependencies {
     implementation(project(":core"))
