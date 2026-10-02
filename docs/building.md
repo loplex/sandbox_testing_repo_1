@@ -50,6 +50,9 @@ Each artifact lands here:
 | Swing window   | the JARs, Linux's, Windows's | `gui-swing/build/jars`                           |
 | Swing window   | the deb, the rpm, the tar.gz | `gui-swing/build/packages/deb`, `…/rpm`, `…/tar` |
 
+`./gradlew checkArtifactFolders` holds the folders to the tasks, and runs in `check`: every file a
+task of `packageAll` declares, but its work files, lies in one of them, and each of them holds one.
+
 The MSI and the command line's zip for Windows are not among them, as jpackage builds an installer
 or a native launcher only on the system it is for:
 [The MSI, built under Wine or on Windows](#the-msi-built-under-wine-or-on-windows) and
