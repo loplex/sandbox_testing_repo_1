@@ -87,7 +87,7 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ### The command line's zip for Windows
 
 ```sh
-tools/package_cli_zip_on_linux.sh --jdk <Windows JDK 17>
+tools/package_cli_zip_on_linux.sh
                                  # cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip
 pwsh tools/package_cli_zip_on_windows.ps1
                                  # on Windows: the same
@@ -105,9 +105,8 @@ pwsh tools/package_cli_zip_on_windows.ps1
   jlink takes jmods of any update of its own feature release, 25.
 - **jpackage makes the launcher only on Windows**, so each script runs a Windows jpackage over the runtime and the JAR:
   - [`tools/package_cli_zip_on_windows.ps1`](../tools/package_cli_zip_on_windows.ps1) runs the JDK 25 that `JAVA_HOME` names;
-  - [`tools/package_cli_zip_on_linux.sh`](../tools/package_cli_zip_on_linux.sh) runs a Windows JDK 17's under Wine,
-    as [`package_msi_on_linux.sh`](../tools/package_msi_on_linux.sh) does and says why, in the locale `cs_CZ.UTF-8`;
-    it needs neither WiX nor .NET, and needs `zip`.
+  - [`tools/package_cli_zip_on_linux.sh`](../tools/package_cli_zip_on_linux.sh) zips the image that [`package_app_image_on_linux.sh`](../tools/package_app_image_on_linux.sh) builds under Wine,
+    the one the command line's MSI installs, and needs `zip`.
 - **[`tools/test_cli_zip_on_windows.ps1`](../tools/test_cli_zip_on_windows.ps1) tries it on Windows**: it unpacks it into a folder whose name has a space,
   and runs `dog-vision-cli` from the `PATH` with `--help`, on a photo and with an unknown option.\
   The Windows zip job of [`ci.yml`](../.github/workflows/ci.yml) builds it and tries it on every push,
@@ -148,6 +147,8 @@ tools/fetch_msi_tools_on_linux.sh
                                      # once: what the MSIs are built with, into tools/cache
 tools/make_wine_prefix_on_linux.sh
                                      # once: their Wine prefix, ~/.local/share/wineprefixes/dot_net_msi_builder
+tools/package_app_image_on_linux.sh
+                                     # the folders the MSIs install: gui-compose/build/windows/app-image/dog-vision, …
 tools/package_msi_on_linux.sh        # all three MSIs below, or with --window compose, swing or cli one
 tools/package_msi_on_linux.sh --window compose
                                      # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
@@ -297,6 +298,10 @@ with `-Window swing` the Swing window's and with `-Window cli` the command line'
   in a few minutes: `dot_net_msi_builder` among winetricks' named prefixes, in `~/.local/share/wineprefixes`.\
   Wine cannot validate it, so the workflow [`msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml), started by hand,
   builds it on Linux and validates, installs, upgrades and removes it on Windows.
+- **Under Wine, [`tools/package_app_image_on_linux.sh`](../tools/package_app_image_on_linux.sh) builds the app image first**,
+  the folder the MSI installs, in the module's `build/windows/app-image`, which `package_msi_on_linux.sh` runs it for.\
+  Its `.exe` runs under Wine from there, without installing the MSI:
+  `wine gui-compose/build/windows/app-image/dog-vision/dog-vision.exe`.
 - **Both take the runtime from Gradle**, so that it is the same on Windows and under Wine:
   `./gradlew :gui-compose:windowsRuntime`, `:gui-swing:windowsRuntime` and `:cli:windowsRuntime` link it, on any system,
   as the command line's zip's above.
