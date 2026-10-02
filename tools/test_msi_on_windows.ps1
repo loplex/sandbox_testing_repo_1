@@ -4,6 +4,12 @@
 # downloaded into, %ProgramData%\<the app's name>, which the script makes before the upgrade, as a
 # window would, and which has to stay over that.
 #
+# Then it installs one part alone, the Feature SwingGui, by ADDLOCAL naming it without its parent
+# DogVision, which Windows Installer installs with it, into a folder of its own (INSTALLDIR); adds
+# the Compose window, which is to go into that folder too; upgrades it, which is to keep both
+# windows there and the command line out, as the MSI migrates the Features installed and takes
+# the folder from the registry; and removes it.
+#
 # The MSIs are tools/package_msi_on_windows.ps1's or tools/package_msi_on_linux.sh's: -Msi of
 # -Version, and -UpgradeMsi of the later -UpgradeVersion. Each check says whether it held, and every
 # check runs, so that one failing does not hide the others; the script fails if any did. msiexec's
@@ -53,6 +59,9 @@ $startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$
 $desktop = Join-Path $env:PUBLIC "Desktop"
 # The windows' shortcuts, each in the Start menu's group and on the desktop.
 $shortcuts = @("$product.lnk", "$product (Swing).lnk")
+# Each part's launcher, and the shortcut of each window's.
+$launchers = @("dog-vision.exe", "dog-vision-swing.exe", "dog-vision-cli.exe")
+$swingShortcut = "$product (Swing).lnk"
 # Where a window downloads ffmpeg, which the MSI removes with the product, but not over an upgrade.
 $data = Join-Path $env:ProgramData $product
 
@@ -86,16 +95,38 @@ function Get-OnPath {
     @($entries | Where-Object { $_.TrimEnd("\") -eq $installDir }).Count
 }
 
-# The installed product: one, of [Expected] version, with the three launchers, and its folder on
-# the PATH once.
-function Test-Installed([string]$Expected) {
+# The installed product: one, of [Expected] version, with the runtime and the launchers [Parts]
+# alone, and its folder on the PATH once where the command line is among them, else not at all.
+function Test-Installed([string]$Expected, [string[]]$Parts = $launchers) {
     $installed = @(Get-Installed)
     Test-Check "one $product is installed" ($installed.Count -eq 1)
     Test-Check "the installed version is $Expected" (@($installed | Where-Object DisplayVersion -eq $Expected).Count -eq 1)
-    foreach ($launcher in @("dog-vision.exe", "dog-vision-swing.exe", "dog-vision-cli.exe")) {
-        Test-Check "$launcher is installed" (Test-Path (Join-Path $installDir $launcher))
+    Test-Check "the runtime is installed" (Test-Path (Join-Path $installDir "runtime\lib\modules"))
+    foreach ($launcher in $launchers) {
+        $present = Test-Path (Join-Path $installDir $launcher)
+        if ($launcher -in $Parts) {
+            Test-Check "$launcher is installed" $present
+        } else {
+            Test-Check "$launcher is not installed" (-not $present)
+        }
     }
-    Test-Check "the installation folder is on the PATH once" ((Get-OnPath) -eq 1)
+    $onPath = if ("dog-vision-cli.exe" -in $Parts) { 1 } else { 0 }
+    Test-Check "the installation folder is on the PATH $onPath time(s)" ((Get-OnPath) -eq $onPath)
+}
+
+# Nothing of the product is left: not listed, its folders and shortcuts gone, the PATH as it was.
+function Test-Removed {
+    Test-Check "no $product is installed after" (@(Get-Installed).Count -eq 0)
+    Test-Check "the installation folder is gone" (-not (Test-Path $installDir))
+    Test-Check "the Start menu folder is gone" (-not (Test-Path $startMenu))
+    foreach ($shortcut in $shortcuts) {
+        Test-Check "the desktop's $shortcut is gone" (-not (Test-Path (Join-Path $desktop $shortcut)))
+    }
+    Test-Check "the folder ffmpeg is downloaded into is gone" (-not (Test-Path $data))
+    Test-Check "the installation folder is not on the PATH" ((Get-OnPath) -eq 0)
+    Test-Check "the PATH is as it was before, separators included" (
+        [Environment]::GetEnvironmentVariable("Path", "Machine") -eq $pathBefore
+    )
 }
 
 
@@ -165,18 +196,42 @@ Test-Check "the folder ffmpeg is downloaded into stays over the upgrade" (
 Test-Check "the MSI of $UpgradeVersion uninstalls" (
     Invoke-Msiexec "uninstall-$UpgradeVersion.log" @("/x", "`"$UpgradeMsi`"")
 )
-Test-Check "no $product is installed after" (@(Get-Installed).Count -eq 0)
-Test-Check "the installation folder is gone" (-not (Test-Path $installDir))
-Test-Check "the Start menu folder is gone" (-not (Test-Path $startMenu))
-foreach ($shortcut in $shortcuts) {
-    Test-Check "the desktop's $shortcut is gone" (-not (Test-Path (Join-Path $desktop $shortcut)))
-}
-Test-Check "the folder ffmpeg is downloaded into is gone" (-not (Test-Path $data))
-Test-Check "the installation folder is not on the PATH" ((Get-OnPath) -eq 0)
-Test-Check "the PATH is as it was before, separators included" (
-    [Environment]::GetEnvironmentVariable("Path", "Machine") -eq $pathBefore
-)
+Test-Removed
 
+
+# The Swing window alone, named without its parent, into a folder of its own; the Compose window
+# added later, into the same folder; both kept there over the upgrade, without the command line.
+# INSTALLDIR is given without its trailing backslash, which would escape the quote after it.
+
+$defaultDir = $installDir
+$installDir = Join-Path $env:SystemDrive "DogVisionTest"
+$windows = @("dog-vision.exe", "dog-vision-swing.exe")
+Test-Check "the MSI of $Version installs ADDLOCAL=SwingGui into $installDir" (
+    Invoke-Msiexec "install-swing-$Version.log" @(
+        "/i", "`"$Msi`"", "ADDLOCAL=SwingGui", "INSTALLDIR=`"$installDir`""
+    )
+)
+Test-Installed $Version @("dog-vision-swing.exe")
+foreach ($place in @($startMenu, $desktop)) {
+    Test-Check "$place has $swingShortcut alone of the windows' shortcuts" (
+        (Test-Path (Join-Path $place $swingShortcut)) -and -not (Test-Path (Join-Path $place "$product.lnk"))
+    )
+}
+Test-Check "the MSI of $Version adds ADDLOCAL=ComposeGui" (
+    Invoke-Msiexec "add-compose-$Version.log" @("/i", "`"$Msi`"", "ADDLOCAL=ComposeGui")
+)
+Test-Installed $Version $windows
+Test-Check "nothing is installed into $defaultDir" (-not (Test-Path $defaultDir))
+Test-Check "the MSI of $UpgradeVersion installs over the two windows" (
+    Invoke-Msiexec "install-windows-$UpgradeVersion.log" @("/i", "`"$UpgradeMsi`"")
+)
+Test-Installed $UpgradeVersion $windows
+Test-Check "nothing is installed into $defaultDir after the upgrade" (-not (Test-Path $defaultDir))
+Test-Check "the MSI of $UpgradeVersion uninstalls the two windows" (
+    Invoke-Msiexec "uninstall-windows-$UpgradeVersion.log" @("/x", "`"$UpgradeMsi`"")
+)
+Test-Removed
+$installDir = $defaultDir
 
 if ($failures.Count -gt 0) {
     Write-Host "$($failures.Count) check(s) failed:"

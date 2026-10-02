@@ -2,13 +2,13 @@
 <!--
   The MSI for Windows on x86-64, which WiX Toolset 3's candle.exe and light.exe make with what :packaging's
   windowsWix task writes beside this file: variables.wxi, the values it takes, and files.wxs, every file of the app
-  image in the component group Files, in INSTALLDIR.
+  image, in INSTALLDIR, each launcher's in its own component group (Launcher.dog_vision_swing), the rest in Files.
 
   It installs for every user into Program Files\$(var.InstallFolder): the Compose window's dog-vision.exe, the Swing
   window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, each on the runtime beside them. Each window
   gets a shortcut in the Start menu's group of the product's name and one on the desktop; the command line, which
   started from a shortcut would only print its usage, gets none, but the installation folder goes on the system's
-  PATH.
+  PATH. Each of the three is a Feature of its own, which the installer's tree offers.
 
   Each component's GUID stays as it is, as Windows Installer counts the installations of a component by it. A
   component needs a key path, which a shortcut, an Environment or a RemoveFolderEx cannot be: a registry value of its
@@ -116,26 +116,48 @@
     </Property>
     <!--
       The folder the product is installed in, where neither the command line nor the dialog names another: Windows
-      Installer keeps no property from one installation to the next, so a later version would otherwise go into the
-      default folder, apart from the rest. The dialog's choice reaches the execute sequence as
+      Installer keeps no property from one installation to the next, so a part added later and a later version would
+      otherwise go into the default folder, apart from the rest. The dialog's choice reaches the execute sequence as
       INSTALLDIR, which the condition then leaves.
     -->
     <SetDirectory Id="INSTALLDIR" Value="[INSTALLEDDIR]" Sequence="both">INSTALLEDDIR AND NOT INSTALLDIR</SetDirectory>
 
-    <Feature Id="DogVision" Title="$(var.ProductName)" Level="1">
+    <!--
+      The parts the installer's tree offers, each installed by default, as a plain or a silent install (msiexec /qn,
+      winget) installs them; ADDLOCAL names fewer. A later version keeps the parts installed, as MajorUpgrade migrates
+      the Features by default. DogVision cannot be left out: the runtime the others run on, and what removes the
+      app's folders; the folder to install into is its, which the tree's Browse changes.
+    -->
+    <Feature Id="DogVision" Title="$(var.ProductName)"
+             Description="The runtime the GUIs and the command line run on. It is always installed."
+             Level="1" Absent="disallow" AllowAdvertise="no" Display="expand" ConfigurableDirectory="INSTALLDIR">
       <ComponentGroupRef Id="Files"/>
-      <ComponentRef Id="ComposeStartMenu"/>
-      <ComponentRef Id="SwingStartMenu"/>
-      <ComponentRef Id="ComposeDesktop"/>
-      <ComponentRef Id="SwingDesktop"/>
-      <ComponentRef Id="CommandLinePath"/>
       <ComponentRef Id="DownloadedData"/>
       <ComponentRef Id="InstallDirRemoval"/>
+
+      <Feature Id="ComposeGui" Title="GUI (Compose Multiplatform)"
+               Description="The app's window, in JetBrains' Compose Multiplatform." Level="1" AllowAdvertise="no">
+        <ComponentGroupRef Id="Launcher.dog_vision"/>
+        <ComponentRef Id="ComposeStartMenu"/>
+        <ComponentRef Id="ComposeDesktop"/>
+      </Feature>
+      <Feature Id="SwingGui" Title="GUI (Java Swing)"
+               Description="The same window in Java's Swing, without Compose Multiplatform." Level="1"
+               AllowAdvertise="no">
+        <ComponentGroupRef Id="Launcher.dog_vision_swing"/>
+        <ComponentRef Id="SwingStartMenu"/>
+        <ComponentRef Id="SwingDesktop"/>
+      </Feature>
+      <Feature Id="CommandLine" Title="Command line"
+               Description="dog-vision-cli, run from a command prompt. Puts the installation folder on the PATH."
+               Level="1" AllowAdvertise="no">
+        <ComponentGroupRef Id="Launcher.dog_vision_cli"/>
+        <ComponentRef Id="CommandLinePath"/>
+      </Feature>
     </Feature>
 
-    <!-- The dialogs: the licence, then the folder to install into, with the dog on them. -->
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
-    <UIRef Id="WixUI_InstallDir"/>
+    <!-- The dialogs: the licence, then the tree of the parts with the folder to install into, with the dog on them. -->
+    <UIRef Id="WixUI_FeatureTree"/>
     <WixVariable Id="WixUILicenseRtf" Value="$(var.License)"/>
     <WixVariable Id="WixUIBannerBmp" Value="$(var.Banner)"/>
     <WixVariable Id="WixUIDialogBmp" Value="$(var.Dialog)"/>
