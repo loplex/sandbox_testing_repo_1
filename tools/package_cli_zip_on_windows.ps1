@@ -4,7 +4,7 @@
 # jpackage makes its app image with dog-vision-cli.exe, a native launcher that runs in a console,
 # of the arguments that cli's windowsJpackage task writes, with the JAR that its uberJar task
 # assembles and the runtime that its windowsRuntime task links from Temurin's jmods for Windows; the
-# zip holds that image and the licence. It is written to cli/build/packages/zip.
+# zip holds that image and the licence. It is written to tools\build\zip, which git ignores.
 # tools/package_cli_zip_on_linux.sh builds the same zip through Wine.
 #
 # Needs:
@@ -38,7 +38,7 @@ $version = $Matches[1]
 Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsJpackage", "-PjpackageJdk=$env:JAVA_HOME")
 $jpackageFiles = Join-Path $cli "build\windows\jpackage"
 
-$staging = Join-Path $cli "build\windows-zip"
+$staging = Join-Path $root "tools\build\staging\cli-zip"
 if (Test-Path $staging) {
     Remove-Item -Recurse -Force $staging
 }
@@ -59,7 +59,7 @@ Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
 
 $app = Join-Path $image "dog-vision-cli"
 Copy-Item (Join-Path $root "LICENSE") $app
-$output = Join-Path $cli "build\packages\zip"
+$output = Join-Path $root "tools\build\zip"
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 $zip = Join-Path $output "dog-vision-cli-$version-windows-x64.zip"
 if (Test-Path $zip) {

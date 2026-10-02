@@ -165,33 +165,31 @@ jobs:
         shell: pwsh
         run: >-
           ./tools/test_msi_on_windows.ps1
-          -Msi gui-compose/build/compose/binaries/main/msi/0.1.0/dog-vision-0.1.0.msi -Version 0.1.0
-          -UpgradeMsi gui-compose/build/compose/binaries/main/msi/0.1.1/dog-vision-0.1.1.msi -UpgradeVersion 0.1.1
+          -Msi tools/build/msi/dog-vision-0.1.0.msi -Version 0.1.0
+          -UpgradeMsi tools/build/msi/dog-vision-0.1.1.msi -UpgradeVersion 0.1.1
           -LogDir msi-logs/dog-vision
       - name: Install, upgrade and remove dog-vision-swing's
         if: (success() || failure()) && steps.msis.outcome == 'success'
         shell: pwsh
         run: >-
           ./tools/test_msi_on_windows.ps1 -Name dog-vision-swing
-          -Msi gui-swing/build/packages/msi/0.1.0/dog-vision-swing-0.1.0.msi -Version 0.1.0
-          -UpgradeMsi gui-swing/build/packages/msi/0.1.1/dog-vision-swing-0.1.1.msi -UpgradeVersion 0.1.1
+          -Msi tools/build/msi/dog-vision-swing-0.1.0.msi -Version 0.1.0
+          -UpgradeMsi tools/build/msi/dog-vision-swing-0.1.1.msi -UpgradeVersion 0.1.1
           -LogDir msi-logs/dog-vision-swing
       - name: Install, upgrade and remove dog-vision-cli's
         if: (success() || failure()) && steps.msis.outcome == 'success'
         shell: pwsh
         run: >-
           ./tools/test_msi_on_windows.ps1 -Name dog-vision-cli
-          -Msi cli/build/packages/msi/0.1.0/dog-vision-cli-0.1.0.msi -Version 0.1.0
-          -UpgradeMsi cli/build/packages/msi/0.1.1/dog-vision-cli-0.1.1.msi -UpgradeVersion 0.1.1
+          -Msi tools/build/msi/dog-vision-cli-0.1.0.msi -Version 0.1.0
+          -UpgradeMsi tools/build/msi/dog-vision-cli-0.1.1.msi -UpgradeVersion 0.1.1
           -LogDir msi-logs/dog-vision-cli
       - if: always()
         uses: actions/upload-artifact@v5
         with:
           name: windows-msi
           path: |
-            gui-compose/build/compose/binaries/main/msi/
-            gui-swing/build/packages/msi/
-            cli/build/packages/msi/
+            tools/build/msi/
             msi-logs/
 
   windows-zip:
@@ -211,9 +209,9 @@ jobs:
         shell: pwsh
         run: >-
           ./tools/test_cli_zip_on_windows.ps1
-          -Zip cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip
+          -Zip tools/build/zip/dog-vision-cli-0.1.0-windows-x64.zip
       - if: always()
         uses: actions/upload-artifact@v5
         with:
           name: windows-zip
-          path: cli/build/packages/zip/
+          path: tools/build/zip/

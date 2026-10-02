@@ -6,9 +6,10 @@
 # swing dog-vision-swing's, with dog-vision-swing.exe and dog-vision-cli.exe; with --window cli
 # dog-vision-cli's, with dog-vision-cli.exe alone, which runs in a console.
 #
-# Each is written to the module's build/windows/app-image, as gui-compose/build/windows/app-image/
-# dog-vision, and its folder printed. tools/package_msi_on_linux.sh makes the MSIs from them, and
-# tools/package_cli_zip_on_linux.sh the command line's zip.
+# Each is written to tools/build/app-image, as tools/build/app-image/dog-vision, and its folder
+# printed; tools/build holds what the scripts in tools build, which git ignores.
+# tools/package_msi_on_linux.sh makes the MSIs from them, and tools/package_cli_zip_on_linux.sh the
+# command line's zip.
 #
 # jpackage makes an app image for Windows only on Windows, so this runs a Windows JDK 17's
 # jpackage.exe under Wine, in the locale cs_CZ.UTF-8, as tools/package_msi_on_linux.sh runs it,
@@ -119,10 +120,9 @@ jpackage="$jdk/bin/jpackage.exe"
 gradle_options=("-PjpackageJdk=$jdk")
 [[ -z "$app_version" ]] || gradle_options+=("-PwindowsAppVersion=$app_version")
 "$root/gradlew" --quiet ":$module:windowsJpackage" "${gradle_options[@]}"
-windows="$root/$module/build/windows"
-arguments="$windows/jpackage"
+arguments="$root/$module/build/windows/jpackage"
 # jpackage refuses an image's folder that is there already.
-destination="$windows/app-image"
+destination="$root/tools/build/app-image"
 rm -rf "${destination:?}/$name"
 mkdir -p "$destination"
 
