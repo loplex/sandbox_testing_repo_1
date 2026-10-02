@@ -11,10 +11,11 @@
 # tools/package_cli_zip_on_linux.sh the command line's zip.
 #
 # jpackage makes an app image for Windows only on Windows, so this runs a Windows JDK 17's
-# jpackage.exe under Wine, in the locale cs_CZ.UTF-8, as tools/package_msi_on_linux.sh says why,
-# over the JAR that the module's windowsUberJar task assembles, or for the command line its
-# uberJar task, and the runtime that its windowsRuntime task links. An app image needs neither WiX
-# nor .NET.
+# jpackage.exe under Wine, in the locale cs_CZ.UTF-8, as tools/package_msi_on_linux.sh runs it,
+# with the arguments that the module's windowsJpackage task writes, which
+# tools/package_msi_on_windows.ps1 hands jpackage on Windows as well: what the package is, and
+# what the image runs, its JAR and the runtime that the module's windowsRuntime task links. An app
+# image needs neither WiX nor .NET.
 #
 # Needs:
 # - Wine. Its prefix is WINEPREFIX's, or without it dot_net_msi_builder among winetricks' named
@@ -32,8 +33,6 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# The icons and dog-vision-cli's properties, which both windows' images take.
-packaging="$root/gui-compose/packaging"
 
 # Says why on the standard error and exits, with 1 or the status given.
 die() {
@@ -91,44 +90,13 @@ if [[ -z "${WINEPREFIX:-}" && -f "$msi_prefix/drive_c/windows/system32/kernel32.
     export WINEPREFIX="$msi_prefix"
 fi
 
-# What each window's image is made of. Compose's launchers pass the Java option, with which its
-# application gives Swing the system's look. Each window's launcher is beside dog-vision-cli.exe,
-# the command line alone, which runs in a console.
+# Each window's module, whose build script says what its image is made of, and the image's name.
 case "$window" in
-    compose)
-        name="dog-vision"
-        module="gui-compose"
-        jar_task=":gui-compose:windowsUberJar"
-        jar_file="gui-compose/build/compose/jars/dog-vision-windows-x64-@VERSION@.jar"
-        main_class="cz.loplex.dogvision.desktop.MainKt"
-        description="How a dog or another animal sees a photo, a video or the camera"
-        java_options=(--java-options "-Dcompose.application.configure.swing.globals=true")
-        ;;
-    swing)
-        name="dog-vision-swing"
-        module="gui-swing"
-        jar_task=":gui-swing:windowsUberJar"
-        jar_file="gui-swing/build/jars/dog-vision-swing-windows-x64-@VERSION@.jar"
-        main_class="cz.loplex.dogvision.swing.MainKt"
-        description="How a dog or another animal sees a photo, a video or the camera, in Java Swing"
-        java_options=()
-        ;;
-    cli)
-        name="dog-vision-cli"
-        module="cli"
-        jar_task=":cli:uberJar"
-        jar_file="cli/build/jars/dog-vision-cli.jar"
-        main_class="cz.loplex.dogvision.cli.MainKt"
-        description="How a dog or another animal sees a photo, from the command line"
-        java_options=()
-        ;;
-    *) usage ;;
+    compose) module="gui-compose" name="dog-vision" ;;
+      swing) module="gui-swing"   name="dog-vision-swing" ;;
+        cli) module="cli"     name="dog-vision-cli" ;;
+          *) usage ;;
 esac
-if [[ "$window" == cli ]]; then
-    launcher_options=(--win-console)
-else
-    launcher_options=(--add-launcher "dog-vision-cli=$(windows_path "$packaging/dog-vision-cli.properties")")
-fi
 
 require "wine" "wine" "wine"
 require "winepath" "wine" "wine"
@@ -140,50 +108,36 @@ locale -a | grep -ix 'cs_CZ\.utf-\?8' >/dev/null ||
 
 [[ -f "$jdk/bin/jpackage.exe" ]] ||
     die "$jdk/bin/jpackage.exe does not exist: tools/fetch_msi_tools_on_linux.sh downloads it" 2
-jpackage="$(realpath "$jdk")/bin/jpackage.exe"
+jdk="$(realpath "$jdk")"
+jpackage="$jdk/bin/jpackage.exe"
+# windowsJpackage writes the paths as Wine sees them through Z:, which Wine maps to the root.
+[[ "$(winepath -u "Z:\\" 2>/dev/null)" == "/" ]] || die "Wine maps no drive Z: to /, which the paths need"
 
 
-# What jpackage takes in: the JAR and the runtime.
+# What jpackage takes in: the arguments, with the JAR and the runtime they name.
 
-# The app's version, as gradle.properties gives it to the Linux packages and the JAR's name, unless
-# --app-version gives another. The pattern stays unquoted after =~, where quotes would make it a
-# plain string.
-version_pattern=$'(^|\n)appVersion=([^\n]+)'
-[[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
-gradle_version="${BASH_REMATCH[2]}"
-version="${app_version:-$gradle_version}"
-"$root/gradlew" --quiet "$jar_task" ":$module:windowsRuntime"
-jar="$root/${jar_file/@VERSION@/$gradle_version}"
-
+gradle_options=("-PjpackageJdk=$jdk")
+[[ -z "$app_version" ]] || gradle_options+=("-PwindowsAppVersion=$app_version")
+"$root/gradlew" --quiet ":$module:windowsJpackage" "${gradle_options[@]}"
 windows="$root/$module/build/windows"
-# jpackage takes every file in --input into the application, so the JAR goes there alone.
-input="$windows/app-image-input"
-rm -rf "${input:?}"
-mkdir -p "$input"
-cp -p "$jar" "$input/"
+arguments="$windows/jpackage"
 # jpackage refuses an image's folder that is there already.
 destination="$windows/app-image"
 rm -rf "${destination:?}/$name"
 mkdir -p "$destination"
 
 
-# jpackage, whose words go to the standard error, so that the image's folder is all this prints.
+# jpackage, whose words go to the standard error, so that the image's folder is all this prints. It
+# reads the files of arguments as UTF-8, as windowsJpackage writes them, only when told to: JDK 17's
+# default charset is the system's.
 
 export WINEDEBUG="${WINEDEBUG:--all}"
 export LC_ALL="cs_CZ.UTF-8"
 wine "$jpackage" \
+    -J-Dfile.encoding=UTF-8 \
+    "@$(windows_path "$arguments/package-arguments")" \
+    "@$(windows_path "$arguments/image-arguments")" \
     --type "app-image" \
-    --name "$name" \
-    --app-version "$version" \
-    --vendor "Martin Lopatář" \
-    --description "$description" \
-    --icon "$(windows_path "$packaging/dog-vision.ico")" \
-    --input "$(windows_path "$input")" \
-    --main-jar "$(basename "$jar")" \
-    --main-class "$main_class" \
-    "${java_options[@]}" \
-    --runtime-image "$(windows_path "$windows/runtime")" \
-    "${launcher_options[@]}" \
     --dest "$(windows_path "$destination")" >&2
 
 echo "$destination/$name"

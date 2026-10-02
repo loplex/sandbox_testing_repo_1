@@ -1,4 +1,5 @@
 import cz.loplex.dogvision.packaging.AppImage
+import cz.loplex.dogvision.packaging.WindowsJpackageFiles
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
@@ -96,6 +97,21 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     exclude("nucleus/native/win32-aarch64/**")
 }
 artifact(windowsUberJar)
+
+// What jpackage makes dog-vision-swing's app image and MSI for Windows of, as the scripts in tools hand it, beside the
+// Compose window's dog-vision; the fragment removes the folder ffmpeg is downloaded into.
+tasks.named<WindowsJpackageFiles>("windowsJpackage") {
+    packageName = "dog-vision-swing"
+    productSuffix = " (Swing)"
+    packageDescription = "How a dog or another animal sees a photo, a video or the camera, in Java Swing"
+    mainJar = windowsUberJar.flatMap { it.archiveFile }
+    mainClass = mainClassName
+    launchers.from(packaging.file("dog-vision-cli.properties"))
+    upgradeCode = "acf6164b-f4f9-4430-b4f0-939242f187fb"
+    fragment = packaging.file("msi-data.xml")
+    componentGroup = "DogVisionData"
+    componentGuid = "06dcc47f-bd8f-4e38-8aec-7f26ed952950"
+}
 
 /** The JDK the tar.gz's runtime is linked from and jpackage runs from, Temurin, which build-logic says why. */
 val packagingJdk = packagingJdk()

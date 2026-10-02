@@ -1,10 +1,9 @@
 <!--
-  What each window's MSI adds to jpackage's main.wxs, which tools/package_msi_on_windows.ps1 and
-  tools/package_msi_on_linux.sh take from the JDK whose jpackage builds the MSI: the app's folder under
-  %ProgramData%, where the window downloads ffmpeg, removed with the product, but not while a later
-  version replaces it. They put the app's English name for @APP_NAME@, the package's for @NAME@ and the
-  window's component GUID for @GUID@, this fragment before main.wxs's </Wix>, and a ComponentGroupRef to
-  it beside its own of Files.
+  What each window's MSI adds to jpackage's main.wxs, which the module's windowsJpackage task takes from
+  the JDK whose jpackage builds the MSI: the app's folder under %ProgramData%, where the window downloads
+  ffmpeg, removed with the product, but not while a later version replaces it. The task puts the app's
+  English name for @APP_NAME@, the package's for @NAME@ and the window's component GUID for @GUID@, this
+  fragment before main.wxs's </Wix>, and a ComponentGroupRef to it beside its own of Files.
 
   RemoveFolderEx takes the folder from a property, which its custom action reads before costing, so
   SetProperty sets it before that action; it leaves it empty, so that nothing is removed, while a later
