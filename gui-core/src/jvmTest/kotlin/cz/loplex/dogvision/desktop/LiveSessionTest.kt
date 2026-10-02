@@ -186,6 +186,17 @@ class LiveSessionTest {
         assertEquals(texts.get(Str.FFMPEG_NOT_INSTALLED, "no network"), session.state.value.ffmpegFailure?.words(texts))
     }
 
+    @Test
+    fun noWingetNamesFfmpegsDownloadPageAsALink() {
+        val session = session(arguments = Arguments(), installer = { FfmpegInstall.NoWinget })
+        session.installFfmpeg()
+        awaitInstalled(session)
+        val texts = Texts.of("en")
+        val failure = session.state.value.ffmpegFailure
+        assertEquals(FfmpegPrograms.DOWNLOAD_PAGE, failure?.link)
+        assertEquals(texts.get(Str.NO_WINGET, FfmpegPrograms.DOWNLOAD_PAGE), failure?.words(texts))
+    }
+
     private fun awaitInstalled(session: LiveSession<Unit>) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS)
         while (session.state.value.installingFfmpeg && System.nanoTime() < deadline) Thread.sleep(10)
