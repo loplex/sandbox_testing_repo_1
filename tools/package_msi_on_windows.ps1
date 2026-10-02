@@ -1,42 +1,32 @@
-# Builds a desktop window's MSI for Windows on x86-64 on Windows: with -Window compose, the default,
-# dog-vision's, the Compose window's; with -Window swing, dog-vision-swing's. With -Window cli it
-# builds dog-vision-cli's, the command line's alone, as tools/package_msi_on_linux.sh says, which
-# puts its folder on the system's PATH.
+# Builds the MSI for Windows on x86-64 on Windows, into tools\build\msi, which git ignores, as
+# tools\build\msi\dog-vision-0.1.0.msi: the same MSI as tools/package_msi_on_linux.sh builds through
+# Wine, but with the jpackage of the JDK this runs on, and with light.exe's validation (ICE), which
+# fails under Wine.
 #
-# The same MSI as tools/package_msi_on_linux.sh builds through Wine, of the arguments and the
-# resource directory that the window's windowsJpackage task writes, which say what it is made of,
-# with the JAR that its windowsUberJar task assembles and the runtime that its windowsRuntime task
-# links, but with the jpackage of the JDK this runs on, which makes the MSI through WiX Toolset 3,
-# whose light.exe validates it (ICE) here. It is written to tools\build\msi, which git ignores, as
-# tools\build\msi\dog-vision-0.1.0.msi.
+# jpackage makes the app image, into tools\build\app-image\dog-vision, of the arguments that
+# :packaging's windowsJpackage task writes: the Compose window's dog-vision.exe, the Swing
+# window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, with their JARs and the
+# runtime that its windowsRuntime task links. jpackage puts every JAR on each launcher's classpath,
+# so this then copies the launchers' .cfg that the windowsLauncherConfigs task writes, each with its
+# own JAR alone. WiX Toolset 3's candle.exe and light.exe make the MSI of what the windowsWix task
+# writes of the image: packaging\windows\dog-vision.wxs, which says what the MSI does, and the
+# image's files.
 #
 # Needs:
 # - PowerShell 7 (pwsh), which reads this file as UTF-8.
 # - A JDK 25 as JAVA_HOME, for its jpackage.
 # - WiX Toolset 3.14's candle.exe and light.exe on the PATH, or its installation's WIX variable.
 #
-# -AppVersion gives the MSI another version than gradle.properties' appVersion, as a
-# test of an upgrade needs a later one; the application in it stays the same.
+# -AppVersion gives the MSI another version than gradle.properties' appVersion, as a test of an
+# upgrade needs a later one; the application in it stays the same.
 param(
-    [string]$AppVersion,
-    [ValidateSet("compose", "swing", "cli")] [string]$Window = "compose"
+    [string]$AppVersion
 )
 
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-
-# Each window's module, whose build script says what its MSI is made of, and the MSI's name.
-if ($Window -eq "compose") {
-    $module = "gui-compose"
-    $name = "dog-vision"
-} elseif ($Window -eq "swing") {
-    $module = "gui-swing"
-    $name = "dog-vision-swing"
-} else {
-    $module = "cli"
-    $name = "dog-vision-cli"
-}
+$packaging = Join-Path $root "packaging"
 
 # Runs a program and stops the script where it fails, as $ErrorActionPreference does not for them.
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
@@ -55,49 +45,73 @@ if (-not (Get-Command "light.exe" -ErrorAction SilentlyContinue)) {
 if (-not $env:JAVA_HOME) {
     throw "JAVA_HOME names no JDK"
 }
-$jdkBin = Join-Path $env:JAVA_HOME "bin"
+$gradlew = Join-Path $root "gradlew.bat"
 
 
-# What jpackage takes in: the arguments, with the JAR and the runtime they name, and the resource
-# directory, all of which windowsJpackage writes.
+# The app image, of the arguments that windowsJpackage writes, which jpackage reads in its default
+# charset, UTF-8 from JDK 18 on: Java reads its command line in the system's ANSI code page, which
+# on an English Windows, 1252, has no ř for the vendor's name.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
     throw "gradle.properties has no appVersion"
 }
-$gradleOptions = @("--quiet", ":${module}:windowsJpackage", "-PjpackageJdk=$env:JAVA_HOME")
+$gradleOptions = @("--quiet")
 if ($AppVersion) {
     $gradleOptions += "-PwindowsAppVersion=$AppVersion"
 } else {
     $AppVersion = $Matches[1]
 }
-Invoke-Checked (Join-Path $root "gradlew.bat") $gradleOptions
-$arguments = Join-Path $root "$module\build\windows\jpackage"
+Invoke-Checked $gradlew ($gradleOptions + ":packaging:windowsJpackage")
 
-$staging = Join-Path $root "tools\build\staging\$name-msi"
+$images = Join-Path $root "tools\build\app-image"
+$image = Join-Path $images "dog-vision"
+# jpackage refuses an image's folder that is there already.
+if (Test-Path $image) {
+    Remove-Item -Recurse -Force $image
+}
+Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
+    "@$(Join-Path $packaging "build\windows\jpackage\arguments")",
+    "--type", "app-image",
+    "--dest", $images
+)
+
+# Each launcher with its own JAR alone on its classpath.
+Invoke-Checked $gradlew ($gradleOptions + @(":packaging:windowsLauncherConfigs", "-PwindowsAppImage=$image"))
+Copy-Item (Join-Path $packaging "build\windows\launchers\*.cfg") (Join-Path $image "app")
+
+
+# candle.exe and light.exe over what windowsWix writes. light.exe takes the MSI's code page from the
+# first localization it is handed, so codepage.wxl comes before WiX's own English strings, which
+# -cultures takes.
+
+Invoke-Checked $gradlew ($gradleOptions + @(":packaging:windowsWix", "-PwindowsAppImage=$image"))
+$source = Join-Path $packaging "build\windows\wix"
+
+$staging = Join-Path $root "tools\build\staging\dog-vision-msi"
 if (Test-Path $staging) {
     Remove-Item -Recurse -Force $staging
 }
+New-Item -ItemType Directory -Force -Path $staging | Out-Null
 $output = Join-Path $root "tools\build\msi"
-$msi = Join-Path $output "$name-$AppVersion.msi"
+New-Item -ItemType Directory -Force -Path $output | Out-Null
+$msi = Join-Path $output "dog-vision-$AppVersion.msi"
 if (Test-Path $msi) {
     Remove-Item -Force $msi
 }
 
-
-# jpackage, which reads the files of arguments in its default charset, UTF-8 from JDK 18 on, as
-# windowsJpackage writes them: Java reads its command line in the system's ANSI code page, which on
-# an English Windows, 1252, has no ř for the vendor's name.
-
-Invoke-Checked (Join-Path $jdkBin "jpackage.exe") @(
-    "@$(Join-Path $arguments "package-arguments")",
-    "@$(Join-Path $arguments "image-arguments")",
-    "@$(Join-Path $arguments "msi-arguments")",
-    "--type", "msi",
-    "--temp", (Join-Path $staging "temp"),
-    "--dest", $output,
-    # What light.exe says where it fails, which jpackage prints only then.
-    "--verbose"
-)
+$extensions = @("-ext", "WixUtilExtension", "-ext", "WixUIExtension")
+Invoke-Checked "candle.exe" (@("-nologo", "-arch", "x64") + $extensions + @(
+    "-out", "$staging\",
+    (Join-Path $source "dog-vision.wxs"),
+    (Join-Path $source "files.wxs")
+))
+Invoke-Checked "light.exe" (@("-nologo", "-spdb") + $extensions + @(
+    "-loc", (Join-Path $source "codepage.wxl"),
+    "-cultures:en-us",
+    "-out", $msi,
+    (Join-Path $staging "dog-vision.wixobj"),
+    (Join-Path $staging "files.wixobj")
+))
 
 $msi

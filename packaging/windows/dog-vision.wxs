@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The MSI for Windows on x86-64, which WiX Toolset 3's candle.exe and light.exe make with what :packaging's
+  windowsWix task writes beside this file: variables.wxi, the values it takes, and files.wxs, every file of the app
+  image in the component group Files, in INSTALLDIR.
+
+  It installs for every user into Program Files\$(var.InstallFolder): the Compose window's dog-vision.exe, the Swing
+  window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, each on the runtime beside them. Each window
+  gets a shortcut in the Start menu's group of the product's name and one on the desktop; the command line, which
+  started from a shortcut would only print its usage, gets none, but the installation folder goes on the system's
+  PATH.
+
+  Each component's GUID stays as it is, as Windows Installer counts the installations of a component by it. A
+  component needs a key path, which a shortcut, an Environment or a RemoveFolderEx cannot be: a registry value of its
+  own is, under HKCU for a shortcut, which ICE38 asks of a component in a user's profile, as the Start menu and the
+  desktop are to it.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <?include variables.wxi ?>
+
+  <Product Id="$(var.ProductCode)" Name="$(var.ProductName)" Language="1033" Codepage="1250"
+           Version="$(var.Version)" Manufacturer="$(var.Vendor)" UpgradeCode="$(var.UpgradeCode)">
+    <Package Description="$(var.Description)" Manufacturer="$(var.Vendor)" InstallerVersion="200" Compressed="yes"
+             InstallScope="perMachine" Platform="x64" SummaryCodepage="1250"/>
+    <MediaTemplate EmbedCab="yes"/>
+
+    <!-- Any other version installed is removed first, a later one as well as an earlier one. -->
+    <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallInitialize"/>
+
+    <!-- What the system's list of programs shows. -->
+    <Icon Id="DogVision.ico" SourceFile="$(var.Icon)"/>
+    <Property Id="ARPPRODUCTICON" Value="DogVision.ico"/>
+    <Property Id="ARPCOMMENTS" Value="$(var.Description)"/>
+    <Property Id="ARPCONTACT" Value="$(var.Vendor)"/>
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="$(var.InstallFolder)"/>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ProgramMenuGroup" Name="$(var.ProductName)"/>
+      </Directory>
+      <Directory Id="DesktopFolder"/>
+    </Directory>
+
+    <!-- The windows' shortcuts, each window's apart. -->
+    <DirectoryRef Id="ProgramMenuGroup">
+      <Component Id="ComposeStartMenu" Guid="{7329a83f-77fe-490a-958d-b23312be8352}" Win64="yes">
+        <Shortcut Id="ComposeStartMenu" Name="$(var.ProductName)" Target="[#dog_vision.exe]"
+                  WorkingDirectory="INSTALLDIR"/>
+        <RemoveFolder Id="ComposeStartMenu" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="ComposeStartMenu" Type="integer"
+                       Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="SwingStartMenu" Guid="{758faf1a-17c8-4d23-a8a8-57b7c450759e}" Win64="yes">
+        <Shortcut Id="SwingStartMenu" Name="$(var.ProductName) (Swing)" Target="[#dog_vision_swing.exe]"
+                  WorkingDirectory="INSTALLDIR"/>
+        <RemoveFolder Id="SwingStartMenu" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="SwingStartMenu" Type="integer"
+                       Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="ComposeDesktop" Guid="{0ac98d8f-cab7-4cd5-8ceb-d6e807785200}" Win64="yes">
+        <Shortcut Id="ComposeDesktop" Name="$(var.ProductName)" Target="[#dog_vision.exe]"
+                  WorkingDirectory="INSTALLDIR"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="ComposeDesktop" Type="integer"
+                       Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="SwingDesktop" Guid="{280e5e1d-dda0-4648-a5c8-de1e94a62f80}" Win64="yes">
+        <Shortcut Id="SwingDesktop" Name="$(var.ProductName) (Swing)" Target="[#dog_vision_swing.exe]"
+                  WorkingDirectory="INSTALLDIR"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="SwingDesktop" Type="integer"
+                       Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <!-- The installation folder at the end of the system's PATH, for the command line, removed with the product. -->
+      <Component Id="CommandLinePath" Guid="{101a7ec0-9978-4415-b391-98c74f15200a}" Win64="yes">
+        <Environment Id="CommandLinePath" Name="PATH" Value="[INSTALLDIR]" Action="set" Part="last" System="yes"
+                     Permanent="no"/>
+        <RegistryValue Root="HKLM" Key="Software\$(var.InstallFolder)" Name="OnPath" Type="integer" Value="1"
+                       KeyPath="yes"/>
+      </Component>
+
+      <!--
+        The app's folder under %ProgramData%, where a window downloads ffmpeg, removed with the product, but not
+        while a later version replaces it, which Windows Installer says by UPGRADINGPRODUCTCODE: RemoveFolderEx takes
+        the folder from a property, which its custom action reads before costing, so SetProperty sets it before that
+        action, and leaves it empty while upgrading, so that nothing is removed.
+      -->
+      <Component Id="DownloadedData" Guid="{bca5f5ff-f706-4370-933c-55282605a6a2}" Win64="yes">
+        <util:RemoveFolderEx On="uninstall" Property="DOGVISIONDATA"/>
+        <RegistryValue Root="HKLM" Key="Software\$(var.InstallFolder)" Name="RemovesData" Type="integer" Value="1"
+                       KeyPath="yes"/>
+      </Component>
+
+      <!--
+        The installation folder, removed whole with the product, with whatever came into it after: RemoveFolderEx
+        reads the folder before costing has resolved INSTALLDIR, so it takes it from the registry, where the
+        component wrote it.
+      -->
+      <Component Id="InstallDirRemoval" Guid="{f8ef21bd-660b-4968-bfff-fb9ff7552993}" Win64="yes">
+        <util:RemoveFolderEx On="uninstall" Property="INSTALLEDDIR"/>
+        <RegistryValue Root="HKLM" Key="Software\$(var.InstallFolder)" Name="InstallDir" Type="string"
+                       Value="[INSTALLDIR]" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+    <SetProperty Id="DOGVISIONDATA" Value="[CommonAppDataFolder]$(var.ProductName)\" Before="WixRemoveFoldersEx"
+                 Sequence="execute">NOT UPGRADINGPRODUCTCODE</SetProperty>
+    <Property Id="INSTALLEDDIR">
+      <RegistrySearch Id="InstalledDir" Root="HKLM" Key="Software\$(var.InstallFolder)" Name="InstallDir" Type="raw"
+                      Win64="yes"/>
+    </Property>
+    <!--
+      The folder the product is installed in, where neither the command line nor the dialog names another: Windows
+      Installer keeps no property from one installation to the next, so a later version would otherwise go into the
+      default folder, apart from the rest. The dialog's choice reaches the execute sequence as
+      INSTALLDIR, which the condition then leaves.
+    -->
+    <SetDirectory Id="INSTALLDIR" Value="[INSTALLEDDIR]" Sequence="both">INSTALLEDDIR AND NOT INSTALLDIR</SetDirectory>
+
+    <Feature Id="DogVision" Title="$(var.ProductName)" Level="1">
+      <ComponentGroupRef Id="Files"/>
+      <ComponentRef Id="ComposeStartMenu"/>
+      <ComponentRef Id="SwingStartMenu"/>
+      <ComponentRef Id="ComposeDesktop"/>
+      <ComponentRef Id="SwingDesktop"/>
+      <ComponentRef Id="CommandLinePath"/>
+      <ComponentRef Id="DownloadedData"/>
+      <ComponentRef Id="InstallDirRemoval"/>
+    </Feature>
+
+    <!-- The dialogs: the licence, then the folder to install into, with the dog on them. -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
+    <UIRef Id="WixUI_InstallDir"/>
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.License)"/>
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.Banner)"/>
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.Dialog)"/>
+  </Product>
+</Wix>

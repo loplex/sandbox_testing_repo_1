@@ -9,10 +9,9 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Writes [rtf], the licence an MSI's dialog shows, which jpackage takes as it is from a .rtf file, from [text], line
- * for line, as the text has its lines broken by hand: jpackage's own conversion of a text file runs each paragraph's
- * lines together, so that a title runs into the line below it, and ends the RTF's header with a lone LF, which the
- * dialog under Wine draws as a box, where this ends every line with CRLF.
+ * Writes [rtf], the licence the MSI's dialog shows, which WiX takes as an RTF file, from [text], line for line, as the
+ * text has its lines broken by hand, so that a title does not run into the line below it. Every line ends with CRLF:
+ * the dialog under Wine draws a lone LF as a box.
  */
 abstract class LicenseRtf : DefaultTask() {
     @get:InputFile
