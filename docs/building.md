@@ -245,6 +245,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   group of the window's name, *Dog Vision* or *Dog Vision (Swing)*, and to the desktop.
   The installer and the system's list of programs name it the same, and the command line's MSI
   *Dog Vision (command line)*.
+  A window's MSI removes `%ProgramData%\Dog Vision`, where the window downloads ffmpeg, with the
+  product, and leaves it over an upgrade, as
+  [`gui-compose/packaging/msi-data.xml`](../gui-compose/packaging/msi-data.xml) says how.
   Each window's MSI carries a fixed upgrade code of its own, so that a later version's MSI replaces
   it, and installing the one window leaves the other.
 - **The command line's MSI, `dog-vision-cli`, holds `dog-vision-cli.exe` alone**, on a runtime of

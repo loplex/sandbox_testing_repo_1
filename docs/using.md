@@ -303,10 +303,17 @@ The sections below hold for both windows.
   second, and for whatever it gives where it has none. It is not mirrored, as the desktop program's
   is not.
 
-#### On Windows, the window offers to install ffmpeg
+#### On Windows, the window offers to download ffmpeg
 
-- **Windows has no ffmpeg of its own**, so the window offers to install it through winget, as Gyan's
-  build (`winget install --id Gyan.FFmpeg`) for this user alone.
+- **Windows has no ffmpeg of its own**, so the window offers to download it, with *Download
+  ffmpeg*: BtbN's newest build of the release branch `ffmpeg-windows` in
+  [`libs.versions.toml`](../gradle/libs.versions.toml) names, checked against the release's
+  `checksums.sha256`.
+- **It goes into `%ProgramData%\Dog Vision`**, which both windows take it from, for every user of
+  the machine; uninstalling either window's MSI removes the folder, and upgrading it does not.
+- **Where winget is on the `PATH`**, the window offers to install it through winget as well, as
+  Gyan's build (`winget install --id Gyan.FFmpeg`) for this user alone, which winget keeps up to
+  date and the MSI leaves.
 - **It shows the video or the camera once ffmpeg is found**, without starting again.
-- **Where winget is missing**, as on a Windows without Microsoft's App Installer, the window names
-  ffmpeg's download page as a link, which opens in the browser when it is clicked.
+- **Where winget turns out to be missing** after all, the window names ffmpeg's download page as a
+  link, which opens in the browser when it is clicked.

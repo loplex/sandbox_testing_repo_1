@@ -1,5 +1,8 @@
 # Installs a desktop window's MSI, upgrades it to a later one and removes it, checking each step.
 #
+# A window's MSI also removes the folder ffmpeg is downloaded into, %ProgramData%\<the app's name>,
+# which the script makes before the upgrade, as a window would, and which has to stay over that.
+#
 # The MSIs are tools/package_msi_on_windows.ps1's: -Msi of -Version, and -UpgradeMsi of the later
 # -UpgradeVersion, of the product -Name, dog-vision, the default, dog-vision-swing, or
 # dog-vision-cli, the command line's, which has no shortcut and puts its folder on the system's
@@ -49,12 +52,15 @@ if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
     throw "texts\strings\values\strings.xml has no app_name"
 }
 $suffix = @{ "dog-vision" = ""; "dog-vision-swing" = " (Swing)"; "dog-vision-cli" = " (command line)" }[$Name]
-$product = $Matches[1] + $suffix
+$appName = $Matches[1]
+$product = $appName + $suffix
 
 $installDir = Join-Path $env:ProgramFiles $Name
 $startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$product"
 $desktop = Join-Path $env:PUBLIC "Desktop"
 $isCli = $Name -eq "dog-vision-cli"
+# Where a window downloads ffmpeg, which its MSI removes with the product, but not over an upgrade.
+$data = Join-Path $env:ProgramData $appName
 
 # msiexec with [Arguments], waited for; 3010 is success that asks for a restart.
 function Invoke-Msiexec([string]$Log, [string[]]$Arguments) {
@@ -158,13 +164,22 @@ if ($isCli) {
 }
 
 
-# The later version, over it.
+# The later version, over it, with a file in the folder a window downloads ffmpeg into, as if it had.
 
+if (-not $isCli) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $data "ffmpeg\bin") | Out-Null
+    Set-Content (Join-Path $data "ffmpeg\bin\ffmpeg.exe") "downloaded"
+}
 Test-Ice $UpgradeMsi
 Test-Check "the MSI of $UpgradeVersion installs over $Version" (
     Invoke-Msiexec "install-$UpgradeVersion.log" @("/i", "`"$UpgradeMsi`"")
 )
 Test-Installed $UpgradeVersion
+if (-not $isCli) {
+    Test-Check "the folder ffmpeg is downloaded into stays over the upgrade" (
+        Test-Path (Join-Path $data "ffmpeg\bin\ffmpeg.exe")
+    )
+}
 
 
 # Removing it.
@@ -175,6 +190,9 @@ Test-Check "the MSI of $UpgradeVersion uninstalls" (
 Test-Check "no $Name is installed after" (@(Get-Installed).Count -eq 0)
 Test-Check "the installation folder is gone" (-not (Test-Path $installDir))
 Test-Check "the Start menu folder is gone" (-not (Test-Path $startMenu))
+if (-not $isCli) {
+    Test-Check "the folder ffmpeg is downloaded into is gone" (-not (Test-Path $data))
+}
 Test-Check "the installation folder is not on the PATH" ((Get-OnPath) -eq 0)
 Test-Check "the PATH is as it was before, separators included" (
     [Environment]::GetEnvironmentVariable("Path", "Machine") -eq $pathBefore
