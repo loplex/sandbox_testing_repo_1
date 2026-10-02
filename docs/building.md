@@ -94,7 +94,7 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 
 ```sh
 tools/package_cli_zip_on_linux.sh
-                                 # cli/build/packages/zip/dog-vision-cli-0.1.0-windows-x64.zip
+                                 # tools/build/zip/dog-vision-cli-0.1.0-windows-x64.zip
 pwsh tools/package_cli_zip_on_windows.ps1
                                  # on Windows: the same
 ```
@@ -163,20 +163,16 @@ tools/fetch_msi_tools_on_linux.sh
 tools/make_wine_prefix_on_linux.sh
                                      # once: their Wine prefix, ~/.local/share/wineprefixes/dot_net_msi_builder
 tools/package_app_image_on_linux.sh
-                                     # the folders the MSIs install: gui-compose/build/windows/app-image/dog-vision, …
+                                     # the folders the MSIs install: tools/build/app-image/dog-vision, …
 tools/package_msi_on_linux.sh        # all three MSIs below, or with --window compose, swing or cli one
 tools/package_msi_on_linux.sh --window compose
-                                     # gui-compose/build/compose/binaries/main/msi/dog-vision-0.1.0.msi
+                                     # tools/build/msi/dog-vision-0.1.0.msi
 tools/package_msi_on_linux.sh --window swing
-                                     # gui-swing/build/packages/msi/dog-vision-swing-0.1.0.msi
-pwsh tools/package_msi_on_windows.ps1
-                                     # on Windows: gui-compose/build/compose/binaries/main/msi/0.1.0/dog-vision-0.1.0.msi
-pwsh tools/package_msi_on_windows.ps1 -Window swing
-                                     # on Windows: gui-swing/build/packages/msi/0.1.0/dog-vision-swing-0.1.0.msi
+                                     # tools/build/msi/dog-vision-swing-0.1.0.msi
 tools/package_msi_on_linux.sh --window cli
-                                     # cli/build/packages/msi/dog-vision-cli-0.1.0.msi
-pwsh tools/package_msi_on_windows.ps1 -Window cli
-                                     # on Windows: cli/build/packages/msi/0.1.0/dog-vision-cli-0.1.0.msi
+                                     # tools/build/msi/dog-vision-cli-0.1.0.msi
+pwsh tools/package_msi_on_windows.ps1
+                                     # on Windows: the same, the Compose window's, or with -Window swing or cli
 ```
 
 Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
@@ -336,10 +332,10 @@ window's and with `-Window cli` the command line's.
   [`msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml), started by hand, builds it on
   Linux and validates, installs, upgrades and removes it on Windows.
 - **Under Wine, [`tools/package_app_image_on_linux.sh`](../tools/package_app_image_on_linux.sh)
-  builds the app image first**, the folder the MSI installs, in the module's
-  `build/windows/app-image`, which `package_msi_on_linux.sh` runs it for.
+  builds the app image first**, the folder the MSI installs, in `tools/build/app-image`, which
+  `package_msi_on_linux.sh` runs it for.
   Its `.exe` runs under Wine from there, without installing the MSI:
-  `wine gui-compose/build/windows/app-image/dog-vision/dog-vision.exe`.
+  `wine tools/build/app-image/dog-vision/dog-vision.exe`.
 - **Both take the runtime from Gradle**, so that it is the same on Windows and under Wine:
   `./gradlew :gui-compose:windowsRuntime`, `:gui-swing:windowsRuntime` and `:cli:windowsRuntime`
   link it, on any system, as the command line's zip's above.

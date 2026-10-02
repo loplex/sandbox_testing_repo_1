@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the command line's zip for Windows on x86-64 on Linux, through Wine: the same zip as
 # tools/package_cli_zip_on_windows.ps1 builds on Windows, which says what it holds, written to
-# cli/build/packages/zip.
+# tools/build/zip, which git ignores.
 #
 # It zips the command line's app image, which tools/package_app_image_on_linux.sh builds under
 # Wine, the same image that the command line's MSI installs, with the licence beside it.
@@ -14,7 +14,6 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cli="$root/cli"
 
 # Says why on the standard error and exits, with 1 or the status given.
 die() {
@@ -50,12 +49,12 @@ version="${BASH_REMATCH[2]}"
 image="$("$root/tools/package_app_image_on_linux.sh" "${image_options[@]}")"
 
 # A copy, as the licence beside it is the zip's alone, which the MSI shows in its dialog instead.
-staging="$cli/build/windows-zip"
+staging="$root/tools/build/staging/cli-zip"
 rm -rf "${staging:?}"
 mkdir -p "$staging"
 cp -a "$image" "$staging/"
 cp "$root/LICENSE" "$staging/dog-vision-cli/"
-output="$cli/build/packages/zip"
+output="$root/tools/build/zip"
 mkdir -p "$output"
 zip="$output/dog-vision-cli-$version-windows-x64.zip"
 rm -f "$zip"
