@@ -142,7 +142,7 @@ fun Project.windowPackages(
         longDescription.set(description)
         // The libraries the natives need,
         // as rpm's own generator names them, since Fedora's and openSUSE's package names differ;
-        // a Java that can open a window, as cli's rpm says why; libEGL, which LWJGL opens once it runs;
+        // a Java that can open a window, as the command line's rpm says why; libEGL, which LWJGL opens once it runs;
         // and ffmpeg's command rather than a package, as Fedora has two ffmpeg packages.
         requires.set(
             rpmLibraryRequires.flatMap { it.requires }.map { file ->
