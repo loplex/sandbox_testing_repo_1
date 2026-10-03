@@ -107,7 +107,7 @@ pwsh tools/package_cli_zip_on_windows.ps1
   Windows on x86-64; it adds itself to neither the `PATH` nor the Start menu, where the MSI, in
   [What each package holds](#what-each-package-holds), puts it on the `PATH`.
 - **It holds jpackage's app image**: `dog-vision-cli.exe`, a native launcher that runs in a
-  console, the JAR in `app`, a runtime of its own in `runtime`, and the licence.
+  console, its JARs in `app`, a runtime of its own in `runtime`, and the licence.
 - **Its runtime is Temurin's JDK 25, cut down by jlink to `java.base` and `java.desktop`**, which
   ImageIO needs.
   `./gradlew :cli:windowsRuntime` links it, on any system, from Temurin's jmods for Windows, which
@@ -115,7 +115,7 @@ pwsh tools/package_cli_zip_on_windows.ps1
   Their version is `temurin-windows-jmods` in [`libs.versions.toml`](../gradle/libs.versions.toml):
   jlink takes jmods of any update of its own feature release, 25.
 - **jpackage makes the launcher only on Windows**, so each script runs a Windows jpackage over the
-  runtime and the JAR:
+  runtime and the JARs:
   - [`tools/package_cli_zip_on_windows.ps1`](../tools/package_cli_zip_on_windows.ps1) runs the
     JDK 25 that `JAVA_HOME` names;
   - [`tools/package_cli_zip_on_linux.sh`](../tools/package_cli_zip_on_linux.sh) zips the image
@@ -244,6 +244,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   `Program Files\dog-vision`, each a launcher on the one runtime: `dog-vision.exe`,
   `dog-vision-swing.exe` and `dog-vision-cli.exe`.
   The installer and the system's list of programs name it *Dog Vision*.
+- **Each JAR is in `app` once**, as Gradle resolves it, rather than merged into an uber JAR per
+  launcher: a JAR more than one launcher runs on, as the Kotlin standard library or LWJGL, is
+  shared, and every other belongs to the one launcher that runs on it.
 - **The installer offers each as a part of its own**, a Feature in its tree, under the runtime's,
   which cannot be left out; the table below lists them.
   Every part is selected by default, so a plain or a silent install (`msiexec /qn`, winget)
@@ -257,9 +260,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 
 | Feature       | In the tree                 | Installs                                           |
 |---------------|-----------------------------|----------------------------------------------------|
-| `DogVision`   | Dog Vision                  | the runtime                                        |
-| `ComposeGui`  | GUI (Compose Multiplatform) | `dog-vision.exe` and its shortcuts                 |
-| `SwingGui`    | GUI (Java Swing)            | `dog-vision-swing.exe` and its shortcuts           |
+| `DogVision`   | Dog Vision                  | the runtime and the shared JARs                    |
+| `ComposeGui`  | GUI (Compose Multiplatform) | `dog-vision.exe`, its JARs and its shortcuts       |
+| `SwingGui`    | GUI (Java Swing)            | `dog-vision-swing.exe`, its JARs and its shortcuts |
 | `CommandLine` | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH` |
 
 - **Each window gets a shortcut in the Start menu and on the desktop**, *Dog Vision* and
@@ -354,9 +357,16 @@ both.
 - **One app image holds the three launchers**, from one run of jpackage, of the arguments that
   `:packaging`'s `windowsJpackage` task writes into `packaging/build/windows/jpackage`.
   Each of `gui-compose`, `gui-swing` and `cli` hands it its launcher through its `windowsLauncher`
-  task: the JAR, the main class and the Java options, and the modules the runtime needs.
-  jpackage puts every JAR of the image on each launcher's classpath, so the `windowsLauncherConfigs`
-  task writes each launcher's `.cfg` with its own JAR alone, which the scripts copy into the image.
+  task: its classpath, the main class and the Java options, and the modules the runtime needs.
+- **A JAR of one name is in the image once**, and the `windowsJpackage` task fails where two
+  launchers hand it different bytes.
+  Two JARs of the Compose window's share a name, JetBrains' forwarding JAR and androidx's, so each
+  takes its module's group before its name, as in the deb.
+  ANGLE's JAR is packed anew without its natives for Windows on ARM, as the uber JARs leave them
+  out.
+- **jpackage puts every JAR of the image on each launcher's classpath**, so the
+  `windowsLauncherConfigs` task writes each launcher's `.cfg` with its own classpath, in its order,
+  which the scripts copy into the image, the command line's zip's too.
 - **Both take the runtime from Gradle**, so that it is the same on Windows and under Wine:
   `./gradlew :packaging:windowsRuntime` links it, of every module a launcher needs, on any system,
   as the command line's zip's above.
