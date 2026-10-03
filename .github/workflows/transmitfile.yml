@@ -1,0 +1,31 @@
+# What Windows does where Wine 11.18's mswsock fails: TransmitFile with an invalid socket, as a JDK 22 or later
+# calls it for FileChannel.transferTo between two files, three times and then with a real socket (tf.c, built with
+# MinGW as tf.exe); and the same transfers from Java, on Temurin 25 (Repro.java).
+name: TransmitFile probe
+
+on:
+  push:
+    branches: [probe/transmitfile]
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - name: TransmitFile, an invalid socket and then a real one
+        shell: pwsh
+        run: |
+          foreach ($mode in "bad", "socket", "bad+socket") {
+              Write-Host "== $mode"
+              ./tf.exe $mode
+          }
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: FileChannel.transferTo between two files, four times, on Temurin 25
+        shell: pwsh
+        run: |
+          javac -d classes Repro.java
+          New-Item -ItemType Directory work | Out-Null
+          java -cp classes Repro ccccsf work
