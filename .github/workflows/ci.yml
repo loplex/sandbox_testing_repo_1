@@ -28,21 +28,20 @@ jobs:
         id: packages
         run: |
           sudo apt-get install -y rpm
-          tasks=(:gui-compose:packageDeb :gui-compose:packageRpm :gui-swing:packageDeb :gui-swing:packageRpm)
-          tasks+=(:packaging:packageDogVisionCliDeb :packaging:packageDogVisionCliRpm)
+          tasks=(:packaging:packageDeb :packaging:packageRpm)
           ./gradlew "${tasks[@]}"
           ./gradlew "${tasks[@]}" -PappVersion=0.1.1
       # Each in a bare Ubuntu 20.04, the oldest release their dependencies are named for, upgraded to
       # the later version; each window opens under Xvfb there.
       - name: Try the dog-vision deb
         run: >-
-          tools/test_deb.sh --upgrade gui-compose/build/packages/deb/dog-vision_0.1.1_amd64.deb
-          gui-compose/build/packages/deb/dog-vision_0.1.0_amd64.deb ubuntu:20.04
+          tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision_0.1.1_amd64.deb
+          packaging/build/distributions/dog-vision_0.1.0_amd64.deb ubuntu:20.04
       - name: Try the dog-vision-swing deb
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_deb.sh --upgrade gui-swing/build/packages/deb/dog-vision-swing_0.1.1_amd64.deb
-          gui-swing/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb ubuntu:20.04
+          tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision-swing_0.1.1_amd64.deb
+          packaging/build/distributions/dog-vision-swing_0.1.0_amd64.deb ubuntu:20.04
       - name: Try the dog-vision-cli deb
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
@@ -52,13 +51,13 @@ jobs:
       - name: Try the dog-vision rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_rpm.sh --upgrade gui-compose/build/packages/rpm/dog-vision-0.1.1-1.x86_64.rpm
-          gui-compose/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm fedora:42
+          tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-0.1.1-1.x86_64.rpm
+          packaging/build/distributions/dog-vision-0.1.0-1.x86_64.rpm fedora:42
       - name: Try the dog-vision-swing rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_rpm.sh --upgrade gui-swing/build/packages/rpm/dog-vision-swing-0.1.1-1.x86_64.rpm
-          gui-swing/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm fedora:42
+          tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-swing-0.1.1-1.x86_64.rpm
+          packaging/build/distributions/dog-vision-swing-0.1.0-1.x86_64.rpm fedora:42
       - name: Try the dog-vision-cli rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-

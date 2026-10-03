@@ -3,7 +3,6 @@ import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.uberJar
-import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -149,31 +148,3 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     from(appImage.flatMap { it.destination })
 }
 artifact(packageTarGz)
-
-// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision, with the desktop
-// entry and icons under names of their own, so that both windows install side by side.
-windowPackages(
-    packageName = "dog-vision-swing",
-    // Not the Compose window's cz.loplex.dogvision.
-    applicationId = "cz.loplex.dogvision.swing",
-    mainClass = mainClassName,
-    nameSuffix = " (Swing)",
-    summary = "How a dog or another animal sees colours (Java Swing GUI)",
-    description = """
-        dog-vision shows a photo, a video or the camera with the colours a dog,
-        a cat or another animal can tell apart, beside the original.
-
-        This package is the desktop window in Swing, which needs neither Compose
-        nor skiko. The package dog-vision is the same window in Compose.
-
-        Given a photo alone, it converts it as the command line does, which is
-        the package dog-vision-cli.
-    """.trimIndent(),
-    // FlatLaf loads its natives on Linux only for window decorations of its own, which the window does not use, and
-    // they link GTK 3.
-    nativesLeftIn = listOf("flatlaf-"),
-    // A font Java can use, without which Swing cannot start: openSUSE's JRE brings none, where Debian's fontconfig
-    // does. Named outright, DejaVu Sans as Fedora and Rocky package it, or DejaVu as openSUSE does: font(:lang=en) is
-    // met on openSUSE by xorg-x11-fonts-core, whose bitmap fonts Java does not read.
-    rpmRequires = listOf("(dejavu-sans-fonts or dejavu-fonts)"),
-)
