@@ -12,8 +12,8 @@
 # Each download is unpacked or written beside its place first and renamed into it once whole, so
 # that one stopped halfway is downloaded again on the next run.
 #
-# The runtime is no download of this script's: the windowsRuntime tasks of :packaging and :cli link
-# it, from Temurin's jmods for Windows, which Gradle downloads.
+# The runtime is no download of this script's: :packaging's windowsRuntime and windowsCliRuntime
+# tasks link it, from Temurin's jmods for Windows, which Gradle downloads.
 #
 # Needs curl and unzip.
 #

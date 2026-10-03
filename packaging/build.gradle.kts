@@ -15,8 +15,8 @@ import cz.loplex.dogvision.packaging.windowsRuntimeImage
 // - the deb and the rpm of the Compose window, the Swing window and the command line, on the system's Java, each of
 //   the JARs its module runs on, which jvmRuntimeOf takes;
 // - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line, each a launcher of
-//   one app image, on one runtime. Each of those modules hands this one its launcher through windowsLauncher. The
-//   scripts in tools run jpackage and WiX over what this module writes.
+//   one app image, on one runtime, and the command line's zip, of its launcher alone. Each of those modules hands this
+//   one its launcher through windowsLauncher. The scripts in tools run jpackage and WiX over what this module writes.
 plugins {
     base
     // The toolchains, for the JDK whose jlink links the runtime.
@@ -44,6 +44,24 @@ windowsAppImage(
         modules = emptyList(),
         moduleLists = launcherFiles.get().filter { it.name.endsWith(".modules") },
     ),
+)
+
+// What jpackage makes the app image of the command line's zip for Windows on x86-64 of, as the scripts in tools hand
+// it: the command line alone, on a runtime of its own, from the files cli hands over.
+val cliLauncherFiles = launcherFiles.get().incoming.artifactView {
+    componentFilter { it is ProjectComponentIdentifier && it.projectPath == ":cli" }
+}.files
+windowsAppImage(
+    packageName = "dog-vision-cli",
+    description = "How a dog or another animal sees a photo, from the command line",
+    launchers = cliLauncherFiles,
+    runtime = windowsRuntimeImage(
+        "the command line's runtime for Windows",
+        modules = emptyList(),
+        moduleLists = cliLauncherFiles.filter { it.name.endsWith(".modules") },
+        name = "Cli",
+    ),
+    name = "Cli",
 )
 
 windowsMsi(
