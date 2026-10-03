@@ -8,7 +8,7 @@
 # window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, with their JARs and the
 # runtime that its windowsRuntime task links. jpackage puts every JAR on each launcher's classpath,
 # so this then copies the launchers' .cfg that the windowsLauncherConfigs task writes, each with its
-# own JAR alone. WiX Toolset 3's candle.exe and light.exe make the MSI of what the windowsWix task
+# own classpath. WiX Toolset 3's candle.exe and light.exe make the MSI of what the windowsWix task
 # writes of the image: packaging\windows\dog-vision.wxs, which says what the MSI does, and the
 # image's files.
 #
@@ -76,7 +76,7 @@ Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
     "--dest", $images
 )
 
-# Each launcher with its own JAR alone on its classpath.
+# Each launcher with its own classpath, in its order.
 Invoke-Checked $gradlew ($gradleOptions + @(":packaging:windowsLauncherConfigs", "-PwindowsAppImage=$image"))
 Copy-Item (Join-Path $packaging "build\windows\launchers\*.cfg") (Join-Path $image "app")
 

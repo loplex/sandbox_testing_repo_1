@@ -42,7 +42,7 @@ kotlin {
 }
 
 // What runs the window on Windows on x86-64 in place of this machine's natives: Compose's for it, before LWJGL's and
-// ANGLE. Only windowsUberJar takes it.
+// ANGLE. Only windowsUberJar and windowsLauncher take it.
 windowsRuntime(listOf(libs.compose.multiplatform.desktop.windows.x64))
 
 /** The icons, the second launcher's properties and what else the packages take. */
@@ -73,6 +73,9 @@ compose.desktop {
 
 /** The window's own JAR, which each uber JAR below merges with the JARs the window needs. */
 val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
+
+/** ANGLE for Windows on ARM, which LWJGL's and skiko's natives here are not for. */
+val armAngle = "nucleus/native/win32-aarch64"
 
 // The JAR with this machine's natives, in place of Compose's packageUberJarForCurrentOS, which merges the JARs
 // without the checks of uberJar.
@@ -144,19 +147,20 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
         mainClassName,
         windowJar,
         configurations.named("windowsRuntime"),
-        // ANGLE for Windows on ARM, which LWJGL's and skiko's natives here are not for.
-        excludes = listOf("nucleus/native/win32-aarch64/**"),
+        excludes = listOf("$armAngle/**"),
     )
 }
 artifact(windowsUberJar)
 
-// dog-vision.exe, the MSI's main launcher, which :packaging takes, on a runtime of the modules the app image's has:
-// Compose's own and those added above. Compose's launchers pass the Java option, with which its application gives
-// Swing the system's look.
+// dog-vision.exe, the MSI's main launcher, which :packaging takes, on the JARs windowsUberJar merges, and on a
+// runtime of the modules the app image's has: Compose's own and those added above. Compose's launchers pass the Java
+// option, with which its application gives Swing the system's look.
 windowsLauncher(
     name = "dog-vision",
-    jar = windowsUberJar.flatMap { it.archiveFile },
+    ownJar = windowJar,
+    classpath = configurations.named("windowsRuntime"),
     mainClass = mainClassName,
     javaOptions = listOf("-Dcompose.application.configure.swing.globals=true"),
     runtimeModules = compose.desktop.application.nativeDistributions.modules,
+    leftOut = listOf(armAngle),
 )
