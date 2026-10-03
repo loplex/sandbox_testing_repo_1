@@ -2,9 +2,11 @@
 # anywhere without installing it.
 #
 # jpackage makes its app image with dog-vision-cli.exe, a native launcher that runs in a console,
-# of the arguments that cli's windowsJpackage task writes, with the JAR that its uberJar task
-# assembles and the runtime that its windowsRuntime task links from Temurin's jmods for Windows; the
-# zip holds that image and the licence. It is written to tools\build\zip, which git ignores.
+# of the arguments that cli's windowsJpackage task writes, with the JARs that its windowsLauncher
+# task writes and the runtime that its windowsRuntime task links from Temurin's jmods for Windows,
+# and this then copies the launcher's .cfg that its windowsLauncherConfigs task writes, with the
+# classpath in its order; the zip holds that image and the licence. It is written to
+# tools\build\zip, which git ignores.
 # tools/package_cli_zip_on_linux.sh builds the same zip through Wine.
 #
 # Needs:
@@ -28,7 +30,7 @@ if (-not $env:JAVA_HOME) {
 }
 
 
-# What jpackage takes in: the arguments, with the JAR and the runtime they name.
+# What jpackage takes in: the arguments, with the JARs and the runtime they name.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
@@ -57,6 +59,9 @@ Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
 )
 
 $app = Join-Path $image "dog-vision-cli"
+# The launcher with its classpath in its order.
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsLauncherConfigs", "-PwindowsAppImage=$app")
+Copy-Item (Join-Path $cli "build\windows\launchers\*.cfg") (Join-Path $app "app")
 Copy-Item (Join-Path $root "LICENSE") $app
 $output = Join-Path $root "tools\build\zip"
 New-Item -ItemType Directory -Force -Path $output | Out-Null
