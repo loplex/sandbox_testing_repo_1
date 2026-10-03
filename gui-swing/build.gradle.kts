@@ -2,6 +2,7 @@ import cz.loplex.dogvision.packaging.AppImage
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
+import cz.loplex.dogvision.packaging.uberJar
 import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
@@ -67,23 +68,19 @@ val packaging = rootProject.layout.projectDirectory.dir("gui-compose/packaging")
 /** The JARs the window runs from: its own, and everything it needs, this machine's natives among them. */
 val runtimeJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
 
-/** An uber JAR of [classpath]'s JARs with the window's own, which runs alone on a JDK 17 or newer. */
-fun Jar.uberJar(fileName: String, classpath: Provider<out Iterable<File>>) {
-    archiveFileName = fileName
-    destinationDirectory = layout.buildDirectory.dir("jars")
-    manifest { attributes("Main-Class" to mainClassName) }
-    from(tasks.named<Jar>("jvmJar").map { zipTree(it.archiveFile) })
-    from(classpath.map { jars -> jars.map { zipTree(it) } })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    val excludes = listOf("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/module-info.class")
-    exclude(excludes)
-    inputs.property("excludes", excludes)
-}
+/** The window's own JAR, which each uber JAR below merges with the JARs the window needs. */
+val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
 
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/jars/dog-vision-swing-linux-x64-<version>.jar, the window for this machine."
     group = "distribution"
-    uberJar("dog-vision-swing-linux-x64-${packageVersion.get()}.jar", configurations.named("jvmRuntimeClasspath"))
+    destinationDirectory = layout.buildDirectory.dir("jars")
+    uberJar(
+        "dog-vision-swing-linux-x64-${packageVersion.get()}.jar",
+        mainClassName,
+        windowJar,
+        configurations.named("jvmRuntimeClasspath"),
+    )
 }
 artifact(linuxUberJar)
 
@@ -91,9 +88,15 @@ artifact(linuxUberJar)
 val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/jars/dog-vision-swing-windows-x64-<version>.jar, the window for Windows."
     group = "distribution"
-    uberJar("dog-vision-swing-windows-x64-${packageVersion.get()}.jar", configurations.named("windowsRuntime"))
-    // ANGLE for Windows on ARM, which LWJGL's natives here are not for.
-    exclude("nucleus/native/win32-aarch64/**")
+    destinationDirectory = layout.buildDirectory.dir("jars")
+    uberJar(
+        "dog-vision-swing-windows-x64-${packageVersion.get()}.jar",
+        mainClassName,
+        windowJar,
+        configurations.named("windowsRuntime"),
+        // ANGLE for Windows on ARM, which LWJGL's natives here are not for.
+        excludes = listOf("nucleus/native/win32-aarch64/**"),
+    )
 }
 artifact(windowsUberJar)
 
