@@ -12,19 +12,19 @@
 # command line's zip of the other.
 #
 # jpackage makes an app image for Windows only on Windows, so this runs a Windows JDK 17's
-# jpackage.exe under Wine, in the locale cs_CZ.UTF-8, with the arguments that the module's
-# windowsJpackage task writes, :packaging's or :cli's, which tools/package_msi_on_windows.ps1 and
+# jpackage.exe under Wine, in the locale cs_CZ.UTF-8, with the arguments that :packaging's
+# windowsJpackage task writes, or its windowsCliJpackage, which tools/package_msi_on_windows.ps1 and
 # tools/package_cli_zip_on_windows.ps1 hand jpackage on Windows as well: what the package is, and
-# what the image runs, its launchers' JARs and the runtime that the module's windowsRuntime task
-# links. jpackage puts every JAR on each launcher's classpath, so this then copies the launchers'
-# .cfg that the module's windowsLauncherConfigs task writes, each with its own classpath. An app
-# image needs neither WiX nor .NET.
+# what the image runs, its launchers' JARs and the runtime that the image's windowsRuntime or
+# windowsCliRuntime task links. jpackage puts every JAR on each launcher's classpath, so this then
+# copies the launchers' .cfg that the image's windowsLauncherConfigs or windowsCliLauncherConfigs
+# task writes, each with its own classpath. An app image needs neither WiX nor .NET.
 #
 # The JDK is a 17, as Wine 11.18's TransmitFile, handed a file where Windows expects a socket, fails
 # with another error than Windows's WSAENOTSOCK, which the JDK from 18 on takes for a failed copy
 # ("transfer failed"), and JDK 17's jpackage copies files without it. The runtime is no JDK 17's:
-# windowsRuntime links it from Temurin's jmods for Windows of the release in
-# gradle/libs.versions.toml.
+# windowsRuntime or windowsCliRuntime links it from Temurin's jmods for Windows of the release
+# in gradle/libs.versions.toml.
 #
 # Needs:
 # - Wine. Its prefix is WINEPREFIX's, or without it mono_msi_builder among winetricks' named
@@ -99,10 +99,10 @@ if [[ -z "${WINEPREFIX:-}" && -f "$msi_prefix/drive_c/windows/system32/kernel32.
     export WINEPREFIX="$msi_prefix"
 fi
 
-# The module whose build script says what the image is made of.
+# The image's tasks of :packaging, windows<image>Jpackage, and their folder in packaging/build.
 case "$name" in
-        dog-vision) module="packaging" ;;
-    dog-vision-cli) module="cli" ;;
+        dog-vision) image_tasks="windows" image_folder="windows" ;;
+    dog-vision-cli) image_tasks="windowsCli" image_folder="windows/cli" ;;
                  *) usage ;;
 esac
 
@@ -126,8 +126,8 @@ jpackage="$jdk/bin/jpackage.exe"
 
 gradle_options=()
 [[ -z "$app_version" ]] || gradle_options+=("-PwindowsAppVersion=$app_version")
-"$root/gradlew" --quiet ":$module:windowsJpackage" "${gradle_options[@]}"
-arguments="$root/$module/build/windows/jpackage"
+"$root/gradlew" --quiet ":packaging:${image_tasks}Jpackage" "${gradle_options[@]}"
+arguments="$root/packaging/build/$image_folder/jpackage"
 # jpackage refuses an image's folder that is there already.
 destination="$root/tools/build/app-image"
 rm -rf "${destination:?}/$name"
@@ -150,7 +150,8 @@ image="$destination/$name"
 
 # Each launcher with its own classpath, in its order.
 
-"$root/gradlew" --quiet ":$module:windowsLauncherConfigs" "-PwindowsAppImage=$image" "${gradle_options[@]}"
-cp "$root/$module/build/windows/launchers/"*.cfg "$image/app/"
+"$root/gradlew" --quiet ":packaging:${image_tasks}LauncherConfigs" "-PwindowsAppImage=$image" \
+    "${gradle_options[@]}"
+cp "$root/packaging/build/$image_folder/launchers/"*.cfg "$image/app/"
 
 echo "$image"

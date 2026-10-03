@@ -27,7 +27,7 @@ Building the programs is [Building it](building.md)'s.
 | [`gui-core`](../gui-core)         | what the desktop windows share             | the JVM             |
 | [`gui-compose`](../gui-compose)   | the desktop window, in Compose             | the JVM             |
 | [`gui-swing`](../gui-swing)       | the desktop window, in Swing               | the JVM             |
-| [`packaging`](../packaging)       | the debs, the rpms and the MSI             | Linux, Windows      |
+| [`packaging`](../packaging)       | the debs, the rpms, the MSI and the zip    | Linux, Windows      |
 | [`testing`](../testing)           | what the renderers' tests hold them to     | the JVM, JavaScript |
 
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one.

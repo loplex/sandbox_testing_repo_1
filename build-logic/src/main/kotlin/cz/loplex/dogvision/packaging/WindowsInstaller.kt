@@ -17,9 +17,13 @@ private fun underWine(): Boolean = !System.getProperty("os.name").startsWith("Wi
 /** The app image that -PwindowsAppImage names, as the scripts in tools have jpackage make it. */
 private fun Project.builtAppImage() = layout.dir(providers.gradleProperty("windowsAppImage").map(::File))
 
+/** The folder in build of an image's files for Windows, of [name], as windowsAppImage takes it: build/windows/cli. */
+internal fun windowsFolder(name: String) = if (name.isEmpty()) "windows" else "windows/${name.lowercase()}"
+
 /**
  * Registers what the Windows app image [packageName] is made of, [launchers] on [runtime], the launcher [packageName]
- * the main one:
+ * the main one. [name] is the image's in the tasks' names and their folders', where a module makes more than one
+ * image: with Cli, windowsCliJpackage writes build/windows/cli/jpackage. Without it:
  *
  * - windowsJpackage: build/windows/jpackage, what jpackage makes the image of, as [WindowsJpackageFiles] says.
  * - windowsLauncherConfigs: build/windows/launchers, the .cfg of the launchers of the image that -PwindowsAppImage
@@ -31,17 +35,19 @@ fun Project.windowsAppImage(
     description: String,
     launchers: FileCollection,
     runtime: TaskProvider<RuntimeImage>,
+    name: String = "",
 ): TaskProvider<WindowsJpackageFiles> {
-    tasks.register("windowsLauncherConfigs", WindowsLauncherConfigs::class.java) {
-        this.description = "Writes build/windows/launchers, the .cfg of the launchers of -PwindowsAppImage's image, " +
-            "each with its own classpath."
+    val folder = windowsFolder(name)
+    tasks.register("windows${name}LauncherConfigs", WindowsLauncherConfigs::class.java) {
+        this.description = "Writes build/$folder/launchers, the .cfg of the launchers of -PwindowsAppImage's " +
+            "image, each with its own classpath."
         group = "distribution"
         image.set(builtAppImage())
         classpaths.from(launchers.asFileTree.matching { include("**/*.classpath") })
-        destination.set(layout.buildDirectory.dir("windows/launchers"))
+        destination.set(layout.buildDirectory.dir("$folder/launchers"))
     }
-    return tasks.register("windowsJpackage", WindowsJpackageFiles::class.java) {
-        this.description = "Writes build/windows/jpackage, what jpackage makes the app image $packageName for " +
+    return tasks.register("windows${name}Jpackage", WindowsJpackageFiles::class.java) {
+        this.description = "Writes build/$folder/jpackage, what jpackage makes the app image $packageName for " +
             "Windows of."
         group = "distribution"
         this.packageName.set(packageName)
@@ -52,7 +58,7 @@ fun Project.windowsAppImage(
         this.launchers.from(launchers)
         this.runtime.set(runtime.flatMap { it.destination })
         underWine.set(underWine())
-        destination.set(layout.buildDirectory.dir("windows/jpackage"))
+        destination.set(layout.buildDirectory.dir("$folder/jpackage"))
     }
 }
 
