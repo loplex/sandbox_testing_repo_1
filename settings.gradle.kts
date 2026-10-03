@@ -59,5 +59,5 @@ include(
     ":ui",
     ":web",
 )
-// The packages that take more than one module: the MSI for Windows.
+// The packages, made apart from the modules they hold.
 include(":packaging")
