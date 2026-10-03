@@ -19,8 +19,8 @@
 # what the package is, and what the image runs,
 # its launchers' JARs and the runtime that the module's windowsRuntime task links.
 # jpackage puts every JAR on each launcher's classpath,
-# so in dog-vision this then copies the launchers' .cfg that :packaging's windowsLauncherConfigs task writes,
-# each with its own JAR alone.
+# so this then copies the launchers' .cfg that the module's windowsLauncherConfigs task writes,
+# each with its own classpath.
 # An app image needs neither WiX nor .NET.
 #
 # The JDK is a 17, as Wine 11.18's TransmitFile,
@@ -125,7 +125,7 @@ jpackage="$jdk/bin/jpackage.exe"
 [[ "$(winepath -u "Z:\\" 2>/dev/null)" == "/" ]] || die "Wine maps no drive Z: to /, which the paths need"
 
 
-# What jpackage takes in: the arguments, with the JAR and the runtime they name.
+# What jpackage takes in: the arguments, with the JARs and the runtime they name.
 
 gradle_options=()
 [[ -z "$app_version" ]] || gradle_options+=("-PwindowsAppVersion=$app_version")
@@ -151,11 +151,9 @@ wine "$jpackage" \
 image="$destination/$name"
 
 
-# Each launcher with its own JAR alone on its classpath, where the image has more than one.
+# Each launcher with its own classpath, in its order.
 
-if [[ "$module" == "packaging" ]]; then
-    "$root/gradlew" --quiet ":packaging:windowsLauncherConfigs" "-PwindowsAppImage=$image" "${gradle_options[@]}"
-    cp "$root/packaging/build/windows/launchers/"*.cfg "$image/app/"
-fi
+"$root/gradlew" --quiet ":$module:windowsLauncherConfigs" "-PwindowsAppImage=$image" "${gradle_options[@]}"
+cp "$root/$module/build/windows/launchers/"*.cfg "$image/app/"
 
 echo "$image"
