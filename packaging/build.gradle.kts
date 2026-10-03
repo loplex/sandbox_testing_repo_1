@@ -4,12 +4,14 @@ import cz.loplex.dogvision.packaging.RpmPackage
 import cz.loplex.dogvision.packaging.WINDOWS_LAUNCHER_USAGE
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.jvmRuntimeOf
+import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsAppImage
 import cz.loplex.dogvision.packaging.windowsMsi
 import cz.loplex.dogvision.packaging.windowsRuntimeImage
 
 // Packages made apart from the modules they hold:
-// - the command line's deb and rpm, on the system's Java, of the JARs it runs on, which jvmRuntimeOf takes from cli;
+// - the deb and the rpm of the Compose window, the Swing window and the command line, on the system's Java, each of
+//   the JARs its module runs on, which jvmRuntimeOf takes;
 // - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line, each a launcher of
 //   one app image, on one runtime. Each of those modules hands this one its launcher through windowsLauncher. The
 //   scripts in tools run jpackage and WiX over what this module writes.
@@ -51,14 +53,68 @@ windowsMsi(
     installFolder = "dog-vision"
 }
 
-val packageDeb = tasks.register("packageDeb") {
+tasks.register("packageDeb") {
     description = "Packs every deb into build/distributions."
     group = "distribution"
+    dependsOn(tasks.withType<DebPackage>())
 }
-val packageRpm = tasks.register("packageRpm") {
+tasks.register("packageRpm") {
     description = "Packs every rpm into build/distributions."
     group = "distribution"
+    dependsOn(tasks.withType<RpmPackage>())
 }
+
+// The deb and the rpm, dog-vision, on the system's Java.
+windowPackages(
+    packageName = "dog-vision",
+    jars = jvmRuntimeOf(":gui-compose"),
+    // The application's ID, which the Windows MSI does not use.
+    applicationId = "cz.loplex.dogvision",
+    mainClass = "cz.loplex.dogvision.desktop.MainKt",
+    // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
+    jvmOptions = { natives ->
+        listOf("-Dcompose.application.configure.swing.globals=true", "-Dskiko.library.path=$natives")
+    },
+    summary = "How a dog or another animal sees colours (Kotlin Compose GUI)",
+    description = """
+        dog-vision shows a photo, a video or the camera with the colours a dog,
+        a cat or another animal can tell apart, beside the original.
+
+        This package is the desktop window, in Compose.
+
+        Given a photo alone, it converts it as the command line does, which is
+        the package dog-vision-cli.
+    """.trimIndent(),
+)
+
+// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision, with the desktop
+// entry and icons under names of their own, so that both windows install side by side.
+windowPackages(
+    packageName = "dog-vision-swing",
+    jars = jvmRuntimeOf(":gui-swing"),
+    // Not the Compose window's cz.loplex.dogvision.
+    applicationId = "cz.loplex.dogvision.swing",
+    mainClass = "cz.loplex.dogvision.swing.MainKt",
+    nameSuffix = " (Swing)",
+    summary = "How a dog or another animal sees colours (Java Swing GUI)",
+    description = """
+        dog-vision shows a photo, a video or the camera with the colours a dog,
+        a cat or another animal can tell apart, beside the original.
+
+        This package is the desktop window in Swing, which needs neither Compose
+        nor skiko. The package dog-vision is the same window in Compose.
+
+        Given a photo alone, it converts it as the command line does, which is
+        the package dog-vision-cli.
+    """.trimIndent(),
+    // FlatLaf loads its natives on Linux only for window decorations of its own, which the window does not use, and
+    // they link GTK 3.
+    nativesLeftIn = listOf("flatlaf-"),
+    // A font Java can use, without which Swing cannot start: openSUSE's JRE brings none, where Debian's fontconfig
+    // does. Named outright, DejaVu Sans as Fedora and Rocky package it, or DejaVu as openSUSE does: font(:lang=en) is
+    // met on openSUSE by xorg-x11-fonts-core, whose bitmap fonts Java does not read.
+    rpmRequires = listOf("(dejavu-sans-fonts or dejavu-fonts)"),
+)
 
 // The deb and the rpm, dog-vision-cli, on the system's Java: its JARs in /usr/share/dog-vision-cli/lib and a launcher
 // in /usr/bin, which finds a Java 17 or newer. It has no natives, so one package serves every architecture, and it
@@ -112,10 +168,8 @@ val packageCliDeb = tasks.register<DebPackage>("packageDogVisionCliDeb") {
     // provides java17-runtime-headless where it is not: Ubuntu 20.04's and 22.04's are 11.
     depends = listOf("default-jre-headless (>= 2:1.17) | java17-runtime-headless")
     recommends = emptyList()
-    destinationDirectory = base.distsDirectory
 }
 artifact(packageCliDeb)
-packageDeb { dependsOn(packageCliDeb) }
 
 val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
     description = "Packs build/distributions/dog-vision-cli-<version>-1.noarch.rpm, on the system's Java."
@@ -130,7 +184,5 @@ val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
     // which provide it with no version at all. A new LTS joins the list when a distribution makes it its default.
     requires = listOf("/bin/sh", "(jre-17-headless or jre-21-headless or jre-25-headless)")
     recommends = emptyList()
-    destinationDirectory = base.distsDirectory
 }
 artifact(packageCliRpm)
-packageRpm { dependsOn(packageCliRpm) }
