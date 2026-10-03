@@ -1,6 +1,7 @@
 package cz.loplex.dogvision.packaging
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.InputFiles
@@ -13,8 +14,9 @@ import java.io.File
 
 /**
  * Writes in [destination] the .cfg of each launcher in the app folder of [image], a Windows app image as jpackage made
- * it of [WindowsJpackageFiles], with the launcher's own JAR alone on its classpath: jpackage puts every JAR of its
- * input on each launcher's, the launcher's own first. The scripts in tools copy them over jpackage's.
+ * it of [WindowsJpackageFiles], with the classpath the launcher's .cfg among [classpaths] names, in its order: jpackage
+ * puts every JAR of its input on each launcher's, the launcher's own first. The scripts in tools copy them over
+ * jpackage's.
  */
 abstract class WindowsLauncherConfigs : DefaultTask() {
     @get:Internal
@@ -24,6 +26,11 @@ abstract class WindowsLauncherConfigs : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NAME_ONLY)
     val configs: FileTree
         get() = image.asFileTree.matching { include("app/*.cfg") }
+
+    /** Each launcher's .classpath, as [WindowsLauncherFiles] writes it. */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val classpaths: ConfigurableFileCollection
 
     @get:OutputDirectory
     abstract val destination: DirectoryProperty
@@ -36,18 +43,28 @@ abstract class WindowsLauncherConfigs : DefaultTask() {
         val app = image.get().dir("app").asFile
         val configs = configs.files
         check(configs.isNotEmpty()) { "$app holds no launcher's .cfg" }
+        val classpaths = classpaths.files.associateBy { it.name }
+        val onClasspaths = mutableSetOf<String>()
         for (config in configs) {
+            val names = checkNotNull(classpaths["${config.nameWithoutExtension}.classpath"]) {
+                "$config's launcher has no .classpath"
+            }.readLines(Charsets.UTF_8)
+            check(names.isNotEmpty() && names.all { File(app, it).isFile }) { "$app does not hold every JAR of $names" }
+            onClasspaths += names
             // The lines with their ends, which jpackage writes as the system it runs on does.
             val lines = Regex("(?<=\n)").split(config.readText(Charsets.UTF_8)).filter(String::isNotEmpty)
-            val classpath = lines.filter { it.startsWith(LAUNCHER_CLASSPATH) }
-            check(classpath.isNotEmpty()) { "$config has no $LAUNCHER_CLASSPATH" }
-            val own = classpath.first().removePrefix(LAUNCHER_CLASSPATH).trimEnd()
-            val jar = File(app, own.removePrefix("\$APPDIR\\"))
-            check(own.startsWith("\$APPDIR\\") && jar.isFile) {
-                "$config's first $LAUNCHER_CLASSPATH is no JAR in $app: $own"
-            }
-            File(out, config.name).writeText((lines - classpath.drop(1).toSet()).joinToString(""), Charsets.UTF_8)
+            val first = lines.indexOfFirst { it.startsWith(LAUNCHER_CLASSPATH) }
+            check(first >= 0) { "$config has no $LAUNCHER_CLASSPATH" }
+            val end = lines[first].substring(lines[first].trimEnd().length)
+            val classpath = names.map { "$LAUNCHER_CLASSPATH\$APPDIR\\$it$end" }
+            val others = lines.filterNot { it.startsWith(LAUNCHER_CLASSPATH) }
+            File(out, config.name).writeText(
+                (others.take(first) + classpath + others.drop(first)).joinToString(""),
+                Charsets.UTF_8,
+            )
         }
+        val jars = app.listFiles().orEmpty().filter { it.name.endsWith(".jar") }.map { it.name }.toSet()
+        check(onClasspaths == jars) { "JARs of $app on no launcher's classpath: ${jars - onClasspaths}" }
     }
 }
 
