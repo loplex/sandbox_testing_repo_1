@@ -2,6 +2,7 @@ import cz.loplex.dogvision.packaging.DebPackage
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
 import cz.loplex.dogvision.packaging.artifact
+import cz.loplex.dogvision.packaging.uberJar
 import cz.loplex.dogvision.packaging.windowsAppImage
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntimeImage
@@ -71,13 +72,13 @@ tasks.register<JavaExec>("renderFigures") {
 val uberJar = tasks.register<Jar>("uberJar") {
     description = "Assembles build/jars/dog-vision-cli.jar, the command line with everything it needs."
     group = "distribution"
-    archiveFileName = "dog-vision-cli.jar"
     destinationDirectory = layout.buildDirectory.dir("jars")
-    manifest { attributes("Main-Class" to mainClassName) }
-    from(tasks.named<Jar>("jvmJar").map { zipTree(it.archiveFile) })
-    from(configurations.named("jvmRuntimeClasspath").map { classpath -> classpath.map { zipTree(it) } })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/module-info.class")
+    uberJar(
+        "dog-vision-cli.jar",
+        mainClassName,
+        tasks.named<Jar>("jvmJar").flatMap { it.archiveFile },
+        configurations.named("jvmRuntimeClasspath"),
+    )
 }
 artifact(uberJar)
 
