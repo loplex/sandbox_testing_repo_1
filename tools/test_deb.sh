@@ -16,8 +16,8 @@
 # The command line and both windows convert test_photo.jpg, beside this script, which ffmpeg made:
 #   ffmpeg -f lavfi -i testsrc2=size=160x120:rate=1 -frames:v 1 -q:v 4 test_photo.jpg
 #
-# A later deb is the same build with another version, `-PappVersion=0.1.1`,
-# which `:gui-compose:packageDeb`, `:gui-swing:packageDeb` and `:cli:packageDeb` write beside the first.
+# A later deb is the same build with another version, `-PappVersion=0.1.1`, which `:gui-compose:packageDeb`,
+# `:gui-swing:packageDeb` and `:packaging:packageDogVisionCliDeb` write beside the first.
 #
 # Needs docker, or podman installed as docker.
 # Usage:
