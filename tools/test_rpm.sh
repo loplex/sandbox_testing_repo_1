@@ -15,8 +15,8 @@
 #
 # The command line and both windows convert test_photo.jpg, beside this script, as tools/test_deb.sh says.
 #
-# A later rpm is the same build with another version, `-PappVersion=0.1.1`,
-# which `:gui-compose:packageRpm`, `:gui-swing:packageRpm` and `:cli:packageRpm` write beside the first.
+# A later rpm is the same build with another version, `-PappVersion=0.1.1`, which `:gui-compose:packageRpm`,
+# `:gui-swing:packageRpm` and `:packaging:packageDogVisionCliRpm` write beside the first.
 #
 # Needs docker, or podman installed as docker.
 # Usage:
