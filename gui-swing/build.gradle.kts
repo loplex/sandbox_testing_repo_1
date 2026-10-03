@@ -56,7 +56,7 @@ tasks.named<Test>("jvmTest") {
 }
 
 // What runs the window on Windows on x86-64 in place of this machine's natives: LWJGL's for it, and ANGLE. Only
-// windowsUberJar takes it.
+// windowsUberJar and windowsLauncher take it.
 windowsRuntime()
 
 /** The packages' version, as the other modules' packages have it. */
@@ -70,6 +70,9 @@ val runtimeJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRun
 
 /** The window's own JAR, which each uber JAR below merges with the JARs the window needs. */
 val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
+
+/** ANGLE for Windows on ARM, which LWJGL's natives here are not for. */
+val armAngle = "nucleus/native/win32-aarch64"
 
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/jars/dog-vision-swing-linux-x64-<version>.jar, the window for this machine."
@@ -94,8 +97,7 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
         mainClassName,
         windowJar,
         configurations.named("windowsRuntime"),
-        // ANGLE for Windows on ARM, which LWJGL's natives here are not for.
-        excludes = listOf("nucleus/native/win32-aarch64/**"),
+        excludes = listOf("$armAngle/**"),
     )
 }
 artifact(windowsUberJar)
@@ -106,12 +108,15 @@ val packagingJdk = packagingJdk()
 /** The modules of the tar.gz's runtime and the MSI's: what jdeps --print-module-deps finds the JARs using. */
 val runtimeModules = listOf("java.base", "java.desktop", "java.instrument", "jdk.unsupported")
 
-// dog-vision-swing.exe beside the Compose window's dog-vision.exe in the MSI, which :packaging takes.
+// dog-vision-swing.exe beside the Compose window's dog-vision.exe in the MSI, which :packaging takes, on the JARs
+// windowsUberJar merges.
 windowsLauncher(
     name = "dog-vision-swing",
-    jar = windowsUberJar.flatMap { it.archiveFile },
+    ownJar = windowJar,
+    classpath = configurations.named("windowsRuntime"),
     mainClass = mainClassName,
     runtimeModules = runtimeModules,
+    leftOut = listOf(armAngle),
 )
 
 // jpackage's app image with a runtime of its own, and dog-vision-cli beside dog-vision-swing, as the Compose window's.

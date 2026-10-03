@@ -88,10 +88,12 @@ artifact(uberJar)
  */
 val windowsModules = listOf("java.base", "java.desktop")
 
-// dog-vision-cli.exe, in a console: in the MSI beside the windows, which :packaging takes, and alone in the zip.
+// dog-vision-cli.exe, in a console, on the JARs uberJar merges: in the MSI beside the windows, which :packaging takes,
+// and alone in the zip.
 val windowsLauncher = windowsLauncher(
     name = "dog-vision-cli",
-    jar = uberJar.flatMap { it.archiveFile },
+    ownJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile },
+    classpath = configurations.named("jvmRuntimeClasspath"),
     mainClass = mainClassName,
     console = true,
     runtimeModules = windowsModules,
@@ -172,6 +174,6 @@ artifact(packageRpm)
 windowsAppImage(
     packageName = "dog-vision-cli",
     description = "How a dog or another animal sees a photo, from the command line",
-    launchers = files(windowsLauncher.flatMap { it.destination }, uberJar),
+    launchers = files(windowsLauncher.flatMap { it.destination }),
     runtime = windowsRuntimeImage("the command line's runtime for Windows", windowsModules),
 )

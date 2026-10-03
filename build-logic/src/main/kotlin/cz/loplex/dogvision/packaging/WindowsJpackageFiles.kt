@@ -14,6 +14,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import java.io.File
+import java.nio.file.Files
 import java.util.Properties
 
 /**
@@ -24,10 +25,11 @@ import java.util.Properties
  * - arguments: the package's name, version, vendor, description and icon; the folder of the JARs, the main launcher's
  *   JAR, class, Java options and console, [runtime], and every other launcher.
  * - input, the folder of the launchers' JARs alone, as jpackage takes every file in its --input into the application.
+ *   A JAR on more than one launcher's classpath is there once: JARs of one name have to be the same bytes.
  *
- * The launchers are [launchers]' files as [WindowsLauncherFiles] writes them, beside their JARs: the one named
- * [packageName] is the main launcher, and each other one an --add-launcher. jpackage puts every JAR of input on each
- * launcher's classpath, after the launcher's own; [WindowsLauncherConfigs] leaves each launcher its own alone.
+ * The launchers are [launchers]' files as [WindowsLauncherFiles] writes them: the one named [packageName] is the main
+ * launcher, and each other one an --add-launcher. jpackage puts every JAR of input on each launcher's classpath, after
+ * the launcher's own; [WindowsLauncherConfigs] gives each launcher the classpath its .classpath names instead.
  *
  * The arguments file is UTF-8, each argument in double quotes, in which a backslash and a quote are escaped with a
  * backslash, as jpackage reads @files: within quotes, \n, \r, \t and \f are taken for control characters, which a
@@ -53,7 +55,7 @@ abstract class WindowsJpackageFiles : DefaultTask() {
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val icon: RegularFileProperty
 
-    /** Each launcher's properties, modules and JAR, as [WindowsLauncherFiles] says, or folders of them. */
+    /** Each launcher's properties, classpath, modules and JARs, as [WindowsLauncherFiles] says, or folders of them. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val launchers: ConfigurableFileCollection
@@ -75,17 +77,28 @@ abstract class WindowsJpackageFiles : DefaultTask() {
         val out = destination.get().asFile
         out.deleteRecursively()
         val input = File(out, "input").apply { mkdirs() }
-        // The files, out of the folders among them, as a module hands its own launcher in its folder.
+        // The files, out of the folders among them, as a module hands its launcher's JARs in a folder.
         val files = launchers.asFileTree.files
-        val jars = files.filter { it.name.endsWith(".jar") }
-        check(jars.map { it.name }.toSet().size == jars.size) { "Two of the launchers' JARs share a name: $jars" }
-        for (jar in jars) jar.copyTo(File(input, jar.name))
+        val jars = files.filter { it.name.endsWith(".jar") }.groupBy { it.name }
+        for ((name, copies) in jars) {
+            val differ = copies.drop(1).filter { Files.mismatch(it.toPath(), copies.first().toPath()) != -1L }
+            check(differ.isEmpty()) { "The launchers' JARs named $name differ: ${listOf(copies.first()) + differ}" }
+            copies.first().copyTo(File(input, name))
+        }
 
         val properties = files.filter { it.name.endsWith(".properties") }.sortedBy { it.name }
+        val classpaths = files.filter { it.name.endsWith(".classpath") }.associateBy { it.name }
+        val onClasspaths = mutableSetOf<String>()
         for (file in properties) {
             val mainJar = read(file).getProperty("main-jar")
-            check(jars.any { it.name == mainJar }) { "$file's main-jar $mainJar is not among the launchers' JARs" }
+            val classpath = classpaths["${file.name.removeSuffix(".properties")}.classpath"]
+            checkNotNull(classpath) { "$file has no .classpath beside it" }
+            val names = classpath.readLines(Charsets.UTF_8)
+            check(names.firstOrNull() == mainJar) { "$classpath does not start with $file's main-jar $mainJar" }
+            check(names.all { it in jars }) { "$classpath names what is not among the launchers' JARs: $names" }
+            onClasspaths += names
         }
+        check(onClasspaths == jars.keys) { "JARs on no launcher's classpath: ${jars.keys - onClasspaths}" }
         val main = properties.singleOrNull { it.name == "${packageName.get()}.properties" }
         checkNotNull(main) { "No launcher is named ${packageName.get()}, the image's main launcher: $properties" }
         val mainProperties = read(main)
