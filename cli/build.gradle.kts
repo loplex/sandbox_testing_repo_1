@@ -1,8 +1,6 @@
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.uberJar
-import cz.loplex.dogvision.packaging.windowsAppImage
 import cz.loplex.dogvision.packaging.windowsLauncher
-import cz.loplex.dogvision.packaging.windowsRuntimeImage
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -85,22 +83,13 @@ artifact(uberJar)
  */
 val windowsModules = listOf("java.base", "java.desktop")
 
-// dog-vision-cli.exe, in a console, on the JARs uberJar merges: in the MSI beside the windows, which :packaging takes,
-// and alone in the zip.
-val windowsLauncher = windowsLauncher(
+// dog-vision-cli.exe, in a console, on the JARs uberJar merges: in the MSI beside the windows, and alone in the zip,
+// both of which :packaging makes.
+windowsLauncher(
     name = "dog-vision-cli",
     ownJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile },
     classpath = configurations.named("jvmRuntimeClasspath"),
     mainClass = mainClassName,
     console = true,
     runtimeModules = windowsModules,
-)
-
-// What jpackage makes the app image of the command line's zip for Windows on x86-64 of, as the scripts in tools hand
-// it: the command line alone, on a runtime of its own.
-windowsAppImage(
-    packageName = "dog-vision-cli",
-    description = "How a dog or another animal sees a photo, from the command line",
-    launchers = files(windowsLauncher.flatMap { it.destination }),
-    runtime = windowsRuntimeImage("the command line's runtime for Windows", windowsModules),
 )
