@@ -133,7 +133,7 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ```sh
 ./gradlew :gui-compose:run                                   # the camera, /dev/video0
 ./gradlew :gui-compose:run --args="--window photo.jpg"       # a photo, or a video played over and over
-./gradlew :gui-compose:packageUberJarForCurrentOS            # gui-compose/build/compose/jars/dog-vision-linux-x64-0.1.0.jar
+./gradlew :gui-compose:linuxUberJar                          # gui-compose/build/compose/jars/dog-vision-linux-x64-0.1.0.jar
 ./gradlew :gui-compose:windowsUberJar                        # gui-compose/build/compose/jars/dog-vision-windows-x64-0.1.0.jar
 ./gradlew :gui-swing:runJvm                                  # the Swing window, on the camera
 ./gradlew :gui-swing:runJvm --args="--window photo.jpg"      # the Swing window, on a photo or a video
@@ -146,6 +146,10 @@ pwsh tools/package_cli_zip_on_windows.ps1
 - **Each JAR holds everything the window needs**, the natives for its system on x86-64 included,
   and runs as `java -jar dog-vision-linux-x64-0.1.0.jar` on a JDK 17 or newer, with the window's
   options.
+- **A file two of the merged JARs both hold has to be the same in each**, or the JAR's task fails
+  and names the JARs: the uber JARs, the command line's as well, are made by
+  [`uberJar()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/UberJar.kt), whose
+  comment says what it leaves out instead.
 - **The Windows JAR is built on any machine**, Linux included, with Windows's natives and ANGLE in
   place of this machine's.
   ANGLE's DLLs come from Nucleus's build of it (`dev.nucleusframework:nucleus.angle-natives`), as
