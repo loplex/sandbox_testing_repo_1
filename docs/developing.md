@@ -27,7 +27,7 @@ Building the programs is [Building it](building.md)'s.
 | [`gui-core`](../gui-core)         | what the desktop windows share             | the JVM             |
 | [`gui-compose`](../gui-compose)   | the desktop window, in Compose             | the JVM             |
 | [`gui-swing`](../gui-swing)       | the desktop window, in Swing               | the JVM             |
-| [`packaging`](../packaging)       | the MSI, both windows and the command line | Windows             |
+| [`packaging`](../packaging)       | the command line's deb and rpm, the MSI    | Linux, Windows      |
 | [`testing`](../testing)           | what the renderers' tests hold them to     | the JVM, JavaScript |
 
 [`build-logic`](../build-logic) is no module but a Gradle build of its own, included in this one.
@@ -178,11 +178,11 @@ graph TD
     class android,web program
 ```
 
-What the MSI takes, which `packaging` makes of the windows and the command line:
+What the packages take, which `packaging` makes of the windows and the command line:
 
 ```mermaid
 graph TD
-    subgraph packages [the packages of more than one module]
+    subgraph packages [the packages]
         packaging
     end
     subgraph programs [the programs]
@@ -207,8 +207,9 @@ graph TD
 - **`gui-compose` and `gui-swing` reach `core` and `texts` through `gui-core`**, which passes on
   `cli` and, through it, the two `cli` uses.
 - **`ui` passes on `texts`**, as its `text` and `InfoButton` take an entry of `texts`' `Str`.
-- **`packaging` has no code of its own**: it takes each launcher of the MSI, its JAR and what it
-  runs on, from the module that has it, through that module's `windowsLauncher` task.
+- **`packaging` has no code of its own**: it takes from the module that has them the JARs a Linux
+  package installs, through `jvmRuntimeOf`, as a module takes a library's, and each launcher of a
+  package for Windows, its JAR and what it runs on, through the module's `windowsLauncher` task.
 - **Only tests use `testing`**, so no program ships it.
   `core`'s tests use `testing`, which in turn uses `core`; Gradle builds `core` itself first, as
   its code does not use `testing`.
