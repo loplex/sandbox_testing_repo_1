@@ -43,7 +43,7 @@ Each artifact lands here:
 | Android app    | the debug APK                | `android/build/outputs/apk/debug`                |
 | web page       | the page                     | `web/build/dist/js/productionExecutable`         |
 | command line   | the JAR                      | `cli/build/jars`                                 |
-| command line   | the deb, the rpm             | `cli/build/packages/deb`, `…/rpm`                |
+| command line   | the deb, the rpm             | `packaging/build/distributions`                  |
 | Compose window | the JARs, Linux's, Windows's | `gui-compose/build/compose/jars`                 |
 | Compose window | the deb, the rpm             | `gui-compose/build/packages/deb`, `…/rpm`        |
 | Compose window | the tar.gz                   | `gui-compose/build/compose/binaries/main/tar`    |
@@ -162,8 +162,10 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ./gradlew :gui-compose:packageRpm    # gui-compose/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm
 ./gradlew :gui-swing:packageDeb      # gui-swing/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb
 ./gradlew :gui-swing:packageRpm      # gui-swing/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm
-./gradlew :cli:packageDeb            # cli/build/packages/deb/dog-vision-cli_0.1.0_all.deb
-./gradlew :cli:packageRpm            # cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm
+./gradlew :packaging:packageDogVisionCliDeb
+                                     # packaging/build/distributions/dog-vision-cli_0.1.0_all.deb
+./gradlew :packaging:packageDogVisionCliRpm
+                                     # packaging/build/distributions/dog-vision-cli-0.1.0-1.noarch.rpm
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 ./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
