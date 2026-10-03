@@ -16,7 +16,7 @@
 #   ffmpeg -f lavfi -i testsrc2=size=160x120:rate=1 -frames:v 1 -q:v 4 test_photo.jpg
 #
 # A later deb is the same build with another version, `-PappVersion=0.1.1`, which
-# `:desktop:packageDeb`, `:swing:packageDeb` and `:cli:packageDeb` write beside the first.
+# `:packaging:packageDeb` writes beside the first.
 #
 # Needs docker, or podman installed as docker. Usage:
 #   tools/test_deb.sh [--temurin] [--upgrade <a later deb>] <the deb> [image, ubuntu:20.04 by

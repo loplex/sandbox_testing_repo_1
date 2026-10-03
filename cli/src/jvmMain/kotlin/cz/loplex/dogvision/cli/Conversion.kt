@@ -1,9 +1,11 @@
 package cz.loplex.dogvision.cli
 
 import cz.loplex.dogvision.core.Image
+import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.compose
 import cz.loplex.dogvision.core.composedSize
 import cz.loplex.dogvision.core.meanLinearRgb
+import cz.loplex.dogvision.core.shownName
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import java.awt.image.BufferedImage
@@ -14,9 +16,12 @@ import java.io.PrintStream
 import javax.imageio.ImageIO
 import kotlin.math.roundToInt
 
-/** Where [file] converted goes: photo.jpg as photo.dog.png, next to it or in [outputDir]. */
-fun convertedFile(file: File, outputDir: File?): File {
-    val name = file.name.substringBeforeLast('.').ifEmpty { file.name } + ".dog.png"
+/**
+ * Where [file] converted to [view] goes, named after it and the species [view] shows: photo.jpg as photo.cat.png, or
+ * photo.horse-vs-cat.png where it shows a horse beside a cat, next to it or in [outputDir].
+ */
+fun convertedFile(file: File, view: View, outputDir: File?): File {
+    val name = file.name.substringBeforeLast('.').ifEmpty { file.name } + ".${shownName(view)}.png"
     return File(outputDir ?: file.parentFile, name)
 }
 
@@ -36,8 +41,8 @@ fun convertPhoto(arguments: Arguments, texts: Texts, out: PrintStream, err: Prin
         err.println(texts.get(Str.PHOTO_NOT_PHOTO, file))
         return 1
     }
-    val output = convertedFile(file, arguments.outputDir)
     val view = arguments.conversionView
+    val output = convertedFile(file, view, arguments.outputDir)
     val (width, height) = composedSize(view, photo.width, photo.height)
     // core writes into the image's own pixels, which ImageIO then encodes without a copy.
     val composed = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)

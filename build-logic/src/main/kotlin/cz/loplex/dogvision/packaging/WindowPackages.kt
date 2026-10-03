@@ -1,15 +1,16 @@
 package cz.loplex.dogvision.packaging
 
+import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.Sync
-import org.gradle.jvm.tasks.Jar
 
 /**
- * Registers a window's deb and rpm, [packageName], on the system's Java, packageDeb and packageRpm, with the tasks they
- * are made from: the window's JARs in /usr/share/[packageName]/lib, the natives they load unpacked in
- * /usr/lib/[packageName], where the FHS puts what depends on the architecture, a launcher in /usr/bin, which finds a
- * Java 17 or newer, and the desktop entry and the icons, named [applicationId]. The command line is the package
- * dog-vision-cli, which each recommends.
+ * Registers a window's deb and rpm, [packageName], on the system's Java, with the tasks they are made from, each named
+ * after the package, as packageDogVisionSwingDeb and dogVisionSwingTree are dog-vision-swing's: [jars], the window's
+ * JARs, in /usr/share/[packageName]/lib, the natives they load unpacked in /usr/lib/[packageName], where the FHS puts
+ * what depends on the architecture, a launcher in /usr/bin, which finds a Java 17 or newer, and the desktop entry and
+ * the icons, named [applicationId]. The command line is the package dog-vision-cli, which each recommends.
  *
  * - [mainClass] is the class the launcher starts, its main the window's.
  * - [jvmOptions] are the launcher's options before org.lwjgl.librarypath's, given the folder of the natives.
@@ -20,6 +21,7 @@ import org.gradle.jvm.tasks.Jar
  */
 fun Project.windowPackages(
     packageName: String,
+    jars: NamedDomainObjectProvider<out Configuration>,
     applicationId: String,
     mainClass: String,
     jvmOptions: (natives: String) -> List<String> = { emptyList() },
@@ -31,29 +33,30 @@ fun Project.windowPackages(
 ) {
     val home = "/usr/share/$packageName"
     val nativesHome = "/usr/lib/$packageName"
-    val linuxJars = files(tasks.named("jvmJar", Jar::class.java), configurations.named("jvmRuntimeClasspath"))
+    val linuxJars = files(jars)
     // The names of the JARs in the lib folder that are not their own.
-    val linuxJarNames = configurations.named("jvmRuntimeClasspath")
-        .flatMap { it.incoming.artifacts.resolvedArtifacts }
-        .map(::installedJarNames)
+    val linuxJarNames = jars.flatMap { it.incoming.artifacts.resolvedArtifacts }.map(::installedJarNames)
+    // The package's name in the tasks' names, DogVisionSwing and dogVisionSwing of dog-vision-swing.
+    val suffix = packageName.split('-').joinToString("") { word -> word.replaceFirstChar(Char::uppercase) }
+    val prefix = suffix.replaceFirstChar(Char::lowercase)
     // The window's icons, which every package of the project installs.
     val icons = rootProject.layout.projectDirectory.dir("desktop/packaging")
 
     // Every native library in the JARs, which skiko and LWJGL would otherwise unpack at run time into the user's home
     // or /tmp.
-    val linuxNatives = tasks.register("linuxNatives", UnpackNatives::class.java) {
-        this.description = "Unpacks the Linux natives out of the JARs into build/packages/natives, for the deb and " +
-            "the rpm to install in $nativesHome."
-        jars.from(linuxJars.filter { jar -> nativesLeftIn.none { jar.name.startsWith(it) } })
-        natives.set(layout.buildDirectory.dir("packages/natives"))
+    val linuxNatives = tasks.register("${prefix}Natives", UnpackNatives::class.java) {
+        this.description = "Unpacks the Linux natives out of the JARs into build/packages/natives/$packageName, for " +
+            "its deb and its rpm to install in $nativesHome."
+        this.jars.from(linuxJars.filter { jar -> nativesLeftIn.none { jar.name.startsWith(it) } })
+        natives.set(layout.buildDirectory.dir("packages/natives/$packageName"))
     }
 
-    val linuxLauncher = tasks.register("linuxLauncher", JavaLauncher::class.java) {
-        this.description = "Writes build/packages/launcher/$packageName, the script the deb and the rpm install in " +
+    val linuxLauncher = tasks.register("${prefix}Launcher", JavaLauncher::class.java) {
+        this.description = "Writes build/packages/launcher/$packageName, the script its deb and its rpm install in " +
             "/usr/bin, which starts the window on the system's Java 17 or newer."
         commandName.set(packageName)
         this.mainClass.set(mainClass)
-        jars.from(linuxJars)
+        this.jars.from(linuxJars)
         jarDirectory.set("$home/lib")
         jarNames.set(linuxJarNames)
         this.jvmOptions.set(jvmOptions(nativesHome) + "-Dorg.lwjgl.librarypath=$nativesHome")
@@ -61,7 +64,7 @@ fun Project.windowPackages(
         script.set(layout.buildDirectory.file("packages/launcher/$packageName"))
     }
 
-    val linuxDesktopEntry = tasks.register("linuxDesktopEntry", DesktopEntry::class.java) {
+    val linuxDesktopEntry = tasks.register("${prefix}DesktopEntry", DesktopEntry::class.java) {
         this.description = "Writes build/packages/$applicationId.desktop, the desktop entry that puts the window in " +
             "the desktop's menu, named in each language of texts/strings" +
             if (nameSuffix.isEmpty()) "." else " with \"$nameSuffix\" after it."
@@ -77,10 +80,10 @@ fun Project.windowPackages(
         entry.set(layout.buildDirectory.file("packages/$applicationId.desktop"))
     }
 
-    val linuxTree = tasks.register("linuxTree", Sync::class.java) {
-        this.description = "Lays out in build/packages/tree the files the deb and the rpm install: the JARs, the " +
-            "natives, the launcher, the desktop entry and the icons."
-        into(layout.buildDirectory.dir("packages/tree"))
+    val linuxTree = tasks.register("${prefix}Tree", Sync::class.java) {
+        this.description = "Lays out in build/packages/tree/$packageName the files its deb and its rpm install: the " +
+            "JARs, the natives, the launcher, the desktop entry and the icons."
+        into(layout.buildDirectory.dir("packages/tree/$packageName"))
         from(linuxJars) {
             into(home.removePrefix("/") + "/lib")
             exclude(NativesOnly)
@@ -99,27 +102,27 @@ fun Project.windowPackages(
         }
     }
 
-    val rpmLibraryRequires = tasks.register("rpmLibraryRequires", RpmLibraryRequires::class.java) {
-        this.description = "Lists in build/packages/rpmLibraryRequires.txt the libraries the natives link against " +
-            "and do not bring themselves, which the rpm requires."
+    val rpmLibraryRequires = tasks.register("${prefix}RpmLibraryRequires", RpmLibraryRequires::class.java) {
+        this.description = "Lists in build/packages/$packageName-rpmLibraryRequires.txt the libraries the natives " +
+            "link against and do not bring themselves, which its rpm requires."
         image.set(linuxNatives.flatMap { it.natives })
-        requires.set(layout.buildDirectory.file("packages/rpmLibraryRequires.txt"))
+        requires.set(layout.buildDirectory.file("packages/$packageName-rpmLibraryRequires.txt"))
     }
 
-    val debDepends = tasks.register("debDepends", DebDepends::class.java) {
-        this.description = "Writes the deb's Depends into build/packages/debDepends.txt: the packages of the " +
-            "libraries the natives link against and do not bring, then a Java that can open a window, libEGL and " +
-            "ffmpeg."
+    val debDepends = tasks.register("${prefix}DebDepends", DebDepends::class.java) {
+        this.description = "Writes its deb's Depends into build/packages/$packageName-debDepends.txt: the " +
+            "packages of the libraries the natives link against and do not bring, then a Java that can open a " +
+            "window, libEGL and ffmpeg."
         image.set(linuxNatives.flatMap { it.natives })
         packages.set(debianPackages)
         // What the natives do not name: a Java that can open a window, the distribution's default where it is 17 or
         // newer, as the Debian Java Policy has it; LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video
         // or the camera.
         others.set(listOf("default-jre (>= 2:1.17) | java17-runtime", "libegl1", "ffmpeg"))
-        depends.set(layout.buildDirectory.file("packages/debDepends.txt"))
+        depends.set(layout.buildDirectory.file("packages/$packageName-debDepends.txt"))
     }
 
-    val packageDeb = tasks.register("packageDeb", DebPackage::class.java) {
+    val packageDeb = tasks.register("package${suffix}Deb", DebPackage::class.java) {
         this.description = "Packs build/packages/deb/${packageName}_<version>_amd64.deb, on the system's Java."
         group = "distribution"
         tree.set(layout.dir(linuxTree.map { it.destinationDir }))
@@ -131,7 +134,7 @@ fun Project.windowPackages(
         recommends.set(listOf("dog-vision-cli"))
     }
 
-    val packageRpm = tasks.register("packageRpm", RpmPackage::class.java) {
+    val packageRpm = tasks.register("package${suffix}Rpm", RpmPackage::class.java) {
         this.description = "Packs build/packages/rpm/$packageName-<version>-1.x86_64.rpm, on the system's Java."
         group = "distribution"
         tree.set(layout.dir(linuxTree.map { it.destinationDir }))
@@ -140,8 +143,8 @@ fun Project.windowPackages(
         this.summary.set(summary)
         longDescription.set(description)
         // The libraries the natives need, as rpm's own generator names them, since Fedora's and openSUSE's package
-        // names differ; a Java that can open a window, as cli's rpm says why; libEGL, which LWJGL opens once it runs;
-        // and ffmpeg's command rather than a package, as Fedora has two ffmpeg packages.
+        // names differ; a Java that can open a window, as the command line's rpm says why; libEGL, which LWJGL opens
+        // once it runs; and ffmpeg's command rather than a package, as Fedora has two ffmpeg packages.
         requires.set(
             rpmLibraryRequires.flatMap { it.requires }.map { file ->
                 file.asFile.readText().split(',') +

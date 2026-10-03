@@ -15,7 +15,7 @@
 # Both convert test_photo.jpg, beside this script, as tools/test_deb.sh says.
 #
 # A later rpm is the same build with another version, `-PappVersion=0.1.1`, which
-# `:desktop:packageRpm`, `:swing:packageRpm` and `:cli:packageRpm` write beside the first.
+# `:packaging:packageRpm` writes beside the first.
 #
 # Needs docker, or podman installed as docker. Usage:
 #   tools/test_rpm.sh [--temurin] [--upgrade <a later rpm>] <the rpm> [image with dnf, zypper or

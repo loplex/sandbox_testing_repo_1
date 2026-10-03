@@ -43,12 +43,13 @@ Each artifact lands here:
 | Android app    | the debug APK                | `app/build/outputs/apk/debug`                |
 | web page       | the page                     | `web/build/dist/js/productionExecutable`     |
 | command line   | the JAR                      | `cli/build/jars`                             |
-| command line   | the deb, the rpm             | `cli/build/packages/deb`, `…/rpm`            |
+| command line   | the deb, the rpm             | `packaging/build/packages/deb`, `…/rpm`      |
 | Compose window | the JARs, Linux's, Windows's | `desktop/build/compose/jars`                 |
-| Compose window | the deb, the rpm             | `desktop/build/packages/deb`, `…/rpm`        |
+| Compose window | the deb, the rpm             | `packaging/build/packages/deb`, `…/rpm`      |
 | Compose window | the tar.gz                   | `desktop/build/compose/binaries/main/tar`    |
 | Swing window   | the JARs, Linux's, Windows's | `swing/build/jars`                           |
-| Swing window   | the deb, the rpm, the tar.gz | `swing/build/packages/deb`, `…/rpm`, `…/tar` |
+| Swing window   | the deb, the rpm             | `packaging/build/packages/deb`, `…/rpm`      |
+| Swing window   | the tar.gz                   | `swing/build/packages/tar`                   |
 
 `./gradlew checkArtifactFolders` holds the folders to the tasks, and runs in `check`: every file a
 task of `packageAll` declares lies in one of them, and each of them holds one.
@@ -110,8 +111,8 @@ pwsh tools/package_cli_zip_on_windows.ps1
   console, its JARs in `app`, a runtime of its own in `runtime`, and the licence.
 - **Its runtime is Temurin's JDK 25, cut down by jlink to `java.base` and `java.desktop`**, which
   ImageIO needs.
-  `./gradlew :cli:windowsRuntime` links it, on any system, from Temurin's jmods for Windows, which
-  Gradle downloads from Adoptium's releases on GitHub.
+  `./gradlew :packaging:windowsCliRuntime` links it, on any system, from Temurin's jmods for
+  Windows, which Gradle downloads from Adoptium's releases on GitHub.
   Their version is `temurin-windows-jmods` in [`libs.versions.toml`](../gradle/libs.versions.toml):
   jlink takes jmods of any update of its own feature release, 25.
 - **jpackage makes the launcher only on Windows**, so each script runs a Windows jpackage over the
@@ -158,12 +159,10 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ## The desktop packages
 
 ```sh
-./gradlew :desktop:packageDeb    # desktop/build/packages/deb/dog-vision_0.1.0_amd64.deb
-./gradlew :desktop:packageRpm    # desktop/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm
-./gradlew :swing:packageDeb      # swing/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb
-./gradlew :swing:packageRpm      # swing/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm
-./gradlew :cli:packageDeb        # cli/build/packages/deb/dog-vision-cli_0.1.0_all.deb
-./gradlew :cli:packageRpm        # cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm
+./gradlew :packaging:packageDeb  # packaging/build/packages/deb: dog-vision_0.1.0_amd64.deb,
+                                 # dog-vision-swing_0.1.0_amd64.deb, dog-vision-cli_0.1.0_all.deb
+./gradlew :packaging:packageRpm  # packaging/build/packages/rpm: dog-vision-0.1.0-1.x86_64.rpm,
+                                 # dog-vision-swing-0.1.0-1.x86_64.rpm, dog-vision-cli-0.1.0-1.noarch.rpm
 ./gradlew :desktop:packageTarGz  # desktop/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 ./gradlew :swing:packageTarGz    # swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
@@ -177,13 +176,16 @@ pwsh tools/package_msi_on_windows.ps1
                                  # on Windows: the same
 ```
 
+Each deb and rpm alone is a task of `:packaging` named after it: `packageDogVisionDeb`,
+`packageDogVisionSwingDeb` and `packageDogVisionCliDeb`, and the same with `Rpm`.
+
 Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
 
 | Package | Tools                                      | Ubuntu's packages | Run by                                           |
 |---------|--------------------------------------------|-------------------|--------------------------------------------------|
-| deb     | `dpkg-deb`                                 | dpkg              | `packageDeb`                                     |
-| deb     | `readelf`                                  | binutils          | `debDepends`                                     |
-| rpm     | `rpmbuild` 4.13 or later, `rpm`, `elfdeps` | rpm               | `rpmLibraryRequires`, `packageRpm`               |
+| deb     | `dpkg-deb`                                 | dpkg              | `package…Deb`                                    |
+| deb     | `readelf`                                  | binutils          | `…DebDepends`                                    |
+| rpm     | `rpmbuild` 4.13 or later, `rpm`, `elfdeps` | rpm               | `…RpmLibraryRequires`, `package…Rpm`             |
 | MSI     | Wine, a Windows JDK 17, WiX 3.14           | wine              | `tools/package_msi_on_linux.sh`, which says more |
 
 - **Gradle downloads Temurin 25 on the first build** that needs it, where it finds none installed,

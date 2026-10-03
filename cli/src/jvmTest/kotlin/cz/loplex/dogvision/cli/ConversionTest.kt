@@ -34,10 +34,18 @@ class ConversionTest {
 
     @Test
     fun aConvertedFileIsNamedAfterItsOriginal() {
-        assertEquals(File("dir/photo.dog.png"), convertedFile(File("dir/photo.jpg"), null))
-        assertEquals(File("photo.dog.png"), convertedFile(File("photo.jpg"), null))
-        assertEquals(File("out/photo.dog.png"), convertedFile(File("dir/photo.jpg"), File("out")))
-        assertEquals(File("noext.dog.png"), convertedFile(File("noext"), null))
+        assertEquals(File("dir/photo.dog.png"), convertedFile(File("dir/photo.jpg"), View(), null))
+        assertEquals(File("photo.dog.png"), convertedFile(File("photo.jpg"), View(), null))
+        assertEquals(File("out/photo.dog.png"), convertedFile(File("dir/photo.jpg"), View(), File("out")))
+        assertEquals(File("noext.dog.png"), convertedFile(File("noext"), View(), null))
+    }
+
+    @Test
+    fun aConvertedFileIsNamedAfterTheSpeciesItShows() {
+        val cat = View(Params(Species.CAT))
+        assertEquals(File("photo.cat.png"), convertedFile(File("photo.jpg"), cat, null))
+        val compared = cat.copy(sideBySide = true, compare = Species.HORSE)
+        assertEquals(File("photo.horse-vs-cat.png"), convertedFile(File("photo.jpg"), compared, null))
     }
 
     @Test
@@ -46,7 +54,7 @@ class ConversionTest {
         val options = arrayOf("--species", "cat", "--compare", "dog", "--difference", "--strength", "0.8")
         val (status, out, err) = run(*options, "$input")
         assertEquals(0 to "", status to err)
-        val output = File(directory, "photo.dog.png")
+        val output = File(directory, "photo.dog-vs-cat.png")
         assertTrue("Wrote $output" in out, out)
         assertTrue(out.lines().first().endsWith("% of pixels differ noticeably"), out)
 

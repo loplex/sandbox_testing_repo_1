@@ -28,42 +28,41 @@ jobs:
         id: packages
         run: |
           sudo apt-get install -y rpm
-          tasks=(:desktop:packageDeb :desktop:packageRpm :swing:packageDeb :swing:packageRpm)
-          tasks+=(:cli:packageDeb :cli:packageRpm)
+          tasks=(:packaging:packageDeb :packaging:packageRpm)
           ./gradlew "${tasks[@]}"
           ./gradlew "${tasks[@]}" -PappVersion=0.1.1
       # Each in a bare Ubuntu 20.04, the oldest release their dependencies are named for, upgraded to
       # the later version; each window opens under Xvfb there.
       - name: Try the dog-vision deb
         run: >-
-          tools/test_deb.sh --upgrade desktop/build/packages/deb/dog-vision_0.1.1_amd64.deb
-          desktop/build/packages/deb/dog-vision_0.1.0_amd64.deb ubuntu:20.04
+          tools/test_deb.sh --upgrade packaging/build/packages/deb/dog-vision_0.1.1_amd64.deb
+          packaging/build/packages/deb/dog-vision_0.1.0_amd64.deb ubuntu:20.04
       - name: Try the dog-vision-swing deb
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_deb.sh --upgrade swing/build/packages/deb/dog-vision-swing_0.1.1_amd64.deb
-          swing/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb ubuntu:20.04
+          tools/test_deb.sh --upgrade packaging/build/packages/deb/dog-vision-swing_0.1.1_amd64.deb
+          packaging/build/packages/deb/dog-vision-swing_0.1.0_amd64.deb ubuntu:20.04
       - name: Try the dog-vision-cli deb
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_deb.sh --upgrade cli/build/packages/deb/dog-vision-cli_0.1.1_all.deb
-          cli/build/packages/deb/dog-vision-cli_0.1.0_all.deb ubuntu:20.04
+          tools/test_deb.sh --upgrade packaging/build/packages/deb/dog-vision-cli_0.1.1_all.deb
+          packaging/build/packages/deb/dog-vision-cli_0.1.0_all.deb ubuntu:20.04
       # Each in a bare Fedora, with no desktop, upgraded the same way.
       - name: Try the dog-vision rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_rpm.sh --upgrade desktop/build/packages/rpm/dog-vision-0.1.1-1.x86_64.rpm
-          desktop/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm fedora:42
+          tools/test_rpm.sh --upgrade packaging/build/packages/rpm/dog-vision-0.1.1-1.x86_64.rpm
+          packaging/build/packages/rpm/dog-vision-0.1.0-1.x86_64.rpm fedora:42
       - name: Try the dog-vision-swing rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_rpm.sh --upgrade swing/build/packages/rpm/dog-vision-swing-0.1.1-1.x86_64.rpm
-          swing/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm fedora:42
+          tools/test_rpm.sh --upgrade packaging/build/packages/rpm/dog-vision-swing-0.1.1-1.x86_64.rpm
+          packaging/build/packages/rpm/dog-vision-swing-0.1.0-1.x86_64.rpm fedora:42
       - name: Try the dog-vision-cli rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_rpm.sh --upgrade cli/build/packages/rpm/dog-vision-cli-0.1.1-1.noarch.rpm
-          cli/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42
+          tools/test_rpm.sh --upgrade packaging/build/packages/rpm/dog-vision-cli-0.1.1-1.noarch.rpm
+          packaging/build/packages/rpm/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42
       # The tar.gz, unpacked and run where it is, on its own runtime: the command line, and the
       # window's main converting a photo given alone.
       - name: Build the tar.gz and try it

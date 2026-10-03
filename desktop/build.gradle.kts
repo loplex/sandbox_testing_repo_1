@@ -2,7 +2,6 @@ import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.uberJar
-import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
@@ -99,26 +98,6 @@ tasks.withType<AbstractJPackageTask>().configureEach {
     // freeArgs holds only its path, so that the app image is made again when the file changes.
     inputs.file(launcher)
 }
-
-// The deb and the rpm, dog-vision, on the system's Java.
-windowPackages(
-    packageName = "dog-vision",
-    // The application's ID, which the Windows MSI does not use.
-    applicationId = "cz.loplex.dogvision",
-    mainClass = mainClassName,
-    // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
-    jvmOptions = { natives ->
-        listOf("-Dcompose.application.configure.swing.globals=true", "-Dskiko.library.path=$natives")
-    },
-    summary = "How a dog or another animal sees a photo, a video or the camera",
-    description = """
-        Shows a photo, a video or the camera with the colours a dog, a cat or
-        another animal can tell apart, beside the original, in a window.
-
-        Given a photo alone, it converts it as the command line does, which is
-        the package dog-vision-cli.
-    """.trimIndent(),
-)
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
 val packageTarGz = tasks.register<Tar>("packageTarGz") {

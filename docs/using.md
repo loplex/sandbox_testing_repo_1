@@ -113,8 +113,9 @@ Before Android 10, saving asks for the storage permission.
 - **Files go to the gallery**, not to an output folder chosen in the app.
 - **The camera is the back or the front one**, not one picked by its number, and the front one is
   mirrored, where the desktop program shows a webcam's image as it comes.
-- **A photo or a video converted at full size is named like a snapshot**, not `<name>.dog.png` or
-  `<name>.dog.mp4` after the original: the system photo picker does not tell an app a file's name.
+- **A photo or a video converted at full size is named like a snapshot**, not after the original
+  as the desktop program names a photo, `<name>.cat.png`: the system photo picker does not tell an
+  app a file's name.
 - **Videos are written by the phone's encoders**, not ffmpeg's, so a video too large for them is
   scaled down, where the desktop program writes any size.
 - **Recording locks the screen's orientation**, since turning the phone would change the video's
@@ -207,8 +208,10 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 - **Anywhere else, the JAR runs on a Java 17 or newer**: `./gradlew :cli:uberJar` builds it, with
   everything it needs.
 - **It converts a photo at full size**, as the desktop program's `dog-vision photo.jpg` does: it
-  writes `photo.dog.png` next to the photo, or into `--output-dir`, and says what share of the
-  pixels differ when `--difference` asks for the map.
+  writes a PNG next to the photo, or into `--output-dir`, and says what share of the pixels differ
+  when `--difference` asks for the map.
+- **The PNG is named after the photo and the species it shows**: `photo.dog.png`,
+  `photo.cat.png` with `--species cat`, and `photo.horse-vs-cat.png` with `--compare horse` too.
 - **It takes the desktop program's options** for the view: `--species`, `--compare`,
   `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`; `--help`
   lists them. `--info`, a video and the window are not in it.

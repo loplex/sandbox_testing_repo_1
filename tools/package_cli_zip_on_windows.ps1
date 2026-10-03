@@ -2,11 +2,11 @@
 # anywhere without installing it.
 #
 # jpackage makes its app image with dog-vision-cli.exe, a native launcher that runs in a console,
-# of the arguments that cli's windowsJpackage task writes, with the JARs that its windowsLauncher
-# task writes and the runtime that its windowsRuntime task links from Temurin's jmods for Windows,
-# and this then copies the launcher's .cfg that its windowsLauncherConfigs task writes, with the
-# classpath in its order; the zip holds that image and the licence. It is written to
-# tools\build\zip, which git ignores.
+# of the arguments that :packaging's windowsCliJpackage task writes, with the JARs that cli's
+# windowsLauncher task writes and the runtime that :packaging's windowsCliRuntime task links from
+# Temurin's jmods for Windows, and this then copies the launcher's .cfg that :packaging's
+# windowsCliLauncherConfigs task writes, with the classpath in its order; the zip holds that image
+# and the licence. It is written to tools\build\zip, which git ignores.
 # tools/package_cli_zip_on_linux.sh builds the same zip through Wine.
 #
 # Needs:
@@ -15,7 +15,7 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$cli = Join-Path $root "cli"
+$cliFiles = Join-Path $root "packaging\build\windows\cli"
 
 # Runs a program and stops the script where it fails, as $ErrorActionPreference does not for them.
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
@@ -37,8 +37,8 @@ if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
     throw "gradle.properties has no appVersion"
 }
 $version = $Matches[1]
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsJpackage")
-$jpackageFiles = Join-Path $cli "build\windows\jpackage"
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":packaging:windowsCliJpackage")
+$jpackageFiles = Join-Path $cliFiles "jpackage"
 
 $staging = Join-Path $root "tools\build\staging\cli-zip"
 if (Test-Path $staging) {
@@ -60,8 +60,8 @@ Invoke-Checked (Join-Path $env:JAVA_HOME "bin\jpackage.exe") @(
 
 $app = Join-Path $image "dog-vision-cli"
 # The launcher with its classpath in its order.
-Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":cli:windowsLauncherConfigs", "-PwindowsAppImage=$app")
-Copy-Item (Join-Path $cli "build\windows\launchers\*.cfg") (Join-Path $app "app")
+Invoke-Checked (Join-Path $root "gradlew.bat") @("--quiet", ":packaging:windowsCliLauncherConfigs", "-PwindowsAppImage=$app")
+Copy-Item (Join-Path $cliFiles "launchers\*.cfg") (Join-Path $app "app")
 Copy-Item (Join-Path $root "LICENSE") $app
 $output = Join-Path $root "tools\build\zip"
 New-Item -ItemType Directory -Force -Path $output | Out-Null

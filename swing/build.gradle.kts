@@ -3,7 +3,6 @@ import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.uberJar
-import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -149,29 +148,3 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     from(appImage.flatMap { it.destination })
 }
 artifact(packageTarGz)
-
-// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision, with the desktop
-// entry and icons under names of their own, so that both windows install side by side.
-windowPackages(
-    packageName = "dog-vision-swing",
-    // Not the Compose window's cz.loplex.dogvision.
-    applicationId = "cz.loplex.dogvision.swing",
-    mainClass = mainClassName,
-    nameSuffix = " (Swing)",
-    summary = "How a dog or another animal sees a photo, a video or the camera, in Java Swing",
-    description = """
-        Shows a photo, a video or the camera with the colours a dog, a cat or
-        another animal can tell apart, beside the original, in a Swing window,
-        which needs neither Compose nor skiko. The package dog-vision is the
-        same window in Compose.
-
-        Given a photo alone, it converts it as the command line does, which is
-        the package dog-vision-cli.
-    """.trimIndent(),
-    // FlatLaf loads its natives on Linux only for window decorations of its own, which the window does not use, and
-    // they link GTK 3.
-    nativesLeftIn = listOf("flatlaf-"),
-    // A font, without which Swing cannot start: openSUSE's JRE brings none, where Debian's fontconfig does. Fedora's
-    // and Rocky's font packages provide font(:lang=en), which openSUSE's do not, so it names DejaVu there.
-    rpmRequires = listOf("(font(:lang=en) or dejavu-fonts)"),
-)
