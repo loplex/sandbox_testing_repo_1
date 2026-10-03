@@ -19,6 +19,10 @@ jobs:
               Write-Host "== $mode"
               ./tf.exe $mode
           }
+      # test_mswsock_TransmitFile() of the Wine fix's dlls/ws2_32/tests/sock.c, built standalone (mswsock_test.c).
+      - name: The conformance test of the fix
+        shell: pwsh
+        run: ./mswsock_test.exe
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
