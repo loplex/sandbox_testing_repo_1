@@ -2,6 +2,7 @@ import cz.loplex.dogvision.packaging.DebPackage
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
 import cz.loplex.dogvision.packaging.artifact
+import cz.loplex.dogvision.packaging.uberJar
 import cz.loplex.dogvision.packaging.windowsAppImage
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntimeImage
@@ -71,13 +72,13 @@ tasks.register<JavaExec>("renderFigures") {
 val uberJar = tasks.register<Jar>("uberJar") {
     description = "Assembles build/jars/dog-vision-cli.jar, the command line with everything it needs."
     group = "distribution"
-    archiveFileName = "dog-vision-cli.jar"
     destinationDirectory = layout.buildDirectory.dir("jars")
-    manifest { attributes("Main-Class" to mainClassName) }
-    from(tasks.named<Jar>("jvmJar").map { zipTree(it.archiveFile) })
-    from(configurations.named("jvmRuntimeClasspath").map { classpath -> classpath.map { zipTree(it) } })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/module-info.class")
+    uberJar(
+        "dog-vision-cli.jar",
+        mainClassName,
+        tasks.named<Jar>("jvmJar").flatMap { it.archiveFile },
+        configurations.named("jvmRuntimeClasspath"),
+    )
 }
 artifact(uberJar)
 
@@ -87,10 +88,12 @@ artifact(uberJar)
  */
 val windowsModules = listOf("java.base", "java.desktop")
 
-// dog-vision-cli.exe, in a console: in the MSI beside the windows, which :packaging takes, and alone in the zip.
+// dog-vision-cli.exe, in a console, on the JARs uberJar merges: in the MSI beside the windows, which :packaging takes,
+// and alone in the zip.
 val windowsLauncher = windowsLauncher(
     name = "dog-vision-cli",
-    jar = uberJar.flatMap { it.archiveFile },
+    ownJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile },
+    classpath = configurations.named("jvmRuntimeClasspath"),
     mainClass = mainClassName,
     console = true,
     runtimeModules = windowsModules,
@@ -168,6 +171,6 @@ artifact(packageRpm)
 windowsAppImage(
     packageName = "dog-vision-cli",
     description = "How a dog or another animal sees a photo, from the command line",
-    launchers = files(windowsLauncher.flatMap { it.destination }, uberJar),
+    launchers = files(windowsLauncher.flatMap { it.destination }),
     runtime = windowsRuntimeImage("the command line's runtime for Windows", windowsModules),
 )

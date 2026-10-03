@@ -2,6 +2,7 @@ import cz.loplex.dogvision.packaging.AppImage
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
+import cz.loplex.dogvision.packaging.uberJar
 import cz.loplex.dogvision.packaging.windowPackages
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
@@ -55,7 +56,7 @@ tasks.named<Test>("jvmTest") {
 }
 
 // What runs the window on Windows on x86-64 in place of this machine's natives: LWJGL's for it, and ANGLE. Only
-// windowsUberJar takes it.
+// windowsUberJar and windowsLauncher take it.
 windowsRuntime()
 
 /** The packages' version, as the other modules' packages have it. */
@@ -67,23 +68,22 @@ val packaging = rootProject.layout.projectDirectory.dir("desktop/packaging")
 /** The JARs the window runs from: its own, and everything it needs, this machine's natives among them. */
 val runtimeJars = files(tasks.named<Jar>("jvmJar"), configurations.named("jvmRuntimeClasspath"))
 
-/** An uber JAR of [classpath]'s JARs with the window's own, which runs alone on a JDK 17 or newer. */
-fun Jar.uberJar(fileName: String, classpath: Provider<out Iterable<File>>) {
-    archiveFileName = fileName
-    destinationDirectory = layout.buildDirectory.dir("jars")
-    manifest { attributes("Main-Class" to mainClassName) }
-    from(tasks.named<Jar>("jvmJar").map { zipTree(it.archiveFile) })
-    from(classpath.map { jars -> jars.map { zipTree(it) } })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    val excludes = listOf("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/module-info.class")
-    exclude(excludes)
-    inputs.property("excludes", excludes)
-}
+/** The window's own JAR, which each uber JAR below merges with the JARs the window needs. */
+val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
+
+/** ANGLE for Windows on ARM, which LWJGL's natives here are not for. */
+val armAngle = "nucleus/native/win32-aarch64"
 
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/jars/dog-vision-swing-linux-x64-<version>.jar, the window for this machine."
     group = "distribution"
-    uberJar("dog-vision-swing-linux-x64-${packageVersion.get()}.jar", configurations.named("jvmRuntimeClasspath"))
+    destinationDirectory = layout.buildDirectory.dir("jars")
+    uberJar(
+        "dog-vision-swing-linux-x64-${packageVersion.get()}.jar",
+        mainClassName,
+        windowJar,
+        configurations.named("jvmRuntimeClasspath"),
+    )
 }
 artifact(linuxUberJar)
 
@@ -91,9 +91,14 @@ artifact(linuxUberJar)
 val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/jars/dog-vision-swing-windows-x64-<version>.jar, the window for Windows."
     group = "distribution"
-    uberJar("dog-vision-swing-windows-x64-${packageVersion.get()}.jar", configurations.named("windowsRuntime"))
-    // ANGLE for Windows on ARM, which LWJGL's natives here are not for.
-    exclude("nucleus/native/win32-aarch64/**")
+    destinationDirectory = layout.buildDirectory.dir("jars")
+    uberJar(
+        "dog-vision-swing-windows-x64-${packageVersion.get()}.jar",
+        mainClassName,
+        windowJar,
+        configurations.named("windowsRuntime"),
+        excludes = listOf("$armAngle/**"),
+    )
 }
 artifact(windowsUberJar)
 
@@ -103,12 +108,15 @@ val packagingJdk = packagingJdk()
 /** The modules of the tar.gz's runtime and the MSI's: what jdeps --print-module-deps finds the JARs using. */
 val runtimeModules = listOf("java.base", "java.desktop", "java.instrument", "jdk.unsupported")
 
-// dog-vision-swing.exe beside the Compose window's dog-vision.exe in the MSI, which :packaging takes.
+// dog-vision-swing.exe beside the Compose window's dog-vision.exe in the MSI, which :packaging takes, on the JARs
+// windowsUberJar merges.
 windowsLauncher(
     name = "dog-vision-swing",
-    jar = windowsUberJar.flatMap { it.archiveFile },
+    ownJar = windowJar,
+    classpath = configurations.named("windowsRuntime"),
     mainClass = mainClassName,
     runtimeModules = runtimeModules,
+    leftOut = listOf(armAngle),
 )
 
 // jpackage's app image with a runtime of its own, and dog-vision-cli beside dog-vision-swing, as the Compose window's.

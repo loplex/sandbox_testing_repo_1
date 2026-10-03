@@ -14,35 +14,52 @@ private fun Project.windowsVersion(): Provider<String> =
 /** Whether the scripts in tools run jpackage and WiX under Wine, rather than on Windows. */
 private fun underWine(): Boolean = !System.getProperty("os.name").startsWith("Windows")
 
+/** The app image that -PwindowsAppImage names, as the scripts in tools have jpackage make it. */
+private fun Project.builtAppImage() = layout.dir(providers.gradleProperty("windowsAppImage").map(::File))
+
 /**
- * Registers windowsJpackage, which writes build/windows/jpackage, what jpackage makes the Windows app image
- * [packageName] of, as [WindowsJpackageFiles] says: [launchers] on [runtime], the launcher [packageName] the main one.
+ * Registers what the Windows app image [packageName] is made of, [launchers] on [runtime], the launcher [packageName]
+ * the main one:
+ *
+ * - windowsJpackage: build/windows/jpackage, what jpackage makes the image of, as [WindowsJpackageFiles] says.
+ * - windowsLauncherConfigs: build/windows/launchers, the .cfg of the launchers of the image that -PwindowsAppImage
+ *   names, each with the classpath its launcher's .classpath names, as [WindowsLauncherConfigs] says, which the scripts
+ *   copy into the image.
  */
 fun Project.windowsAppImage(
     packageName: String,
     description: String,
     launchers: FileCollection,
     runtime: TaskProvider<RuntimeImage>,
-): TaskProvider<WindowsJpackageFiles> = tasks.register("windowsJpackage", WindowsJpackageFiles::class.java) {
-    this.description = "Writes build/windows/jpackage, what jpackage makes the app image $packageName for Windows of."
-    group = "distribution"
-    this.packageName.set(packageName)
-    version.set(windowsVersion())
-    vendor.set(VENDOR)
-    packageDescription.set(description)
-    icon.set(rootProject.layout.projectDirectory.file("desktop/packaging/dog-vision.ico"))
-    this.launchers.from(launchers)
-    this.runtime.set(runtime.flatMap { it.destination })
-    underWine.set(underWine())
-    destination.set(layout.buildDirectory.dir("windows/jpackage"))
+): TaskProvider<WindowsJpackageFiles> {
+    tasks.register("windowsLauncherConfigs", WindowsLauncherConfigs::class.java) {
+        this.description = "Writes build/windows/launchers, the .cfg of the launchers of -PwindowsAppImage's image, " +
+            "each with its own classpath."
+        group = "distribution"
+        image.set(builtAppImage())
+        classpaths.from(launchers.asFileTree.matching { include("**/*.classpath") })
+        destination.set(layout.buildDirectory.dir("windows/launchers"))
+    }
+    return tasks.register("windowsJpackage", WindowsJpackageFiles::class.java) {
+        this.description = "Writes build/windows/jpackage, what jpackage makes the app image $packageName for " +
+            "Windows of."
+        group = "distribution"
+        this.packageName.set(packageName)
+        version.set(windowsVersion())
+        vendor.set(VENDOR)
+        packageDescription.set(description)
+        icon.set(rootProject.layout.projectDirectory.file("desktop/packaging/dog-vision.ico"))
+        this.launchers.from(launchers)
+        this.runtime.set(runtime.flatMap { it.destination })
+        underWine.set(underWine())
+        destination.set(layout.buildDirectory.dir("windows/jpackage"))
+    }
 }
 
 /**
  * Registers what the MSI of the app image that -PwindowsAppImage names is made of, which the scripts in tools build
- * with windowsAppImage's arguments first:
+ * with windowsAppImage's arguments first, and give its launchers' .cfg from its windowsLauncherConfigs:
  *
- * - windowsLauncherConfigs: build/windows/launchers, the image's launchers' .cfg, each with its own JAR alone on its
- *   classpath, as [WindowsLauncherConfigs] says, which the scripts copy into the image.
  * - windowsLicense: build/windows/LICENSE.rtf, the licence the MSI shows.
  * - windowsBitmaps: build/windows/banner.bmp and dialog.bmp, the pictures of the MSI's dialogs.
  * - windowsWix: build/windows/wix, [product] and what it takes, as [WixSource] says, [codePage] among it, which the
@@ -52,14 +69,7 @@ fun Project.windowsAppImage(
  */
 fun Project.windowsMsi(product: RegularFile, codePage: RegularFile, configure: WixSource.() -> Unit) {
     val root = rootProject.layout.projectDirectory
-    val image = layout.dir(providers.gradleProperty("windowsAppImage").map(::File))
-    tasks.register("windowsLauncherConfigs", WindowsLauncherConfigs::class.java) {
-        description = "Writes build/windows/launchers, the .cfg of the launchers of -PwindowsAppImage's image, each " +
-            "with its own JAR alone on its classpath."
-        group = "distribution"
-        this.image.set(image)
-        destination.set(layout.buildDirectory.dir("windows/launchers"))
-    }
+    val image = builtAppImage()
     val license = tasks.register("windowsLicense", LicenseRtf::class.java) {
         description = "Writes build/windows/LICENSE.rtf, the licence the MSI shows, line for line."
         group = "distribution"
