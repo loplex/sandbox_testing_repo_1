@@ -104,7 +104,7 @@ pwsh tools/package_cli_zip_on_windows.ps1
 - **It holds jpackage's app image**: `dog-vision-cli.exe`, a native launcher that runs in a console,
   its JARs in `app`, a runtime of its own in `runtime`, and the licence.
 - **Its runtime is Temurin's JDK 25, cut down by jlink to `java.base` and `java.desktop`**, which ImageIO needs.\
-  `./gradlew :cli:windowsRuntime` links it, on any system,
+  `./gradlew :packaging:windowsCliRuntime` links it, on any system,
   from Temurin's jmods for Windows, which Gradle downloads from Adoptium's releases on GitHub.\
   Their version is `temurin-windows-jmods` in [`libs.versions.toml`](../gradle/libs.versions.toml):
   jlink takes jmods of any update of its own feature release, 25.
