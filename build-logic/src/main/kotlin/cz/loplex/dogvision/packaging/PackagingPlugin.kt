@@ -13,14 +13,15 @@ class PackagingPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val appVersion = project.providers.gradleProperty("appVersion")
         val licenseText = project.rootProject.layout.projectDirectory.file("LICENSE")
-        val packages = project.layout.buildDirectory.dir("packages")
+        // Gradle's own folder of what a build distributes, base.distsDirectory's.
+        val distributions = project.layout.buildDirectory.dir("distributions")
         project.tasks.withType(DebPackage::class.java).configureEach {
             version.convention(appVersion)
             maintainer.convention("$VENDOR <lopin.git@loplex.cz>")
             section.convention("graphics")
             homepage.convention(HOMEPAGE)
             license.convention(licenseText)
-            destinationDirectory.convention(packages.map { it.dir("deb") })
+            destinationDirectory.convention(distributions)
         }
         project.tasks.withType(RpmPackage::class.java).configureEach {
             version.convention(appVersion)
@@ -28,7 +29,7 @@ class PackagingPlugin : Plugin<Project> {
             url.convention(HOMEPAGE)
             licenseName.convention("GPL-3.0-or-later")
             license.convention(licenseText)
-            destinationDirectory.convention(packages.map { it.dir("rpm") })
+            destinationDirectory.convention(distributions)
         }
     }
 
