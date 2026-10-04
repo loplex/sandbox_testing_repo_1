@@ -33,7 +33,7 @@ import java.util.UUID
  *   in the component group Web, but a source map, a .map, in Web.SourceMap.
  * - [codePage], the localization that sets the MSI's code page, as it is.
  *
- * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision.exe,
+ * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision_compose.exe,
  * and one directly in [web] of web_ and its name, as web_index.html, by which [product] refers to them;
  * every other file, folder and component one of a hash of its path in INSTALLDIR.\
  * Each component's GUID is made of [upgradeCode] and that path,
