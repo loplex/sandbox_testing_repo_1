@@ -25,9 +25,9 @@ every species, its measurements and their sources.
   controls, so each shows what the others do.
 - **The desktop window is a first version** of a window to replace the desktop program's: it has no
   snapshots and no recording yet.
-- **The desktop window comes in two toolkits**: `dog-vision` in Compose, with the app's controls,
-  and [`dog-vision-swing`](docs/using.md#the-same-window-in-swing-dog-vision-swing) in Swing, which
-  shows the same from the same state and needs neither Compose nor skiko.
+- **The desktop window comes in two toolkits**: `dog-vision-compose` in Compose, with the app's
+  controls, and [`dog-vision-swing`](docs/using.md#the-same-window-in-swing-dog-vision-swing) in
+  Swing, which shows the same from the same state and needs neither Compose nor skiko.
 - **Each is built from this repository**, as [Building it](docs/building.md) says:
 
 ```sh

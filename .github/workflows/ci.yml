@@ -22,7 +22,7 @@ jobs:
       # ffmpeg for the window's feed; Mesa's EGL and llvmpipe for its GL tests, as the runner has no GPU.
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
       - run: ./gradlew check
-      # The Linux packages, dog-vision, dog-vision-swing, dog-vision-cli, dog-vision-web and
+      # The Linux packages, dog-vision-compose, dog-vision-swing, dog-vision-cli, dog-vision-web and
       # dog-vision-web-sourcemap, and a later version of each, which the build writes beside the
       # first.
       - name: Build the debs and the rpms
@@ -35,10 +35,10 @@ jobs:
       # Each in a bare Ubuntu 20.04, the oldest release their dependencies are named for, upgraded to
       # the later version; each window opens under Xvfb there, and the page's desktop entry is
       # checked.
-      - name: Try the dog-vision deb
+      - name: Try the dog-vision-compose deb
         run: >-
-          tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision_0.1.1_amd64.deb
-          packaging/build/distributions/dog-vision_0.1.0_amd64.deb ubuntu:20.04
+          tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision-compose_0.1.1_amd64.deb
+          packaging/build/distributions/dog-vision-compose_0.1.0_amd64.deb ubuntu:20.04
       - name: Try the dog-vision-swing deb
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
@@ -60,11 +60,11 @@ jobs:
           tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision-web-sourcemap_0.1.1_all.deb
           packaging/build/distributions/dog-vision-web-sourcemap_0.1.0_all.deb ubuntu:20.04
       # Each in a bare Fedora, with no desktop, upgraded the same way.
-      - name: Try the dog-vision rpm
+      - name: Try the dog-vision-compose rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
-          tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-0.1.1-1.x86_64.rpm
-          packaging/build/distributions/dog-vision-0.1.0-1.x86_64.rpm fedora:42
+          tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-compose-0.1.1-1.x86_64.rpm
+          packaging/build/distributions/dog-vision-compose-0.1.0-1.x86_64.rpm fedora:42
       - name: Try the dog-vision-swing rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
@@ -91,10 +91,10 @@ jobs:
         if: success() || failure()
         run: |
           ./gradlew :gui-compose:packageTarGz
-          tar -xzf gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz -C "$RUNNER_TEMP"
-          "$RUNNER_TEMP/dog-vision/bin/dog-vision-cli" --help
+          tar -xzf gui-compose/build/compose/binaries/main/tar/dog-vision-compose-0.1.0-linux-x64.tar.gz -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/dog-vision-compose/bin/dog-vision-cli" --help
           cp tools/test_photo.jpg "$RUNNER_TEMP"
-          "$RUNNER_TEMP/dog-vision/bin/dog-vision" "$RUNNER_TEMP/test_photo.jpg"
+          "$RUNNER_TEMP/dog-vision-compose/bin/dog-vision-compose" "$RUNNER_TEMP/test_photo.jpg"
           test -s "$RUNNER_TEMP/test_photo.dog.png"
       # The Swing window's, the same way.
       - name: Build the dog-vision-swing tar.gz and try it

@@ -296,11 +296,11 @@ in [`.editorconfig`](../.editorconfig):
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push:
 
 - **On Ubuntu 24.04, `./gradlew check`**, the window's GL tests on Mesa's llvmpipe, as the runner
-  has no GPU; then the debs and the rpms of `dog-vision`, `dog-vision-swing`, `dog-vision-cli`,
-  `dog-vision-web` and `dog-vision-web-sourcemap`, each built in two versions and tried by
-  `test_deb.sh --upgrade` in Ubuntu 20.04 and `test_rpm.sh --upgrade` in Fedora 42, each window
-  under Xvfb; and each window's tar.gz, unpacked on the runner, where its command line runs and
-  its window's main converts a photo.
+  has no GPU; then the debs and the rpms of `dog-vision-compose`, `dog-vision-swing`,
+  `dog-vision-cli`, `dog-vision-web` and `dog-vision-web-sourcemap`, each built in two versions and
+  tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and `test_rpm.sh --upgrade` in Fedora 42, each
+  window under Xvfb; and each window's tar.gz, unpacked on the runner, where its command line runs
+  and its window's main converts a photo.
 - **On Windows Server 2022, `./gradlew :gui-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and

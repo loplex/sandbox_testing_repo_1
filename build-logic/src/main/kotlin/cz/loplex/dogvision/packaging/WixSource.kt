@@ -30,11 +30,11 @@ import java.util.UUID
  *   the folder web in INSTALLDIR, in the component group Web, but a source map, a .map, in Web.SourceMap.
  * - [codePage], the localization that sets the MSI's code page, as it is.
  *
- * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision.exe, and one directly in
- * [web] of web_ and its name, as web_index.html, by which [product] refers to them; every other file, folder and
- * component one of a hash of its path in INSTALLDIR. Each component's GUID is made of [upgradeCode] and that path, so
- * that it stays the same while the file is in the same place, as Windows Installer counts the installations of a
- * component by its GUID.
+ * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision_compose.exe, and one
+ * directly in [web] of web_ and its name, as web_index.html, by which [product] refers to them; every other file,
+ * folder and component one of a hash of its path in INSTALLDIR. Each component's GUID is made of [upgradeCode] and that
+ * path, so that it stays the same while the file is in the same place, as Windows Installer counts the installations of
+ * a component by its GUID.
  */
 abstract class WixSource : DefaultTask() {
     /** The app image the MSI installs, with the launchers' .cfg as [WindowsLauncherConfigs] writes them. */
