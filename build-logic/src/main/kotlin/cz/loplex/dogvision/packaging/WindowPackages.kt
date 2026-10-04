@@ -32,6 +32,8 @@ fun Project.windowPackages(
     rpmRequires: List<String> = emptyList(),
 ) {
     val home = "/usr/share/$packageName"
+    // The files the packages are made of, in a folder of the package's own.
+    val work = "linux/$packageName"
     val nativesHome = "/usr/lib/$packageName"
     val linuxJars = files(jars)
     // The names of the JARs in the lib folder that are not their own.
@@ -45,14 +47,14 @@ fun Project.windowPackages(
     // Every native library in the JARs, which skiko and LWJGL would otherwise unpack at run time into the user's home
     // or /tmp.
     val linuxNatives = tasks.register("${prefix}Natives", UnpackNatives::class.java) {
-        this.description = "Unpacks the Linux natives out of the JARs into build/packages/natives/$packageName, for " +
+        this.description = "Unpacks the Linux natives out of the JARs into build/$work/natives, for " +
             "its deb and its rpm to install in $nativesHome."
         this.jars.from(linuxJars.filter { jar -> nativesLeftIn.none { jar.name.startsWith(it) } })
-        natives.set(layout.buildDirectory.dir("packages/natives/$packageName"))
+        natives.set(layout.buildDirectory.dir("$work/natives"))
     }
 
     val linuxLauncher = tasks.register("${prefix}Launcher", JavaLauncher::class.java) {
-        this.description = "Writes build/packages/launcher/$packageName, the script its deb and its rpm install in " +
+        this.description = "Writes build/$work/launcher/$packageName, the script its deb and its rpm install in " +
             "/usr/bin, which starts the window on the system's Java 17 or newer."
         commandName.set(packageName)
         this.mainClass.set(mainClass)
@@ -61,11 +63,11 @@ fun Project.windowPackages(
         jarNames.set(linuxJarNames)
         this.jvmOptions.set(jvmOptions(nativesHome) + "-Dorg.lwjgl.librarypath=$nativesHome")
         minimumJava.set(17)
-        script.set(layout.buildDirectory.file("packages/launcher/$packageName"))
+        script.set(layout.buildDirectory.file("$work/launcher/$packageName"))
     }
 
     val linuxDesktopEntry = tasks.register("${prefix}DesktopEntry", DesktopEntry::class.java) {
-        this.description = "Writes build/packages/$applicationId.desktop, the desktop entry that puts the window in " +
+        this.description = "Writes build/$work/$applicationId.desktop, the desktop entry that puts the window in " +
             "the desktop's menu, named in each language of texts/strings" +
             if (nameSuffix.isEmpty()) "." else " with \"$nameSuffix\" after it."
         strings.set(rootProject.layout.projectDirectory.dir("texts/strings"))
@@ -77,13 +79,13 @@ fun Project.windowPackages(
         categories.set(listOf("Graphics"))
         // Java names each window's WM_CLASS after the class its main is in, the dots as dashes.
         startupWmClass.set(mainClass.replace('.', '-'))
-        entry.set(layout.buildDirectory.file("packages/$applicationId.desktop"))
+        entry.set(layout.buildDirectory.file("$work/$applicationId.desktop"))
     }
 
     val linuxTree = tasks.register("${prefix}Tree", Sync::class.java) {
-        this.description = "Lays out in build/packages/tree/$packageName the files its deb and its rpm install: the " +
+        this.description = "Lays out in build/$work/tree the files its deb and its rpm install: the " +
             "JARs, the natives, the launcher, the desktop entry and the icons."
-        into(layout.buildDirectory.dir("packages/tree/$packageName"))
+        into(layout.buildDirectory.dir("$work/tree"))
         from(linuxJars) {
             into(home.removePrefix("/") + "/lib")
             exclude(NativesOnly)
@@ -103,14 +105,14 @@ fun Project.windowPackages(
     }
 
     val rpmLibraryRequires = tasks.register("${prefix}RpmLibraryRequires", RpmLibraryRequires::class.java) {
-        this.description = "Lists in build/packages/$packageName-rpmLibraryRequires.txt the libraries the natives " +
+        this.description = "Lists in build/$work/rpmLibraryRequires.txt the libraries the natives " +
             "link against and do not bring themselves, which its rpm requires."
         image.set(linuxNatives.flatMap { it.natives })
-        requires.set(layout.buildDirectory.file("packages/$packageName-rpmLibraryRequires.txt"))
+        requires.set(layout.buildDirectory.file("$work/rpmLibraryRequires.txt"))
     }
 
     val debDepends = tasks.register("${prefix}DebDepends", DebDepends::class.java) {
-        this.description = "Writes its deb's Depends into build/packages/$packageName-debDepends.txt: the " +
+        this.description = "Writes its deb's Depends into build/$work/debDepends.txt: the " +
             "packages of the libraries the natives link against and do not bring, then a Java that can open a " +
             "window, libEGL and ffmpeg."
         image.set(linuxNatives.flatMap { it.natives })
@@ -119,11 +121,11 @@ fun Project.windowPackages(
         // newer, as the Debian Java Policy has it; LWJGL opens libEGL once it runs, and ffmpeg runs apart for a video
         // or the camera.
         others.set(listOf("default-jre (>= 2:1.17) | java17-runtime", "libegl1", "ffmpeg"))
-        depends.set(layout.buildDirectory.file("packages/$packageName-debDepends.txt"))
+        depends.set(layout.buildDirectory.file("$work/debDepends.txt"))
     }
 
     val packageDeb = tasks.register("package${suffix}Deb", DebPackage::class.java) {
-        this.description = "Packs build/packages/deb/${packageName}_<version>_amd64.deb, on the system's Java."
+        this.description = "Packs build/distributions/${packageName}_<version>_amd64.deb, on the system's Java."
         group = "distribution"
         tree.set(layout.dir(linuxTree.map { it.destinationDir }))
         this.packageName.set(packageName)
@@ -135,7 +137,7 @@ fun Project.windowPackages(
     }
 
     val packageRpm = tasks.register("package${suffix}Rpm", RpmPackage::class.java) {
-        this.description = "Packs build/packages/rpm/$packageName-<version>-1.x86_64.rpm, on the system's Java."
+        this.description = "Packs build/distributions/$packageName-<version>-1.x86_64.rpm, on the system's Java."
         group = "distribution"
         tree.set(layout.dir(linuxTree.map { it.destinationDir }))
         this.packageName.set(packageName)

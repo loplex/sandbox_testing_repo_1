@@ -1,14 +1,16 @@
 # Installs the MSI, upgrades it to a later one and removes it, checking each step: the windows'
-# launchers with their shortcuts in the Start menu and on the desktop, and the command line's with
-# none but the installation folder on the system's PATH. The MSI also removes the folder ffmpeg is
-# downloaded into, %ProgramData%\<the app's name>, which the script makes before the upgrade, as a
-# window would, and which has to stay over that.
+# launchers with their shortcuts in the Start menu and on the desktop, the command line's with
+# none but the installation folder on the system's PATH, and the web page with a shortcut in the
+# Start menu to its index.html, without its script's source map, which is not installed by
+# default. The MSI also removes the folder ffmpeg is downloaded into, %ProgramData%\<the app's
+# name>, which the script makes before the upgrade, as a window would, and which has to stay over
+# that.
 #
 # Then it installs one part alone, the Feature SwingGui, by ADDLOCAL naming it without its parent
 # DogVision, which Windows Installer installs with it, into a folder of its own (INSTALLDIR); adds
 # the Compose window, which is to go into that folder too; upgrades it, which is to keep both
-# windows there and the command line out, as the MSI migrates the Features installed and takes
-# the folder from the registry; and removes it.
+# windows there and the command line and the web page out, as the MSI migrates the Features
+# installed and takes the folder from the registry; and removes it.
 #
 # The MSIs are tools/package_msi_on_windows.ps1's or tools/package_msi_on_linux.sh's: -Msi of
 # -Version, and -UpgradeMsi of the later -UpgradeVersion. Each check says whether it held, and every
@@ -57,10 +59,12 @@ $product = $Matches[1]
 $installDir = Join-Path $env:ProgramFiles "dog-vision"
 $startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$product"
 $desktop = Join-Path $env:PUBLIC "Desktop"
-# The windows' shortcuts, each in the Start menu's group and on the desktop.
+# The windows' shortcuts, each in the Start menu's group and on the desktop, and the web page's, in
+# the Start menu's group alone.
 $shortcuts = @("$product.lnk", "$product (Swing).lnk")
-# Each part's launcher, and the shortcut of each window's.
-$launchers = @("dog-vision.exe", "dog-vision-swing.exe", "dog-vision-cli.exe")
+$webShortcut = "$product (web).lnk"
+# Each part's launcher, or the web page's index.html, and the shortcut of each window's.
+$launchers = @("dog-vision.exe", "dog-vision-swing.exe", "dog-vision-cli.exe", "web\index.html")
 $swingShortcut = "$product (Swing).lnk"
 # Where a window downloads ffmpeg, which the MSI removes with the product, but not over an upgrade.
 $data = Join-Path $env:ProgramData $product
@@ -158,8 +162,17 @@ foreach ($shortcut in $shortcuts) {
     Test-Check "the Start menu has $shortcut" (Test-Path (Join-Path $startMenu $shortcut))
     Test-Check "the desktop has $shortcut" (Test-Path (Join-Path $desktop $shortcut))
 }
-Test-Check "the Start menu's group holds the windows' shortcuts alone" (
-    @(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Count -eq $shortcuts.Count
+Test-Check "the Start menu has $webShortcut, to the installed index.html" (
+    (Test-Path (Join-Path $startMenu $webShortcut)) -and
+        (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startMenu $webShortcut)).TargetPath -eq
+        (Join-Path $installDir "web\index.html")
+)
+Test-Check "the desktop has no $webShortcut" (-not (Test-Path (Join-Path $desktop $webShortcut)))
+Test-Check "the web page's source map is not installed by default" (
+    -not (Test-Path (Join-Path $installDir "web\dog-vision.js.map"))
+)
+Test-Check "the Start menu's group holds the windows' shortcuts and the web page's alone" (
+    @(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Count -eq $shortcuts.Count + 1
 )
 
 # dog-vision-cli runs by its name alone, from the PATH a process started after the installation

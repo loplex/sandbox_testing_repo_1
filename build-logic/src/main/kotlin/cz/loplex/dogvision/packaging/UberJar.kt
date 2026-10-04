@@ -40,7 +40,8 @@ fun Jar.uberJar(
     from(
         classpath.map { jars ->
             jars.map { jar ->
-                archives.zipTree(jar).matching { if (holdsNoClass(jar)) exclude("META-INF/*.kotlin_module") }
+                // The JAR is read as it is copied, not when Gradle plans the build, before a module's own JAR is built.
+                archives.zipTree(jar).matching { exclude { KOTLIN_MODULE.matches(it.path) && holdsNoClass(jar) } }
             }
         },
     )
@@ -65,6 +66,9 @@ private val UBER_JAR_EXCLUDES = listOf(
     "META-INF/*.RSA",
     "**/module-info.class",
 )
+
+/** A JAR's .kotlin_module, which [uberJar] leaves out of a JAR that holds no class. */
+private val KOTLIN_MODULE = Regex("META-INF/[^/]+\\.kotlin_module")
 
 /** Gradle's service that reads a zip file as a file tree. */
 internal abstract class Archives @Inject constructor(val operations: ArchiveOperations)

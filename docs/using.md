@@ -133,6 +133,14 @@ buttons above them, and the controls on the right](images/web.png)
 
 - **The built `index.html` opens as it is**, from the folder or from any static server: the page
   fetches nothing, and its wording is compiled into `dog-vision.js`.
+- **On Linux it installs from the deb or the rpm `dog-vision-web`**, as *Dog Vision (web)* in the
+  desktop's menu, which opens the installed `index.html` in the system's browser.
+- **On Windows the MSI installs it**, as its part *GUI (web browser)*, with *Dog Vision (web)* in
+  the Start menu, which opens the installed `index.html` in the system's browser.
+  [Building it](building.md#what-each-package-holds) says what each installs.
+- **The script's source map is installed apart**, for a browser's developer tools to show the
+  Kotlin sources: the deb or the rpm `dog-vision-web-sourcemap`, or the MSI's part *Source map*,
+  which is not selected by default.
 - **The browser needs WebGL 2**; without it the page says so.
 - **Its wording is English or Czech**, as chosen at the end of its panel, which the browser
   remembers, or else the browser's language where there are strings for it.

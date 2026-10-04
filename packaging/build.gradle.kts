@@ -1,6 +1,8 @@
 import cz.loplex.dogvision.packaging.DebPackage
+import cz.loplex.dogvision.packaging.DesktopEntry
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
+import cz.loplex.dogvision.packaging.WEB_PAGE_USAGE
 import cz.loplex.dogvision.packaging.WINDOWS_LAUNCHER_USAGE
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.jvmRuntimeOf
@@ -12,9 +14,12 @@ import cz.loplex.dogvision.packaging.windowsRuntimeImage
 // Packages made apart from the modules they hold:
 // - the deb and the rpm of the Compose window, the Swing window and the command line, on the system's Java, each of
 //   the JARs its module runs on, which jvmRuntimeOf takes;
+// - the deb and the rpm of the web page, the folder web hands this module through webPage, opened in the system's
+//   browser, and those of its script's source map;
 // - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line, each a launcher of
-//   one app image, on one runtime, and the command line's zip, of its launcher alone. Each of those modules hands this
-//   one its launcher through windowsLauncher. The scripts in tools run jpackage and WiX over what this module writes.
+//   one app image, on one runtime, and of the web page; and the command line's zip, of its launcher alone. Each of
+//   the windows' modules and cli hands this one its launcher through windowsLauncher. The scripts in tools run
+//   jpackage and WiX over what this module writes.
 plugins {
     base
     // The toolchains, for the JDK whose jlink links the runtime.
@@ -29,6 +34,23 @@ val launcherFiles = configurations.resolvable("windowsLauncherFiles") {
 }
 dependencies {
     for (module in listOf(":desktop", ":swing", ":cli")) launchers(project(module))
+}
+
+// The web page, as web hands it over, for its deb and rpm and the MSI.
+val webPage = configurations.dependencyScope("webPage")
+val webPageFiles = configurations.resolvable("webPageFiles") {
+    extendsFrom(webPage.get())
+    attributes { attribute(Usage.USAGE_ATTRIBUTE, objects.named(WEB_PAGE_USAGE)) }
+}
+dependencies {
+    webPage(project(":web"))
+}
+
+// The web page the MSI installs in its folder web, the script's source map in a part of its own.
+val windowsWebPage = tasks.register<Sync>("windowsWebPage") {
+    description = "Lays out in build/windows/web the web page the MSI installs, with the script's source map."
+    into(layout.buildDirectory.dir("windows/web"))
+    from(webPageFiles)
 }
 
 // One runtime of every module a launcher needs, and dog-vision.exe the image's main launcher, whose name the image's
@@ -69,15 +91,16 @@ windowsMsi(
     packageDescription = "How a dog or another animal sees a photo, a video or the camera"
     upgradeCode = "bd534b2e-fc9e-40d5-a461-b800bf54bcda"
     installFolder = "dog-vision"
+    web = layout.dir(windowsWebPage.map { it.destinationDir })
 }
 
 tasks.register("packageDeb") {
-    description = "Packs every deb into build/packages/deb."
+    description = "Packs every deb into build/distributions."
     group = "distribution"
     dependsOn(tasks.withType<DebPackage>())
 }
 tasks.register("packageRpm") {
-    description = "Packs every rpm into build/packages/rpm."
+    description = "Packs every rpm into build/distributions."
     group = "distribution"
     dependsOn(tasks.withType<RpmPackage>())
 }
@@ -138,7 +161,7 @@ val cliHome = "/usr/share/$cliPackage"
 val cliJars = jvmRuntimeOf(":cli")
 
 val cliLauncher = tasks.register<JavaLauncher>("dogVisionCliLauncher") {
-    description = "Writes build/packages/launcher/dog-vision-cli, the script the deb and the rpm install in " +
+    description = "Writes build/linux/dog-vision-cli/launcher/dog-vision-cli, the script its deb and rpm install in " +
         "/usr/bin, which starts the command line on the system's Java 17 or newer."
     commandName = cliPackage
     mainClass = "cz.loplex.dogvision.cli.MainKt"
@@ -146,13 +169,13 @@ val cliLauncher = tasks.register<JavaLauncher>("dogVisionCliLauncher") {
     jarDirectory = "$cliHome/lib"
     jvmOptions = emptyList()
     minimumJava = 17
-    script = layout.buildDirectory.file("packages/launcher/$cliPackage")
+    script = layout.buildDirectory.file("linux/$cliPackage/launcher/$cliPackage")
 }
 
 val cliTree = tasks.register<Sync>("dogVisionCliTree") {
-    description = "Lays out in build/packages/tree/dog-vision-cli the files its deb and its rpm install: the JARs " +
+    description = "Lays out in build/linux/dog-vision-cli/tree the files its deb and its rpm install: the JARs " +
         "and the launcher."
-    into(layout.buildDirectory.dir("packages/tree/$cliPackage"))
+    into(layout.buildDirectory.dir("linux/$cliPackage/tree"))
     from(cliJars) { into(cliHome.removePrefix("/") + "/lib") }
     from(cliLauncher) { into("usr/bin") }
 }
@@ -168,7 +191,7 @@ val cliDescription = """
 """.trimIndent()
 
 val packageCliDeb = tasks.register<DebPackage>("packageDogVisionCliDeb") {
-    description = "Packs build/packages/deb/dog-vision-cli_<version>_all.deb, on the system's Java."
+    description = "Packs build/distributions/dog-vision-cli_<version>_all.deb, on the system's Java."
     group = "distribution"
     tree = layout.dir(cliTree.map { it.destinationDir })
     packageName = cliPackage
@@ -183,7 +206,7 @@ val packageCliDeb = tasks.register<DebPackage>("packageDogVisionCliDeb") {
 artifact(packageCliDeb)
 
 val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
-    description = "Packs build/packages/rpm/dog-vision-cli-<version>-1.noarch.rpm, on the system's Java."
+    description = "Packs build/distributions/dog-vision-cli-<version>-1.noarch.rpm, on the system's Java."
     group = "distribution"
     tree = layout.dir(cliTree.map { it.destinationDir })
     packageName = cliPackage
@@ -197,3 +220,133 @@ val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
     recommends = emptyList()
 }
 artifact(packageCliRpm)
+
+// The deb and the rpm, dog-vision-web: the page in /usr/share/dog-vision-web, as web hands it over but for the script's
+// source map, and a desktop entry that opens its index.html in the system's browser through xdg-open. It needs no
+// command in /usr/bin, and has no natives, so one package serves every architecture.
+val webPackage = "dog-vision-web"
+val webHome = "/usr/share/$webPackage"
+val webApplicationId = "cz.loplex.dogvision.web"
+
+val webDesktopEntry = tasks.register<DesktopEntry>("dogVisionWebDesktopEntry") {
+    description = "Writes build/linux/dog-vision-web/$webApplicationId.desktop, the desktop entry that puts the page " +
+        "in the desktop's menu, named in each language of texts/strings with \" (web)\" after it."
+    strings = rootProject.layout.projectDirectory.dir("texts/strings")
+    nameString = "app_name"
+    nameSuffix = " (web)"
+    comment = "How a dog or another animal sees a photo, a video or the camera"
+    exec = "xdg-open $webHome/index.html"
+    icon = webApplicationId
+    categories = listOf("Graphics")
+    entry = layout.buildDirectory.file("linux/$webPackage/$webApplicationId.desktop")
+}
+
+val webTree = tasks.register<Sync>("dogVisionWebTree") {
+    description = "Lays out in build/linux/dog-vision-web/tree the files its deb and its rpm install: the page, the " +
+        "desktop entry and the icons."
+    into(layout.buildDirectory.dir("linux/$webPackage/tree"))
+    from(webPageFiles) {
+        into(webHome.removePrefix("/"))
+        exclude("*.map")
+    }
+    from(webDesktopEntry) { into("usr/share/applications") }
+    val icons = rootProject.layout.projectDirectory.dir("desktop/packaging")
+    from(icons.file("dog-vision.png")) {
+        into("usr/share/icons/hicolor/256x256/apps")
+        rename("dog-vision.png", "$webApplicationId.png")
+    }
+    from(icons.file("dog-vision.svg")) {
+        into("usr/share/icons/hicolor/scalable/apps")
+        rename("dog-vision.svg", "$webApplicationId.svg")
+    }
+}
+
+/** What the deb and the rpm are listed with, in a package manager's search and its details. */
+val webSummary = "How a dog or another animal sees a photo, a video or the camera, in a web browser"
+val webDescription = """
+    Shows a photo, a video or the camera with the colours a dog, a cat or
+    another animal can tell apart, beside the original, in the system's web
+    browser, from the installed files: the page fetches nothing.
+
+    The desktop window, which needs no browser, is the package dog-vision.
+""".trimIndent()
+
+val packageWebDeb = tasks.register<DebPackage>("packageDogVisionWebDeb") {
+    description = "Packs build/distributions/dog-vision-web_<version>_all.deb."
+    group = "distribution"
+    tree = layout.dir(webTree.map { it.destinationDir })
+    packageName = webPackage
+    architecture = "all"
+    summary = webSummary
+    longDescription = webDescription
+    // xdg-open, which the desktop entry runs; the browser is the user's.
+    depends = listOf("xdg-utils")
+    recommends = emptyList()
+}
+artifact(packageWebDeb)
+
+val packageWebRpm = tasks.register<RpmPackage>("packageDogVisionWebRpm") {
+    description = "Packs build/distributions/dog-vision-web-<version>-1.noarch.rpm."
+    group = "distribution"
+    tree = layout.dir(webTree.map { it.destinationDir })
+    packageName = webPackage
+    architecture = "noarch"
+    summary = webSummary
+    longDescription = webDescription
+    // As the deb's.
+    requires = listOf("xdg-utils")
+    recommends = emptyList()
+}
+artifact(packageWebRpm)
+
+// The deb and the rpm, dog-vision-web-sourcemap: the script's source map alone, beside the script that
+// dog-vision-web installs, so that a browser's developer tools show the Kotlin sources' lines. It is for debugging, and
+// larger than the script, so the page's own packages leave it out.
+val webSourceMapPackage = "dog-vision-web-sourcemap"
+
+val webSourceMapTree = tasks.register<Sync>("dogVisionWebSourcemapTree") {
+    description = "Lays out in build/linux/dog-vision-web-sourcemap/tree the file its deb and its rpm install: the " +
+        "script's source map."
+    into(layout.buildDirectory.dir("linux/$webSourceMapPackage/tree"))
+    from(webPageFiles) {
+        into(webHome.removePrefix("/"))
+        include("*.map")
+    }
+    val map = destinationDir.resolve(webHome.removePrefix("/") + "/dog-vision.js.map")
+    doLast { check(map.isFile) { "web hands over no dog-vision.js.map" } }
+}
+
+val webSourceMapSummary = "The source map of dog-vision-web's script, for a browser's developer tools"
+val webSourceMapDescription = """
+    The source map of the script of the page that dog-vision-web installs,
+    with which a web browser's developer tools show the lines of the Kotlin
+    sources the script was compiled from.
+""".trimIndent()
+
+val packageWebSourceMapDeb = tasks.register<DebPackage>("packageDogVisionWebSourcemapDeb") {
+    description = "Packs build/distributions/dog-vision-web-sourcemap_<version>_all.deb."
+    group = "distribution"
+    tree = layout.dir(webSourceMapTree.map { it.destinationDir })
+    packageName = webSourceMapPackage
+    architecture = "all"
+    summary = webSourceMapSummary
+    longDescription = webSourceMapDescription
+    // The script of its own version, which the map describes.
+    depends = version.map { listOf("$webPackage (= $it)") }
+    recommends = emptyList()
+}
+artifact(packageWebSourceMapDeb)
+
+val packageWebSourceMapRpm = tasks.register<RpmPackage>("packageDogVisionWebSourcemapRpm") {
+    description = "Packs build/distributions/dog-vision-web-sourcemap-<version>-1.noarch.rpm."
+    group = "distribution"
+    tree = layout.dir(webSourceMapTree.map { it.destinationDir })
+    packageName = webSourceMapPackage
+    architecture = "noarch"
+    summary = webSourceMapSummary
+    longDescription = webSourceMapDescription
+    // As the deb's.
+    requires = version.zip(release) { version, release -> listOf("$webPackage = $version-$release") }
+    recommends = emptyList()
+}
+artifact(packageWebSourceMapRpm)

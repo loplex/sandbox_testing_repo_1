@@ -176,7 +176,7 @@ graph TD
     class app,web program
 ```
 
-What the packages take, which `packaging` makes of the windows and the command line:
+What the packages take, which `packaging` makes of the windows, the command line and the web page:
 
 ```mermaid
 graph TD
@@ -187,12 +187,14 @@ graph TD
         desktop
         swing
         cli
+        web
     end
     packaging --> desktop
     packaging --> swing
     packaging --> cli
+    packaging --> web
     classDef program font-weight:bold
-    class packaging,desktop,swing,cli program
+    class packaging,desktop,swing,cli,web program
 ```
 
 - **`texts` has a graph of its own, as with it in the first one lines have to cross**, however the
@@ -206,8 +208,9 @@ graph TD
   and, through it, the two `cli` uses.
 - **`ui` passes on `texts`**, as its `text` and `InfoButton` take an entry of `texts`' `Str`.
 - **`packaging` has no code of its own**: it takes from the module that has them the JARs a Linux
-  package installs, through `jvmRuntimeOf`, as a module takes a library's, and each launcher of a
-  package for Windows, its JAR and what it runs on, through the module's `windowsLauncher` task.
+  package installs, through `jvmRuntimeOf`, as a module takes a library's, each launcher of a
+  package for Windows, its JAR and what it runs on, through the module's `windowsLauncher` task,
+  and the web page through the variant `webPage` registers in `web`.
 - **Only tests use `testing`**, so no program ships it.
   `core`'s tests use `testing`, which in turn uses `core`; Gradle builds `core` itself first, as
   its code does not use `testing`.

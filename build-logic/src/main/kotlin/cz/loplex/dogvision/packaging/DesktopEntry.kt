@@ -7,6 +7,7 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -36,7 +37,7 @@ abstract class DesktopEntry : DefaultTask() {
     @get:Input
     abstract val comment: Property<String>
 
-    /** The command, as the desktop runs it from PATH. */
+    /** The command, as the desktop runs it from PATH, with its arguments. */
     @get:Input
     abstract val exec: Property<String>
 
@@ -49,9 +50,10 @@ abstract class DesktopEntry : DefaultTask() {
 
     /**
      * The WM_CLASS of the application's windows, by which the desktop tells them to be this entry's and shows its
-     * name and icon for them.
+     * name and icon for them; none where the windows are another program's, as a web browser's are.
      */
     @get:Input
+    @get:Optional
     abstract val startupWmClass: Property<String>
 
     @get:OutputFile
@@ -79,8 +81,7 @@ abstract class DesktopEntry : DefaultTask() {
             "Icon=${icon.get()}",
             "Terminal=false",
             "Categories=${categories.get().joinToString("") { "$it;" }}",
-            "StartupWMClass=${startupWmClass.get()}",
-        )
+        ) + listOfNotNull(startupWmClass.orNull?.let { "StartupWMClass=$it" })
         entry.get().asFile.writeText(lines.joinToString("\n", postfix = "\n"))
     }
 
