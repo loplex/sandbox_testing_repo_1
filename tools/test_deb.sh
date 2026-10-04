@@ -17,7 +17,7 @@
 # does on dog-vision-web, which no repository has, is installed with it from the deb's own folder,
 # and so is the later one's from the later deb's.
 #
-# Both convert test_photo.jpg, beside this script, which ffmpeg made:
+# The command line and both windows convert test_photo.jpg, beside this script, which ffmpeg made:
 #   ffmpeg -f lavfi -i testsrc2=size=160x120:rate=1 -frames:v 1 -q:v 4 test_photo.jpg
 #
 # A later deb is the same build with another version, `-PappVersion=0.1.1`, which
