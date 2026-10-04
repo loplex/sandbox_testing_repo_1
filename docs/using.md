@@ -6,9 +6,9 @@ What each program shows and how it is driven. Building them is [Building it](bui
   recording, the language, and how it differs from the desktop program.
 - [The web page](#the-web-page) — what a browser needs for the camera, snapshots and recording.
 - [The command line](#the-command-line) — converting a photo, `--species` and the other options.
-- [The desktop window](#the-desktop-window) — `dog-vision` in Compose and `dog-vision-swing` in
-  Swing, their GL on Linux and Windows, ffmpeg for a video or the camera, and what they have not run
-  on yet.
+- [The desktop window](#the-desktop-window) — `dog-vision-compose` in Compose and
+  `dog-vision-swing` in Swing, their GL on Linux and Windows, ffmpeg for a video or the camera, and
+  what they have not run on yet.
 
 ## The Android app
 
@@ -113,9 +113,8 @@ Before Android 10, saving asks for the storage permission.
 - **Files go to the gallery**, not to an output folder chosen in the app.
 - **The camera is the back or the front one**, not one picked by its number, and the front one is
   mirrored, where the desktop program shows a webcam's image as it comes.
-- **A photo or a video converted at full size is named like a snapshot**, not after the original
-  as the desktop program names a photo, `<name>.cat.png`: the system photo picker does not tell an
-  app a file's name.
+- **A photo or a video converted at full size is named like a snapshot**, not `<name>.dog.png` or
+  `<name>.dog.mp4` after the original: the system photo picker does not tell an app a file's name.
 - **Videos are written by the phone's encoders**, not ffmpeg's, so a video too large for them is
   scaled down, where the desktop program writes any size.
 - **Recording locks the screen's orientation**, since turning the phone would change the video's
@@ -231,9 +230,9 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 ## The desktop window
 
 ```sh
-dog-vision                          # the camera, /dev/video0 on Linux
-dog-vision --window photo.jpg       # a photo, or a video played over and over
-dog-vision --species cat photo.jpg  # converts it, as the command line does
+dog-vision-compose                          # the camera, /dev/video0 on Linux
+dog-vision-compose --window photo.jpg       # a photo, or a video played over and over
+dog-vision-compose --species cat photo.jpg  # converts it, as the command line does
 ```
 
 It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
@@ -242,12 +241,14 @@ program's.
 ![The Compose window: the apples as they are and as a dog sees them side by side, and the controls
 on the right](images/window.png)
 
-- **On Linux it installs from the deb or the rpm `dog-vision`**, as `dog-vision` on the `PATH` and
-  *Dog Vision* in the desktop's menu (*Psí vidění* in Czech), on the system's Java 17 or newer,
-  which the package manager installs with it where there is none.
+- **On Linux it installs from the deb or the rpm `dog-vision-compose`**, as `dog-vision-compose` on
+  the `PATH` and *Dog Vision (Kotlin Compose)* in the desktop's menu (*Psí vidění (Kotlin Compose)*
+  in Czech), on the system's Java 17 or newer, which the package manager installs with it where
+  there is none.
   It recommends `dog-vision-cli`, the command line alone, which is a package of its own.
-- **The tar.gz runs without installing**, unpacked anywhere, as `dog-vision/bin/dog-vision`, on a
-  Java of its own; on Windows, the MSI installs it with one as well.
+- **The tar.gz runs without installing**, unpacked anywhere, as
+  `dog-vision-compose/bin/dog-vision-compose`, on a Java of its own; on Windows, the MSI installs
+  it with one as well.
 - **Its launcher takes the Java in `JAVA_HOME`**, else the one on the `PATH`, else the newest in
   `/usr/lib/jvm` or `/usr/lib64/jvm`, whichever is first 17 or newer.
 - **It takes the command line's options**, and converts a photo given without `--window` as the
@@ -269,7 +270,7 @@ on the right](images/window.png)
 ### The same window in Swing: `dog-vision-swing`
 
 ```sh
-dog-vision-swing --window photo.jpg   # as dog-vision, with the same options, keys and dialog
+dog-vision-swing --window photo.jpg   # as dog-vision-compose, with the same options, keys and dialog
 ```
 
 ![The Swing window: the same images and controls as the Compose window's, in Swing's own
@@ -281,8 +282,8 @@ widgets](images/window-swing.png)
 - **It needs neither Compose nor skiko**, so its packages leave out Compose's JARs and skiko's
   natives.
 - **On Linux it installs from the deb or the rpm `dog-vision-swing`**, as `dog-vision-swing` on the
-  `PATH` and *Dog Vision (Swing)* in the desktop's menu (*Psí vidění (Swing)* in Czech), beside
-  `dog-vision` where both are installed.
+  `PATH` and *Dog Vision (Java Swing)* in the desktop's menu (*Psí vidění (Java Swing)* in Czech),
+  beside `dog-vision-compose` where both are installed.
   Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`, and on Windows the MSI installs it,
   as its part *GUI (Java Swing)*, beside the Compose window's *GUI (Compose Multiplatform)*.
 - **It is light or dark as the desktop asks**: on Linux as the desktop portal's colour scheme says,
@@ -300,8 +301,8 @@ The sections below hold for both windows.
   says so on its standard error.
 - **On Windows it draws through ANGLE**, OpenGL ES 3 over Direct3D 11, as Chrome draws WebGL there;
   ANGLE comes with it.
-- **Where ANGLE cannot start, WGL draws**, the graphics driver's own desktop OpenGL 3.3. `--gl angle`
-  or `--gl wgl` picks one alone.
+- **Where ANGLE cannot start, WGL draws**, the graphics driver's own desktop OpenGL 3.3.
+  `--gl angle` or `--gl wgl` picks one alone.
 
 ### A video or the camera, through ffmpeg
 

@@ -48,10 +48,14 @@ val checkLineLength = tasks.register("checkLineLength") {
     description = "Fails on a line of Kotlin longer than .editorconfig's max_line_length, comments included."
     val root = rootDir
     val limit = maxLineLength
-    val sources = fileTree(root) {
-        include("**/*.kt", "**/*.kts")
-        exclude("**/build/**", "**/.gradle/**", "**/.kotlin/**", "NOTES/**")
-    }
+    // What git tracks, and the new files it does not ignore, as tools/check_links.py reads them.
+    val sources = files(
+        providers.exec {
+            commandLine("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.kt", "*.kts")
+        }.standardOutput.asText.map { listed ->
+            listed.split('\u0000').filter { it.isNotEmpty() && File(root, it).isFile }
+        },
+    )
     inputs.files(sources)
     inputs.property("maxLineLength", limit)
     doLast {

@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 pluginManagement {
-    // The packaging tasks and the natives the desktop modules share.
+    // The tasks the Linux packages are made with, and the natives the desktop modules share.
     includeBuild("build-logic")
     repositories {
         google {
@@ -48,5 +48,5 @@ dependencyResolutionManagement {
 rootProject.name = "dog-vision"
 
 include(":app", ":cli", ":core", ":desktop", ":desktop-core", ":gl", ":swing", ":testing", ":texts", ":ui", ":web")
-// The packages that take more than one module: the MSI for Windows.
+// The packages, made apart from the modules they hold.
 include(":packaging")

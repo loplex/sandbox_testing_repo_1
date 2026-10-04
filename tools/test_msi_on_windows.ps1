@@ -48,7 +48,8 @@ function Test-Check([string]$What, [bool]$Holds) {
 }
 
 # The product's name, as packaging/windows/dog-vision.wxs gives it: the app's English name, which
-# the list of installed programs, the Start menu's group and the Compose window's shortcuts show.
+# the list of installed programs and the Start menu's group show, and which begins each shortcut's
+# name.
 $root = Split-Path -Parent $PSScriptRoot
 $strings = Get-Content (Join-Path $root "texts\strings\values\strings.xml") -Raw
 if ($strings -notmatch '<string name="app_name">([^<]+)</string>') {
@@ -61,11 +62,12 @@ $startMenu = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$
 $desktop = Join-Path $env:PUBLIC "Desktop"
 # The windows' shortcuts, each in the Start menu's group and on the desktop, and the web page's, in
 # the Start menu's group alone.
-$shortcuts = @("$product.lnk", "$product (Swing).lnk")
+$composeShortcut = "$product (Kotlin Compose).lnk"
+$swingShortcut = "$product (Java Swing).lnk"
+$shortcuts = @($composeShortcut, $swingShortcut)
 $webShortcut = "$product (web).lnk"
-# Each part's launcher, or the web page's index.html, and the shortcut of each window's.
-$launchers = @("dog-vision.exe", "dog-vision-swing.exe", "dog-vision-cli.exe", "web\index.html")
-$swingShortcut = "$product (Swing).lnk"
+# Each part's launcher, or the web page's index.html.
+$launchers = @("dog-vision-compose.exe", "dog-vision-swing.exe", "dog-vision-cli.exe", "web\index.html")
 # Where a window downloads ffmpeg, which the MSI removes with the product, but not over an upgrade.
 $data = Join-Path $env:ProgramData $product
 
@@ -154,8 +156,8 @@ Test-Check "dog-vision-cli.exe converts a photo" (
     $LASTEXITCODE -eq 0 -and @(Get-ChildItem $converted.FullName -Filter "*.png").Count -eq 1
 )
 
-# Each window has a shortcut in the Start menu and on the desktop; the command line, which only
-# prints its usage when started from one, has none.
+# Each window has a shortcut in the Start menu and on the desktop; the command line, which started
+# from one would only say that the window is the desktop app's, has none.
 Write-Host "Start menu: $(@(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Name -join ', ')"
 Write-Host "Desktop: $(@(Get-ChildItem $desktop -Filter "$product*" -ErrorAction SilentlyContinue).Name -join ', ')"
 foreach ($shortcut in $shortcuts) {
@@ -218,7 +220,7 @@ Test-Removed
 
 $defaultDir = $installDir
 $installDir = Join-Path $env:SystemDrive "DogVisionTest"
-$windows = @("dog-vision.exe", "dog-vision-swing.exe")
+$windows = @("dog-vision-compose.exe", "dog-vision-swing.exe")
 Test-Check "the MSI of $Version installs ADDLOCAL=SwingGui into $installDir" (
     Invoke-Msiexec "install-swing-$Version.log" @(
         "/i", "`"$Msi`"", "ADDLOCAL=SwingGui", "INSTALLDIR=`"$installDir`""
@@ -227,7 +229,8 @@ Test-Check "the MSI of $Version installs ADDLOCAL=SwingGui into $installDir" (
 Test-Installed $Version @("dog-vision-swing.exe")
 foreach ($place in @($startMenu, $desktop)) {
     Test-Check "$place has $swingShortcut alone of the windows' shortcuts" (
-        (Test-Path (Join-Path $place $swingShortcut)) -and -not (Test-Path (Join-Path $place "$product.lnk"))
+        (Test-Path (Join-Path $place $swingShortcut)) -and
+            -not (Test-Path (Join-Path $place $composeShortcut))
     )
 }
 Test-Check "the MSI of $Version adds ADDLOCAL=ComposeGui" (

@@ -53,10 +53,10 @@ val windowsWebPage = tasks.register<Sync>("windowsWebPage") {
     from(webPageFiles)
 }
 
-// One runtime of every module a launcher needs, and dog-vision.exe the image's main launcher, whose name the image's
-// folder has.
+// One runtime of every module a launcher needs, and dog-vision-compose.exe the image's main launcher, whose name the
+// image's folder has.
 windowsAppImage(
-    packageName = "dog-vision",
+    packageName = "dog-vision-compose",
     description = "How a dog or another animal sees a photo, a video or the camera",
     launchers = launcherFiles.get(),
     runtime = windowsRuntimeImage(
@@ -105,42 +105,47 @@ tasks.register("packageRpm") {
     dependsOn(tasks.withType<RpmPackage>())
 }
 
-// The deb and the rpm, dog-vision, on the system's Java.
+// The deb and the rpm, dog-vision-compose, on the system's Java.
 windowPackages(
-    packageName = "dog-vision",
+    packageName = "dog-vision-compose",
     jars = jvmRuntimeOf(":desktop"),
     // The application's ID, which the Windows MSI does not use.
-    applicationId = "cz.loplex.dogvision",
+    applicationId = "cz.loplex.dogvision.compose",
     mainClass = "cz.loplex.dogvision.desktop.MainKt",
+    nameSuffix = " (Kotlin Compose)",
     // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
     jvmOptions = { natives ->
         listOf("-Dcompose.application.configure.swing.globals=true", "-Dskiko.library.path=$natives")
     },
-    summary = "How a dog or another animal sees a photo, a video or the camera",
+    summary = "How a dog or another animal sees colours (Kotlin Compose GUI)",
     description = """
-        Shows a photo, a video or the camera with the colours a dog, a cat or
-        another animal can tell apart, beside the original, in a window.
+        dog-vision shows a photo, a video or the camera with the colours a dog,
+        a cat or another animal can tell apart, beside the original.
+
+        This package is the desktop window, in Compose.
 
         Given a photo alone, it converts it as the command line does, which is
         the package dog-vision-cli.
     """.trimIndent(),
 )
 
-// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision, with the desktop
-// entry and icons under names of their own, so that both windows install side by side.
+// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision-compose, with the
+// desktop entry and icons under names of their own, so that both windows install side by side.
 windowPackages(
     packageName = "dog-vision-swing",
     jars = jvmRuntimeOf(":swing"),
-    // Not the Compose window's cz.loplex.dogvision.
+    // Not the Compose window's cz.loplex.dogvision.compose.
     applicationId = "cz.loplex.dogvision.swing",
     mainClass = "cz.loplex.dogvision.swing.MainKt",
-    nameSuffix = " (Swing)",
-    summary = "How a dog or another animal sees a photo, a video or the camera, in Java Swing",
+    nameSuffix = " (Java Swing)",
+    summary = "How a dog or another animal sees colours (Java Swing GUI)",
     description = """
-        Shows a photo, a video or the camera with the colours a dog, a cat or
-        another animal can tell apart, beside the original, in a Swing window,
-        which needs neither Compose nor skiko. The package dog-vision is the
-        same window in Compose.
+        dog-vision shows a photo, a video or the camera with the colours a dog,
+        a cat or another animal can tell apart, beside the original.
+
+        This package is the desktop window in Swing, which needs neither Compose
+        nor skiko. The package dog-vision-compose is the same window in
+        Compose.
 
         Given a photo alone, it converts it as the command line does, which is
         the package dog-vision-cli.
@@ -181,13 +186,16 @@ val cliTree = tasks.register<Sync>("dogVisionCliTree") {
 }
 
 /** What the deb and the rpm are listed with, in a package manager's search and its details. */
-val cliSummary = "How a dog or another animal sees a photo, from the command line"
+val cliSummary = "How a dog or another animal sees colours (command line)"
 val cliDescription = """
-    Converts a photo to the colours a dog, a cat or another animal can tell
-    apart, as a PNG beside it, with no window and no display.
+    dog-vision shows a photo, a video or the camera with the colours a dog,
+    a cat or another animal can tell apart, beside the original.
 
-    The desktop window, which shows a video or the camera as well, is the
-    package dog-vision.
+    This package is the command line, which converts a photo to those
+    colours, as a PNG beside it, with no window and no display.
+
+    The desktop windows, which show a video or the camera as well, are
+    the packages dog-vision-compose and dog-vision-swing.
 """.trimIndent()
 
 val packageCliDeb = tasks.register<DebPackage>("packageDogVisionCliDeb") {
@@ -262,13 +270,16 @@ val webTree = tasks.register<Sync>("dogVisionWebTree") {
 }
 
 /** What the deb and the rpm are listed with, in a package manager's search and its details. */
-val webSummary = "How a dog or another animal sees a photo, a video or the camera, in a web browser"
+val webSummary = "How a dog or another animal sees colours (web page)"
 val webDescription = """
-    Shows a photo, a video or the camera with the colours a dog, a cat or
-    another animal can tell apart, beside the original, in the system's web
-    browser, from the installed files: the page fetches nothing.
+    dog-vision shows a photo, a video or the camera with the colours a dog,
+    a cat or another animal can tell apart, beside the original.
 
-    The desktop window, which needs no browser, is the package dog-vision.
+    This package is the web page, which the system's web browser shows from
+    the installed files: the page fetches nothing.
+
+    The desktop windows, which need no browser, are the packages
+    dog-vision-compose and dog-vision-swing.
 """.trimIndent()
 
 val packageWebDeb = tasks.register<DebPackage>("packageDogVisionWebDeb") {
@@ -316,11 +327,14 @@ val webSourceMapTree = tasks.register<Sync>("dogVisionWebSourcemapTree") {
     doLast { check(map.isFile) { "web hands over no dog-vision.js.map" } }
 }
 
-val webSourceMapSummary = "The source map of dog-vision-web's script, for a browser's developer tools"
+val webSourceMapSummary = "How a dog or another animal sees colours (web page source map)"
 val webSourceMapDescription = """
-    The source map of the script of the page that dog-vision-web installs,
-    with which a web browser's developer tools show the lines of the Kotlin
-    sources the script was compiled from.
+    dog-vision shows a photo, a video or the camera with the colours a dog,
+    a cat or another animal can tell apart, beside the original.
+
+    This package is the source map of the script of the page that
+    dog-vision-web installs, with which a web browser's developer tools show
+    the lines of the Kotlin sources the script was compiled from.
 """.trimIndent()
 
 val packageWebSourceMapDeb = tasks.register<DebPackage>("packageDogVisionWebSourcemapDeb") {

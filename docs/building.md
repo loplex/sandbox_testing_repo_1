@@ -34,8 +34,8 @@ What each program does is [Using it](using.md)'s.
 
 Gradle runs the task of that name in every module that has one.
 A module's build script marks each task that makes one of its artifacts with
-[`artifact()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/Artifact.kt), which adds it
-to the module's `packageAll`.
+[`artifact()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/Artifact.kt), which
+adds it to the module's `packageAll`.
 Each artifact lands here:
 
 | Program        | Artifacts                    | Folder                                       |
@@ -53,7 +53,7 @@ Each artifact lands here:
 | Swing window   | the tar.gz                   | `swing/build/packages/tar`                   |
 
 `./gradlew checkArtifactFolders` holds the folders to the tasks, and runs in `check`: every file a
-task of `packageAll` declares lies in one of them, and each of them holds one.
+task of `packageAll` declares, but its work files, lies in one of them, and each of them holds one.
 
 The MSI and the command line's zip for Windows are not among them, as jpackage builds an installer
 or a native launcher only on the system it is for:
@@ -137,8 +137,10 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ```sh
 ./gradlew :desktop:run                                   # the camera, /dev/video0
 ./gradlew :desktop:run --args="--window photo.jpg"       # a photo, or a video played over and over
-./gradlew :desktop:linuxUberJar                          # desktop/build/compose/jars/dog-vision-linux-x64-0.1.0.jar
-./gradlew :desktop:windowsUberJar                        # desktop/build/compose/jars/dog-vision-windows-x64-0.1.0.jar
+./gradlew :desktop:linuxUberJar                          # in desktop/build/compose/jars:
+                                                         # dog-vision-compose-linux-x64-0.1.0.jar
+./gradlew :desktop:windowsUberJar                        # in desktop/build/compose/jars:
+                                                         # dog-vision-compose-windows-x64-0.1.0.jar
 ./gradlew :swing:runJvm                                  # the Swing window, on the camera
 ./gradlew :swing:runJvm --args="--window photo.jpg"      # the Swing window, on a photo or a video
 ./gradlew :swing:linuxUberJar                            # swing/build/jars/dog-vision-swing-linux-x64-0.1.0.jar
@@ -148,8 +150,8 @@ pwsh tools/package_cli_zip_on_windows.ps1
 - **`desktop` is the Compose window and `swing` the Swing one**, each with its own JARs and
   packages.
 - **Each JAR holds everything the window needs**, the natives for its system on x86-64 included,
-  and runs as `java -jar dog-vision-linux-x64-0.1.0.jar` on a JDK 17 or newer, with the window's
-  options.
+  and runs as `java -jar dog-vision-compose-linux-x64-0.1.0.jar` on a JDK 17 or newer, with the
+  window's options.
 - **A file two of the merged JARs both hold has to be the same in each**, or the JAR's task fails
   and names the JARs: the uber JARs, the command line's as well, are made by
   [`uberJar()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/UberJar.kt), whose
@@ -162,27 +164,27 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ## The desktop packages
 
 ```sh
-./gradlew :packaging:packageDeb  # packaging/build/distributions: dog-vision_0.1.0_amd64.deb,
+./gradlew :packaging:packageDeb  # packaging/build/distributions: dog-vision-compose_0.1.0_amd64.deb,
                                  # dog-vision-swing_0.1.0_amd64.deb, dog-vision-cli_0.1.0_all.deb,
                                  # dog-vision-web_0.1.0_all.deb, dog-vision-web-sourcemap_0.1.0_all.deb
-./gradlew :packaging:packageRpm  # packaging/build/distributions: dog-vision-0.1.0-1.x86_64.rpm,
+./gradlew :packaging:packageRpm  # packaging/build/distributions: dog-vision-compose-0.1.0-1.x86_64.rpm,
                                  # dog-vision-swing-0.1.0-1.x86_64.rpm, dog-vision-cli-0.1.0-1.noarch.rpm,
                                  # dog-vision-web-0.1.0-1.noarch.rpm,
                                  # dog-vision-web-sourcemap-0.1.0-1.noarch.rpm
-./gradlew :desktop:packageTarGz  # desktop/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
+./gradlew :desktop:packageTarGz  # desktop/build/compose/binaries/main/tar/dog-vision-compose-0.1.0-linux-x64.tar.gz
 ./gradlew :swing:packageTarGz    # swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
                                  # once: what the MSI is built with, into tools/cache
 tools/make_wine_prefix_on_linux.sh
                                  # once: its Wine prefix, ~/.local/share/wineprefixes/mono_msi_builder
 tools/package_app_image_on_linux.sh
-                                 # the folders the MSI and the zip hold: tools/build/app-image/dog-vision, …
+                                 # the folders the MSI and the zip hold: tools/build/app-image/dog-vision-compose, …
 tools/package_msi_on_linux.sh    # tools/build/msi/dog-vision-0.1.0.msi
 pwsh tools/package_msi_on_windows.ps1
                                  # on Windows: the same
 ```
 
-Each deb and rpm alone is a task of `:packaging` named after it: `packageDogVisionDeb`,
+Each deb and rpm alone is a task of `:packaging` named after it: `packageDogVisionComposeDeb`,
 `packageDogVisionSwingDeb`, `packageDogVisionCliDeb`, `packageDogVisionWebDeb` and
 `packageDogVisionWebSourcemapDeb`, and the same with `Rpm`.
 
@@ -216,8 +218,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   which they depend on: the distribution updates it, and a machine with a JRE downloads little
   more.
   They come in three packages:
-  - `dog-vision`, the Compose window, which converts a photo given alone as the command line does;
-  - `dog-vision-swing`, the Swing window, which does the same, and installs beside `dog-vision`;
+  - `dog-vision-compose`, the Compose window, which converts a photo given alone as the command
+    line does;
+  - `dog-vision-swing`, the Swing window, which does the same, and installs beside
+    `dog-vision-compose`;
   - `dog-vision-cli`, the command line alone, which needs no display and so only a headless Java,
     and which both windows recommend.
 - **Their files are where Debian's and Fedora's Java applications have them**:
@@ -225,12 +229,13 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     that they share no classpath;
   - each window's native libraries in `/usr/lib/<package>`, where the FHS puts what depends on the
     architecture, and which skiko and LWJGL load them from rather than unpack their own copies at
-    run time: skiko's and LWJGL's for `dog-vision`, LWJGL's alone for `dog-vision-swing`;
-  - the launchers, `dog-vision`, `dog-vision-swing` and `dog-vision-cli`, in `/usr/bin`, on `PATH`;
+    run time: skiko's and LWJGL's for `dog-vision-compose`, LWJGL's alone for `dog-vision-swing`;
+  - the launchers, `dog-vision-compose`, `dog-vision-swing` and `dog-vision-cli`, in `/usr/bin`, on
+    `PATH`;
   - each window's menu entry, named in the system's language, and its icons in the hicolor theme:
-    `cz.loplex.dogvision.desktop` ("Dog Vision", "Psí vidění") and
-    `cz.loplex.dogvision.swing.desktop` ("Dog Vision (Swing)", "Psí vidění (Swing)"), in
-    `/usr/share/applications`.
+    `cz.loplex.dogvision.compose.desktop` ("Dog Vision (Kotlin Compose)",
+    "Psí vidění (Kotlin Compose)") and `cz.loplex.dogvision.swing.desktop`
+    ("Dog Vision (Java Swing)", "Psí vidění (Java Swing)"), in `/usr/share/applications`.
 - **The web page's deb and rpm, `dog-vision-web`, need no Java**, and have no natives, so one
   package serves every architecture:
   - the page in `/usr/share/dog-vision-web`, `index.html`, `dog-vision.js` and `styles.css`, without
@@ -256,10 +261,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   system, so the tar.gz needs little more than glibc 2.28 or later, which LWJGL's natives ask for,
   X11 and ALSA, and for the Compose window fontconfig and the C++ runtime as well, which skiko
   links.
-  It is to run as `dog-vision/bin/dog-vision` or `dog-vision-swing/bin/dog-vision-swing` without
-  installing it.
+  It is to run as `dog-vision-compose/bin/dog-vision-compose` or
+  `dog-vision-swing/bin/dog-vision-swing` without installing it.
 - **The MSI, `dog-vision`, installs both windows, the command line and the web page** into
-  `Program Files\dog-vision`, each program a launcher on the one runtime: `dog-vision.exe`,
+  `Program Files\dog-vision`, each program a launcher on the one runtime: `dog-vision-compose.exe`,
   `dog-vision-swing.exe` and `dog-vision-cli.exe`; the page in its folder `web`, as the deb's,
   the script's source map a part of its own.
   The installer and the system's list of programs name it *Dog Vision*.
@@ -277,20 +282,21 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   A later version installed over it keeps the parts installed, and a part added later or a later
   version goes into the folder chosen at the first install, which the MSI reads from the registry.
 
-| Feature        | In the tree                 | Installs                                           |
-|----------------|-----------------------------|----------------------------------------------------|
-| `DogVision`    | Dog Vision                  | the runtime and the shared JARs                    |
-| `ComposeGui`   | GUI (Compose Multiplatform) | `dog-vision.exe`, its JARs and its shortcuts       |
-| `SwingGui`     | GUI (Java Swing)            | `dog-vision-swing.exe`, its JARs and its shortcuts |
-| `WebGui`       | GUI (web browser)           | the folder `web`, and its shortcut                 |
-| `WebSourceMap` | Source map, under the above | `web\dog-vision.js.map`, not selected by default   |
-| `CommandLine`  | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH` |
+| Feature        | In the tree                 | Installs                                             |
+|----------------|-----------------------------|------------------------------------------------------|
+| `DogVision`    | Dog Vision                  | the runtime and the shared JARs                      |
+| `ComposeGui`   | GUI (Compose Multiplatform) | `dog-vision-compose.exe`, its JARs and its shortcuts |
+| `SwingGui`     | GUI (Java Swing)            | `dog-vision-swing.exe`, its JARs and its shortcuts   |
+| `WebGui`       | GUI (web browser)           | the folder `web`, and its shortcut                   |
+| `WebSourceMap` | Source map, under the above | `web\dog-vision.js.map`, not selected by default     |
+| `CommandLine`  | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH`   |
 
-- **Each window gets a shortcut in the Start menu and on the desktop**, *Dog Vision* and
-  *Dog Vision (Swing)*, the Start menu's in a group *Dog Vision*.
-  The command line gets none, as started from one it would only print its usage, but
-  `Program Files\dog-vision` goes at the end of the system's `PATH`, for the consoles opened after,
-  and comes off it again when the MSI is removed.
+- **Each window gets a shortcut in the Start menu and on the desktop**,
+  *Dog Vision (Kotlin Compose)* and *Dog Vision (Java Swing)*, the Start menu's in a group
+  *Dog Vision*.
+  The command line gets none, as started from one it would only say that the window is the desktop
+  app's, but `Program Files\dog-vision` goes at the end of the system's `PATH`, for the consoles
+  opened after, and comes off it again when the MSI is removed.
 - **The web page gets a shortcut in the Start menu's group alone**, *Dog Vision (web)*, with the
   app's icon, which opens `web\index.html` in the system's browser.
 - **It removes `%ProgramData%\Dog Vision`, where a window downloads ffmpeg, with the product**, and
@@ -328,8 +334,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 - **Nothing else, and no scripts**: the menu entry and the icons are files of the package, which
   the desktop finds by itself.
 
-The tasks that make them, [`DebPackage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DebPackage.kt)
-and [`RpmPackage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RpmPackage.kt), call
+The tasks that make them,
+[`DebPackage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DebPackage.kt) and
+[`RpmPackage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/RpmPackage.kt), call
 `dpkg-deb` and `rpmbuild` themselves, in [`build-logic`](../build-logic), as jpackage always puts a
 runtime into its packages.
 
@@ -337,8 +344,9 @@ runtime into its packages.
 
 - **[`tools/test_deb.sh`](../tools/test_deb.sh) installs a deb in a bare container**, checks what
   it does there, and that it is removed with nothing left behind:
-  - of `dog-vision`, `dog-vision-swing` and `dog-vision-cli`, installed with the Java apt chooses
-    for it, that each runs from `PATH` and converts [`test_photo.jpg`](../tools/test_photo.jpg);
+  - of `dog-vision-compose`, `dog-vision-swing` and `dog-vision-cli`, installed with the Java apt
+    chooses for it, that each runs from `PATH` and converts
+    [`test_photo.jpg`](../tools/test_photo.jpg);
   - of each window, also that it opens under Xvfb, installed only after the deb's own dependencies
     so that its X libraries hide none the deb misses, and that skiko, LWJGL and FlatLaf unpacked no
     natives of their own into the home or `/tmp`;
@@ -360,8 +368,6 @@ runtime into its packages.
   first did.
   The later package is the same build with `-PappVersion=0.1.1`, which the build writes beside the
   first, as the Linux job of [`ci.yml`](../.github/workflows/ci.yml) does.
-  From a deb or an rpm of jpackage's, in `/opt/dog-vision` up to 0.1.x, the upgrade leaves nothing
-  there, as tried on Ubuntu 20.04 and Fedora 42.
 - **With `--temurin`, each installs Temurin's JRE from Adoptium's repository first**, and checks
   that the package takes it and no OpenJDK beside it, as it does on Ubuntu 24.04 and Fedora 42.
 
@@ -387,7 +393,7 @@ both.
   builds the app image first**, the folder the MSI installs, in `tools/build/app-image`, which
   `package_msi_on_linux.sh` runs it for.
   Its `.exe` run under Wine from there, without installing the MSI:
-  `wine tools/build/app-image/dog-vision/dog-vision.exe`.
+  `wine tools/build/app-image/dog-vision-compose/dog-vision-compose.exe`.
 - **One app image holds the three launchers**, from one run of jpackage, of the arguments that
   `:packaging`'s `windowsJpackage` task writes into `packaging/build/windows/jpackage`.
   Each of `desktop`, `swing` and `cli` hands it its launcher through its `windowsLauncher` task:

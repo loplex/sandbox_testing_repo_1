@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-# Installs an rpm of the project's, dog-vision, dog-vision-swing, dog-vision-cli, dog-vision-web or
-# dog-vision-web-sourcemap, in a bare container, runs it and removes it, checking each step. With
-# --upgrade, it installs a later rpm over the first before removing it, as an update does. With
-# --temurin, it installs Adoptium's Temurin JRE first, from Adoptium's repository, and checks that
-# the rpm takes it rather than an OpenJDK.
+# Installs an rpm of the project's, dog-vision-compose, dog-vision-swing, dog-vision-cli,
+# dog-vision-web or dog-vision-web-sourcemap, in a bare container, runs it and removes it, checking
+# each step. With --upgrade, it installs a later rpm over the first before removing it, as an update
+# does. With --temurin, it installs Adoptium's Temurin JRE first, from Adoptium's repository, and
+# checks that the rpm takes it rather than an OpenJDK.
 #
 # A bare image has no desktop, and openSUSE's has no /etc/xdg/menus, which is what a headless
 # install for the command line alone meets. dnf or zypper installs the rpm there with its
-# dependencies, a Java among them, and microdnf those its repositories have; rpm removes it.
-# dog-vision's window is then opened under Xvfb, installed only once the rpm's own dependencies
-# are, as tools/test_deb.sh does, and of dog-vision-web the desktop entry and the file it opens, as
-# tools/test_deb.sh says. Each check says whether it held, and every check runs, so that one
-# failing does not hide the others; the script fails if any did.
+# dependencies, a Java among them, and microdnf those its repositories have; rpm removes it. Each
+# window is then opened under Xvfb, installed only once the rpm's own dependencies are, as
+# tools/test_deb.sh does, and of dog-vision-web the desktop entry and the file it opens, as
+# tools/test_deb.sh says. Each check says whether it held, and every check runs, so that one failing
+# does not hide the others; the script fails if any did.
 #
 # An rpm of the project's that the rpm requires at its own version is installed with it from the
 # rpm's own folder, as tools/test_deb.sh says.
 #
-# Both convert test_photo.jpg, beside this script, as tools/test_deb.sh says.
+# The command line and both windows convert test_photo.jpg, beside this script, as
+# tools/test_deb.sh says.
 #
 # A later rpm is the same build with another version, `-PappVersion=0.1.1`, which
 # `:packaging:packageRpm` writes beside the first.
@@ -103,9 +104,9 @@ converts() {
         "$1" /tmp/photo/test_photo.jpg &&
         [ "$(od -An -tx1 -N8 /tmp/photo/test_photo.dog.png | tr -d ' \n')" = 89504e470d0a1a0a ]
 }
-# The package's window, dog-vision's or dog-vision-swing's, shows the photo in a window called Dog
-# vision on the display :99, which Xvfb draws in memory; the window's output is in /tmp/window.log,
-# and its home is /tmp/home.
+# The package's window, dog-vision-compose's or dog-vision-swing's, shows the photo in a window
+# called Dog Vision on the display :99, which Xvfb draws in memory; the window's output is in
+# /tmp/window.log, and its home is /tmp/home.
 window_opens() {
     [ -e /tmp/.X11-unix/X99 ] || { Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & }
     for _ in 1 2 3 4 5 6 7 8 9 10; do [ -e /tmp/.X11-unix/X99 ] && break; sleep 1; done
@@ -189,18 +190,11 @@ check_installed() {
     command -v java >/dev/null && echo "note: java is $(readlink -f "$(command -v java)")"
     [ "$JRE" = temurin ] && check "no OpenJDK is installed beside Temurin$1" no_openjdk
     case "$package" in
-        dog-vision)
+        dog-vision-compose)
             check "the window is in the desktop menu folder$1" \
-                test -f /usr/share/applications/cz.loplex.dogvision.desktop
-            # jpackage's rpm up to 0.1.x, with its runtime, which an upgrade replaces.
-            if [ -x /opt/dog-vision/bin/dog-vision ]; then
-                echo "note: this dog-vision is jpackage's, in /opt/dog-vision"
-                check "the command line runs$1" /opt/dog-vision/bin/dog-vision-cli --help
-                return
-            fi
-            check "dog-vision runs from PATH$1" dog-vision --help
-            check "it converts a JPEG to a PNG$1" converts dog-vision
-            check "nothing is left in /opt/dog-vision$1" test ! -e /opt/dog-vision
+                test -f /usr/share/applications/cz.loplex.dogvision.compose.desktop
+            check "dog-vision-compose runs from PATH$1" dog-vision-compose --help
+            check "it converts a JPEG to a PNG$1" converts dog-vision-compose
             command -v Xvfb >/dev/null || install_display
             check "its window opens under Xvfb$1" window_opens
             check "skiko and LWJGL load the rpm's natives$1" unpacks_no_natives
@@ -241,13 +235,12 @@ check_installed() {
 # What the package leaves behind once removed: nothing of its own.
 check_removed() {
     case "$package" in
-        dog-vision)
-            check "its menu entry is gone" test ! -e /usr/share/applications/cz.loplex.dogvision.desktop
-            check "its icons are gone" test ! -e /usr/share/icons/hicolor/256x256/apps/cz.loplex.dogvision.png
-            check "/usr/bin/dog-vision is gone" test ! -e /usr/bin/dog-vision
-            check "/usr/share/dog-vision is gone" test ! -e /usr/share/dog-vision
-            check "/usr/lib/dog-vision is gone" test ! -e /usr/lib/dog-vision
-            check "/opt/dog-vision is gone" test ! -e /opt/dog-vision
+        dog-vision-compose)
+            check "its menu entry is gone" test ! -e /usr/share/applications/cz.loplex.dogvision.compose.desktop
+            check "its icons are gone" test ! -e /usr/share/icons/hicolor/256x256/apps/cz.loplex.dogvision.compose.png
+            check "/usr/bin/dog-vision-compose is gone" test ! -e /usr/bin/dog-vision-compose
+            check "/usr/share/dog-vision-compose is gone" test ! -e /usr/share/dog-vision-compose
+            check "/usr/lib/dog-vision-compose is gone" test ! -e /usr/lib/dog-vision-compose
             ;;
         dog-vision-swing)
             check "its menu entry is gone" test ! -e /usr/share/applications/cz.loplex.dogvision.swing.desktop

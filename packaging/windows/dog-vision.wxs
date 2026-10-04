@@ -5,13 +5,13 @@
   image, in INSTALLDIR, each launcher's in its own component group (Launcher.dog_vision_swing), the rest in Files, and
   the web page's in INSTALLDIR\web, in Web, but its script's source map, in Web.SourceMap.
 
-  It installs for every user into Program Files\$(var.InstallFolder): the Compose window's dog-vision.exe, the Swing
-  window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, each on the runtime beside them. Each window
-  gets a shortcut in the Start menu's group of the product's name and one on the desktop; the command line, which
-  started from a shortcut would only print its usage, gets none, but the installation folder goes on the system's
-  PATH. The web page, in the folder web, gets a shortcut in the Start menu's group, which opens its index.html in the
-  system's browser. Each of the four is a Feature of its own, which the installer's tree offers, and the web page's
-  script's source map one under the web page's.
+  It installs for every user into Program Files\$(var.InstallFolder): the Compose window's dog-vision-compose.exe, the
+  Swing window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, each on the runtime beside them. Each
+  window gets a shortcut in the Start menu's group of the product's name and one on the desktop; the command line, which
+  started from a shortcut would only say that the window is the desktop app's, gets none, but the installation folder
+  goes on the system's PATH. The web page, in the folder web, gets a shortcut in the Start menu's group, which opens its
+  index.html in the system's browser. Each of the four is a Feature of its own, which the installer's tree offers, and
+  the web page's script's source map one under the web page's.
 
   Each component's GUID stays as it is, as Windows Installer counts the installations of a component by it. A
   component needs a key path, which a shortcut, an Environment or a RemoveFolderEx cannot be: a registry value of its
@@ -50,14 +50,14 @@
     <!-- The windows' shortcuts and the web page's, each part's apart. -->
     <DirectoryRef Id="ProgramMenuGroup">
       <Component Id="ComposeStartMenu" Guid="{7329a83f-77fe-490a-958d-b23312be8352}" Win64="yes">
-        <Shortcut Id="ComposeStartMenu" Name="$(var.ProductName)" Target="[#dog_vision.exe]"
+        <Shortcut Id="ComposeStartMenu" Name="$(var.ProductName) (Kotlin Compose)" Target="[#dog_vision_compose.exe]"
                   WorkingDirectory="INSTALLDIR"/>
         <RemoveFolder Id="ComposeStartMenu" On="uninstall"/>
         <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="ComposeStartMenu" Type="integer"
                        Value="1" KeyPath="yes"/>
       </Component>
       <Component Id="SwingStartMenu" Guid="{758faf1a-17c8-4d23-a8a8-57b7c450759e}" Win64="yes">
-        <Shortcut Id="SwingStartMenu" Name="$(var.ProductName) (Swing)" Target="[#dog_vision_swing.exe]"
+        <Shortcut Id="SwingStartMenu" Name="$(var.ProductName) (Java Swing)" Target="[#dog_vision_swing.exe]"
                   WorkingDirectory="INSTALLDIR"/>
         <RemoveFolder Id="SwingStartMenu" On="uninstall"/>
         <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="SwingStartMenu" Type="integer"
@@ -73,13 +73,13 @@
     </DirectoryRef>
     <DirectoryRef Id="DesktopFolder">
       <Component Id="ComposeDesktop" Guid="{0ac98d8f-cab7-4cd5-8ceb-d6e807785200}" Win64="yes">
-        <Shortcut Id="ComposeDesktop" Name="$(var.ProductName)" Target="[#dog_vision.exe]"
+        <Shortcut Id="ComposeDesktop" Name="$(var.ProductName) (Kotlin Compose)" Target="[#dog_vision_compose.exe]"
                   WorkingDirectory="INSTALLDIR"/>
         <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="ComposeDesktop" Type="integer"
                        Value="1" KeyPath="yes"/>
       </Component>
       <Component Id="SwingDesktop" Guid="{280e5e1d-dda0-4648-a5c8-de1e94a62f80}" Win64="yes">
-        <Shortcut Id="SwingDesktop" Name="$(var.ProductName) (Swing)" Target="[#dog_vision_swing.exe]"
+        <Shortcut Id="SwingDesktop" Name="$(var.ProductName) (Java Swing)" Target="[#dog_vision_swing.exe]"
                   WorkingDirectory="INSTALLDIR"/>
         <RegistryValue Root="HKCU" Key="Software\$(var.InstallFolder)" Name="SwingDesktop" Type="integer"
                        Value="1" KeyPath="yes"/>
@@ -148,7 +148,7 @@
 
       <Feature Id="ComposeGui" Title="GUI (Compose Multiplatform)"
                Description="The app's window, in JetBrains' Compose Multiplatform." Level="1" AllowAdvertise="no">
-        <ComponentGroupRef Id="Launcher.dog_vision"/>
+        <ComponentGroupRef Id="Launcher.dog_vision_compose"/>
         <ComponentRef Id="ComposeStartMenu"/>
         <ComponentRef Id="ComposeDesktop"/>
       </Feature>

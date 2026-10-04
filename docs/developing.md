@@ -8,7 +8,8 @@ Building the programs is [Building it](building.md)'s.
 - [Checking it](#checking-it) — what each Gradle task tests, the documents held to `core`, the
   Kotlin style, and what GitHub Actions runs.
 - The caveats: [the emulator's colours](#caveat-the-emulator-fails-the-video-tests-colour-checks),
-  and [Windows without a GPU and under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine).
+  and [Windows without a GPU and
+  under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine).
 - [Where the test data comes from](#where-the-test-data-comes-from) — the test videos and the
   reference values.
 
@@ -38,8 +39,8 @@ It holds:
   which registers them for a window's deb and rpm, once for both windows;
 - [`glNatives` and `windowsRuntime`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/DesktopNatives.kt),
   the natives that `desktop-core`'s tests and the windows run with;
-- [`artifact()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/Artifact.kt), which marks
-  a task that makes an artifact, for `./gradlew packageAll` to run.
+- [`artifact()`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/Artifact.kt), which
+  marks a task that makes an artifact, for `./gradlew packageAll` to run.
 
 The root project declares the plugin, so these are on every module's build script classpath.
 
@@ -58,11 +59,12 @@ The root project declares the plugin, so these are on every module's build scrip
   format, which the build compiles into Kotlin, each named by an entry of the enum `Str` or
   `Plural`.
   The app, the web page, the window and the command line all speak through it.
-- **`ui`'s Compose Multiplatform 1.11 is Jetpack Compose 1.11**, and its Material 3 1.9 is androidx
+- **`ui`'s Compose Multiplatform 1.12 is Jetpack Compose 1.12**, and its Material 3 1.9 is androidx
   Material 3 1.4, the versions of the app's Compose BOM, so that the app runs one of each.
 - **`cli`'s `main` is the window's too**:
-  [`runCommandLine`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) hands whatever is
-  no conversion to a window given to it.
+  [`runCommandLine`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
+  a command line it cannot read itself, converts a photo, and hands anything else to a window given
+  to it.
 - **`desktop-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
   renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
   image of them.
@@ -233,7 +235,8 @@ graph TD
 ## Checking it
 
 `./gradlew check` runs every test task below that needs no phone, Android Lint, the Kotlin style,
-and the check of [the modules' graphs](#which-module-uses-which).
+the check of [the modules' graphs](#which-module-uses-which), and that of
+[the artifacts' folders](building.md#every-artifact-at-once).
 The test classes' comments say what each of them holds.
 
 | Task                                        | Tests                                                |
@@ -251,11 +254,12 @@ The test classes' comments say what each of them holds.
 
 - **The renderers' tests hold each GPU renderer to `core`'s CPU pipeline**: the app's, the web
   page's and the window's alike, through [`testing`](../testing)'s reference pattern.
-- **`:desktop-core:jvmTest` draws on this machine's GPU**, through EGL on Linux and through ANGLE and WGL
-  on Windows, and runs the machine's `ffmpeg`.
+- **`:desktop-core:jvmTest` draws on this machine's GPU**, through EGL on Linux and through
+  ANGLE and WGL on Windows, and runs the machine's `ffmpeg`.
 - **`:web:jsTest` runs in headless Chrome, which renders WebGL 2 in software**, with SwiftShader, as
   [`karma.config.d/webgl.js`](../web/karma.config.d/webgl.js) tells it to.
-  `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead, through ANGLE on Vulkan.
+  `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead,
+  through ANGLE on Vulkan.
 - **`:app:connectedDebugAndroidTest` runs on the connected phone or emulator**, on its GPU and
   codecs.
 - **`python3 tools/check_links.py` checks the Markdown**, which `check` does not: every relative
@@ -292,10 +296,11 @@ in [`.editorconfig`](../.editorconfig):
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push:
 
 - **On Ubuntu 24.04, `./gradlew check`**, the window's GL tests on Mesa's llvmpipe, as the runner
-  has no GPU; then the debs and the rpms of `dog-vision`, `dog-vision-swing` and `dog-vision-cli`,
-  each built in two versions and tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and
-  `test_rpm.sh --upgrade` in Fedora 42, each window under Xvfb; and each window's tar.gz, unpacked
-  on the runner, where its command line runs and its window's main converts a photo.
+  has no GPU; then the debs and the rpms of `dog-vision-compose`, `dog-vision-swing`,
+  `dog-vision-cli`, `dog-vision-web` and `dog-vision-web-sourcemap`, each built in two versions and
+  tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and `test_rpm.sh --upgrade` in Fedora 42, each
+  window under Xvfb; and each window's tar.gz, unpacked on the runner, where its command line runs
+  and its window's main converts a photo.
 - **On Windows Server 2022, `./gradlew :desktop-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and
@@ -334,8 +339,9 @@ WGL taken where Direct3D 11 is switched off, and the command line.
   so what Wine shows is the code and ANGLE, not the drivers people have.
 - **Wine's own `d3dcompiler_47` never finishes linking one of the passes' shaders**, so ANGLE hangs
   under it; Microsoft's, which `winetricks d3dcompiler_47` installs into a Wine prefix, links it.
-- **ANGLE hung there shows nothing and says nothing**: neither a photo nor the camera appears, though
-  the camera's light comes on, and as a hang is no failure, the window does not fall back to WGL.
+- **ANGLE hung there shows nothing and says nothing**: neither a photo nor the camera appears,
+  though the camera's light comes on, and as a hang is no failure, the window does not fall back
+  to WGL.
 - **Which `d3dcompiler_47` a prefix has** shows in its `system32/d3dcompiler_47.dll`, where
   `strings` finds `Wine builtin DLL` in Wine's own.
 - **`--gl wgl` draws without Microsoft's `d3dcompiler_47`**, taking WGL alone, as
