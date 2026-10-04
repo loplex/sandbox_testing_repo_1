@@ -136,6 +136,9 @@ buttons above them, and the controls on the right](images/web.png)
 - **On Windows the MSI installs it**, as its part *GUI (web browser)*, with *Dog Vision (web)* in
   the Start menu, which opens the installed `index.html` in the system's browser.
   [Building it](building.md#what-each-package-holds) says what each installs.
+- **The script's source map is installed apart**, for a browser's developer tools to show the
+  Kotlin sources: the deb or the rpm `dog-vision-web-sourcemap`, or the MSI's part *Source map*,
+  which is not selected by default.
 - **The browser needs WebGL 2**; without it the page says so.
 - **Its wording is English or Czech**, as chosen at the end of its panel, which the browser
   remembers, or else the browser's language where there are strings for it.

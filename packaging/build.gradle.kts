@@ -17,7 +17,7 @@ import cz.loplex.dogvision.packaging.windowsRuntimeImage
 // - the deb and the rpm of the Compose window, the Swing window and the command line, on the system's Java, each of
 //   the JARs its module runs on, which jvmRuntimeOf takes;
 // - the deb and the rpm of the web page, the folder web hands this module through webPage, opened in the system's
-//   browser;
+//   browser, and those of its script's source map;
 // - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line, each a launcher of
 //   one app image, on one runtime, and of the web page; and the command line's zip, of its launcher alone. Each of
 //   the windows' modules and cli hands this one its launcher through windowsLauncher. The scripts in tools run
@@ -48,11 +48,11 @@ dependencies {
     webPage(project(":web"))
 }
 
-// The web page the MSI installs in its folder web, but for the script's source map, as the deb's.
+// The web page the MSI installs in its folder web, the script's source map in a part of its own.
 val windowsWebPage = tasks.register<Sync>("windowsWebPage") {
-    description = "Lays out in build/windows/web the web page the MSI installs."
+    description = "Lays out in build/windows/web the web page the MSI installs, with the script's source map."
     into(layout.buildDirectory.dir("windows/web"))
-    from(webPageFiles) { exclude("*.map") }
+    from(webPageFiles)
 }
 
 // One runtime of every module a launcher needs, and dog-vision.exe the image's main launcher, whose name the image's
@@ -310,3 +310,58 @@ val packageWebRpm = tasks.register<RpmPackage>("packageDogVisionWebRpm") {
     recommends = emptyList()
 }
 artifact(packageWebRpm)
+
+// The deb and the rpm, dog-vision-web-sourcemap: the script's source map alone, beside the script that
+// dog-vision-web installs, so that a browser's developer tools show the Kotlin sources' lines. It is for debugging, and
+// larger than the script, so the page's own packages leave it out.
+val webSourceMapPackage = "dog-vision-web-sourcemap"
+
+val webSourceMapTree = tasks.register<Sync>("dogVisionWebSourcemapTree") {
+    description = "Lays out in build/linux/dog-vision-web-sourcemap/tree the file its deb and its rpm install: the " +
+        "script's source map."
+    into(layout.buildDirectory.dir("linux/$webSourceMapPackage/tree"))
+    from(webPageFiles) {
+        into(webHome.removePrefix("/"))
+        include("*.map")
+    }
+    val map = destinationDir.resolve(webHome.removePrefix("/") + "/dog-vision.js.map")
+    doLast { check(map.isFile) { "web hands over no dog-vision.js.map" } }
+}
+
+val webSourceMapSummary = "How a dog or another animal sees colours (web page source map)"
+val webSourceMapDescription = """
+    dog-vision shows a photo, a video or the camera with the colours a dog,
+    a cat or another animal can tell apart, beside the original.
+
+    This package is the source map of the script of the page that
+    dog-vision-web installs, with which a web browser's developer tools show
+    the lines of the Kotlin sources the script was compiled from.
+""".trimIndent()
+
+val packageWebSourceMapDeb = tasks.register<DebPackage>("packageDogVisionWebSourcemapDeb") {
+    description = "Packs build/distributions/dog-vision-web-sourcemap_<version>_all.deb."
+    group = "distribution"
+    tree = layout.dir(webSourceMapTree.map { it.destinationDir })
+    packageName = webSourceMapPackage
+    architecture = "all"
+    summary = webSourceMapSummary
+    longDescription = webSourceMapDescription
+    // The script of its own version, which the map describes.
+    depends = version.map { listOf("$webPackage (= $it)") }
+    recommends = emptyList()
+}
+artifact(packageWebSourceMapDeb)
+
+val packageWebSourceMapRpm = tasks.register<RpmPackage>("packageDogVisionWebSourcemapRpm") {
+    description = "Packs build/distributions/dog-vision-web-sourcemap-<version>-1.noarch.rpm."
+    group = "distribution"
+    tree = layout.dir(webSourceMapTree.map { it.destinationDir })
+    packageName = webSourceMapPackage
+    architecture = "noarch"
+    summary = webSourceMapSummary
+    longDescription = webSourceMapDescription
+    // As the deb's.
+    requires = version.zip(release) { version, release -> listOf("$webPackage = $version-$release") }
+    recommends = emptyList()
+}
+artifact(packageWebSourceMapRpm)

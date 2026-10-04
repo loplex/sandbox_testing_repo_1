@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Installs a deb of the project's, dog-vision, dog-vision-swing, dog-vision-cli or dog-vision-web,
-# in a bare container, runs it and removes it, checking each step. With --upgrade, it installs a
-# later deb over the first before removing it, as an update does. With --temurin, it installs
-# Adoptium's Temurin JRE first, from Adoptium's repository, and checks that the deb takes it rather
-# than an OpenJDK.
+# Installs a deb of the project's, dog-vision, dog-vision-swing, dog-vision-cli, dog-vision-web or
+# dog-vision-web-sourcemap, in a bare container, runs it and removes it, checking each step. With
+# --upgrade, it installs a later deb over the first before removing it, as an update does. With
+# --temurin, it installs Adoptium's Temurin JRE first, from Adoptium's repository, and checks that
+# the deb takes it rather than an OpenJDK.
 #
 # A bare image has no desktop and none of its folders, /usr/share/applications among them, which
 # is what a headless install for the command line alone meets. apt installs the deb there with its
@@ -13,6 +13,10 @@
 # desktop-file-validate, and that the file it opens with xdg-open is there. Each check says
 # whether it held, and every check runs, so that one failing does not hide the others; the script
 # fails if any did.
+#
+# A deb of the project's that the deb depends on at its own version, as dog-vision-web-sourcemap
+# does on dog-vision-web, which no repository has, is installed with it from the deb's own folder,
+# and so is the later one's from the later deb's.
 #
 # Both convert test_photo.jpg, beside this script, which ffmpeg made:
 #   ffmpeg -f lavfi -i testsrc2=size=160x120:rate=1 -frames:v 1 -q:v 4 test_photo.jpg
@@ -45,7 +49,7 @@ if [[ "${1:-}" == --upgrade ]]; then
     (( $# >= 2 )) || usage
     later="$(realpath "$2")"
     [[ -f "$later" ]] || die "$later does not exist" 2
-    mounts+=(-v "$later:/deb/later/package.deb:ro")
+    mounts+=(-v "$later:/deb/later/package.deb:ro" -v "$(dirname "$later"):/deb/later/beside:ro")
     shift 2
 fi
 (( $# >= 1 && $# <= 2 )) || usage
@@ -57,9 +61,10 @@ photo="$(dirname "$(realpath "$0")")/test_photo.jpg"
 command -v docker >/dev/null || die "Missing command: docker"
 
 # What runs in the container, as root, with the deb at /deb/package.deb, the later one, if any, at
-# /deb/later/package.deb, and the photo at /photo/test_photo.jpg.
-docker run --rm -i -e "JRE=$jre" -v "$deb:/deb/package.deb:ro" -v "$photo:/photo/test_photo.jpg:ro" \
-    "${mounts[@]}" "$image" sh -s <<'EOF'
+# /deb/later/package.deb, each one's folder at /deb/beside and /deb/later/beside, and the photo at
+# /photo/test_photo.jpg.
+docker run --rm -i -e "JRE=$jre" -v "$deb:/deb/package.deb:ro" -v "$(dirname "$deb"):/deb/beside:ro" \
+    -v "$photo:/photo/test_photo.jpg:ro" "${mounts[@]}" "$image" sh -s <<'EOF'
 package="$(dpkg-deb -f /deb/package.deb Package)"
 # What a check shows although check hides its output: fd 3.
 exec 3>&1
@@ -138,6 +143,14 @@ opens_a_file() {
     set -- $(sed -n 's/^Exec=//p' "$1")
     [ "$#" -eq 2 ] && [ "$1" = xdg-open ] && command -v xdg-open && [ -f "$2" ]
 }
+# The debs in the folder $2 of the project's packages that the deb $1 depends on at a version, one a
+# line; it fails where one is not there.
+beside() {
+    dpkg-deb -f "$1" Depends | tr ',' '\n' |
+        sed -n 's/^ *\(dog-vision[a-z-]*\) (= \([^)]*\))$/\1_\2/p' | while read -r name; do
+            ls "$2/${name}_"*.deb || return 1
+        done
+}
 # Xvfb and xwininfo, for the window.
 install_display() {
     apt-get install -y -qq xvfb x11-utils >/tmp/display.log 2>&1 || tail -n 20 /tmp/display.log
@@ -182,6 +195,10 @@ check_installed() {
             check "dog-vision-cli runs from PATH$1" dog-vision-cli --help
             check "it converts a JPEG to a PNG$1" converts dog-vision-cli
             ;;
+        dog-vision-web-sourcemap)
+            check "the source map is beside the page's script$1" \
+                test -f /usr/share/dog-vision-web/dog-vision.js.map -a -f /usr/share/dog-vision-web/dog-vision.js
+            ;;
         dog-vision-web)
             check "the page is in the desktop menu folder$1" \
                 test -f /usr/share/applications/cz.loplex.dogvision.web.desktop
@@ -219,6 +236,10 @@ check_removed() {
             check "/usr/bin/dog-vision-cli is gone" test ! -e /usr/bin/dog-vision-cli
             check "/usr/share/dog-vision-cli is gone" test ! -e /usr/share/dog-vision-cli
             ;;
+        dog-vision-web-sourcemap)
+            check "the source map is gone" test ! -e /usr/share/dog-vision-web/dog-vision.js.map
+            check "the page stays, dog-vision-web's" test -f /usr/share/dog-vision-web/index.html
+            ;;
         dog-vision-web)
             check "its menu entry is gone" test ! -e /usr/share/applications/cz.loplex.dogvision.web.desktop
             check "its icons are gone" test ! -e /usr/share/icons/hicolor/256x256/apps/cz.loplex.dogvision.web.png
@@ -235,7 +256,8 @@ if [ "$JRE" = temurin ]; then
     install_temurin || tail -n 20 /tmp/temurin.log
     check "Temurin's JRE installs from Adoptium's repository" dpkg-query -W temurin-25-jre
 fi
-apt-get install -y -qq /deb/package.deb >/tmp/install.log 2>&1 || tail -n 20 /tmp/install.log
+apt-get install -y -qq /deb/package.deb $(beside /deb/package.deb /deb/beside) >/tmp/install.log 2>&1 ||
+    tail -n 20 /tmp/install.log
 check "$package installs and is configured" is_installed
 check_installed ""
 
@@ -243,7 +265,8 @@ check_installed ""
 # menu entry passes from the one to the other.
 if [ -e /deb/later/package.deb ]; then
     version="$(dpkg-deb -f /deb/later/package.deb Version)"
-    apt-get install -y -qq /deb/later/package.deb >/tmp/upgrade.log 2>&1 || tail -n 20 /tmp/upgrade.log
+    apt-get install -y -qq /deb/later/package.deb $(beside /deb/later/package.deb /deb/later/beside) \
+        >/tmp/upgrade.log 2>&1 || tail -n 20 /tmp/upgrade.log
     check "$package $version installs over it and is configured" is_installed
     check "the installed version is $version" is_version "$version"
     check_installed " after the upgrade"
