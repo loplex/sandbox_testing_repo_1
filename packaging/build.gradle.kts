@@ -19,8 +19,9 @@ import cz.loplex.dogvision.packaging.windowsRuntimeImage
 // - the deb and the rpm of the web page, the folder web hands this module through webPage, opened in the system's
 //   browser;
 // - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line, each a launcher of
-//   one app image, on one runtime, and the command line's zip, of its launcher alone. Each of those modules hands this
-//   one its launcher through windowsLauncher. The scripts in tools run jpackage and WiX over what this module writes.
+//   one app image, on one runtime, and of the web page; and the command line's zip, of its launcher alone. Each of
+//   the windows' modules and cli hands this one its launcher through windowsLauncher. The scripts in tools run
+//   jpackage and WiX over what this module writes.
 plugins {
     base
     // The toolchains, for the JDK whose jlink links the runtime.
@@ -35,6 +36,23 @@ val launcherFiles = configurations.resolvable("windowsLauncherFiles") {
 }
 dependencies {
     for (module in listOf(":gui-compose", ":gui-swing", ":cli")) launchers(project(module))
+}
+
+// The web page, as web hands it over, for its deb and rpm and the MSI.
+val webPage = configurations.dependencyScope("webPage")
+val webPageFiles = configurations.resolvable("webPageFiles") {
+    extendsFrom(webPage.get())
+    attributes { attribute(Usage.USAGE_ATTRIBUTE, objects.named(WEB_PAGE_USAGE)) }
+}
+dependencies {
+    webPage(project(":web"))
+}
+
+// The web page the MSI installs in its folder web, but for the script's source map, as the deb's.
+val windowsWebPage = tasks.register<Sync>("windowsWebPage") {
+    description = "Lays out in build/windows/web the web page the MSI installs."
+    into(layout.buildDirectory.dir("windows/web"))
+    from(webPageFiles) { exclude("*.map") }
 }
 
 // One runtime of every module a launcher needs, and dog-vision.exe the image's main launcher, whose name the image's
@@ -75,6 +93,7 @@ windowsMsi(
     packageDescription = "How a dog or another animal sees a photo, a video or the camera"
     upgradeCode = "bd534b2e-fc9e-40d5-a461-b800bf54bcda"
     installFolder = "dog-vision"
+    web = layout.dir(windowsWebPage.map { it.destinationDir })
 }
 
 tasks.register("packageDeb") {
@@ -217,15 +236,6 @@ artifact(packageCliRpm)
 val webPackage = "dog-vision-web"
 val webHome = "/usr/share/$webPackage"
 val webApplicationId = "cz.loplex.dogvision.web"
-
-val webPage = configurations.dependencyScope("webPage")
-val webPageFiles = configurations.resolvable("webPageFiles") {
-    extendsFrom(webPage.get())
-    attributes { attribute(Usage.USAGE_ATTRIBUTE, objects.named(WEB_PAGE_USAGE)) }
-}
-dependencies {
-    webPage(project(":web"))
-}
 
 val webDesktopEntry = tasks.register<DesktopEntry>("dogVisionWebDesktopEntry") {
     description = "Writes build/linux/dog-vision-web/$webApplicationId.desktop, the desktop entry that puts the page " +
