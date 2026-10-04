@@ -1,7 +1,8 @@
 # Installs the MSI, upgrades it to a later one and removes it, checking each step:
 # the windows' launchers with their shortcuts in the Start menu and on the desktop,
 # the command line's with none but the installation folder on the system's PATH,
-# and the web page with a shortcut in the Start menu to its index.html.
+# and the web page with a shortcut in the Start menu to its index.html,
+# without its script's source map, which is not installed by default.
 # The MSI also removes the folder ffmpeg is downloaded into, %ProgramData%\<the app's name>,
 # which the script makes before the upgrade, as a window would, and which has to stay over that.
 #
@@ -166,6 +167,9 @@ Test-Check "the Start menu has $webShortcut, to the installed index.html" (
         (Join-Path $installDir "web\index.html")
 )
 Test-Check "the desktop has no $webShortcut" (-not (Test-Path (Join-Path $desktop $webShortcut)))
+Test-Check "the web page's source map is not installed by default" (
+    -not (Test-Path (Join-Path $installDir "web\dog-vision.js.map"))
+)
 Test-Check "the Start menu's group holds the windows' shortcuts and the web page's alone" (
     @(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Count -eq $shortcuts.Count + 1
 )
