@@ -11,7 +11,7 @@ What each program does is [Using it](using.md)'s.
 - [The command line's zip for Windows](#the-command-lines-zip-for-windows) —
   `dog-vision-cli.exe` on a runtime of its own, built by jpackage on Windows or under Wine.
 - [The desktop packages](#the-desktop-packages) — the deb, the rpm and the tar.gz of each window,
-  the web page's deb and rpm, and the one MSI of both windows and the command line:
+  the web page's deb and rpm, and the one MSI of both windows, the command line and the web page:
   the tools they need, what they install, their dependencies, and the scripts that try them.
 
 ## What the build needs
@@ -231,8 +231,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   so the tar.gz needs little more than glibc 2.28 or later, which LWJGL's natives ask for, X11 and ALSA,
   and for the Compose window fontconfig and the C++ runtime as well, which skiko links.\
   It is to run as `dog-vision/bin/dog-vision` or `dog-vision-swing/bin/dog-vision-swing` without installing it.
-- **The MSI, `dog-vision`, installs both windows and the command line** into `Program Files\dog-vision`,
-  each a launcher on the one runtime: `dog-vision.exe`, `dog-vision-swing.exe` and `dog-vision-cli.exe`.\
+- **The MSI, `dog-vision`, installs both windows, the command line and the web page** into `Program Files\dog-vision`,
+  each program a launcher on the one runtime: `dog-vision.exe`, `dog-vision-swing.exe` and `dog-vision-cli.exe`;
+  the page in its folder `web`, as the deb's, without the script's source map.\
   The installer and the system's list of programs name it *Dog Vision*.
 - **Each JAR is in `app` once**, as Gradle resolves it, rather than merged into an uber JAR per launcher:
   a JAR more than one launcher runs on, as the Kotlin standard library or LWJGL, is shared,
@@ -253,6 +254,7 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 | `DogVision`   | Dog Vision                  | the runtime and the shared JARs                    |
 | `ComposeGui`  | GUI (Compose Multiplatform) | `dog-vision.exe`, its JARs and its shortcuts       |
 | `SwingGui`    | GUI (Java Swing)            | `dog-vision-swing.exe`, its JARs and its shortcuts |
+| `WebGui`      | GUI (web browser)           | the folder `web`, and its shortcut                 |
 | `CommandLine` | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH` |
 
 - **Each window gets a shortcut in the Start menu and on the desktop**, *Dog Vision* and *Dog Vision (Swing)*,
@@ -260,6 +262,8 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   The command line gets none, as started from one it would only say that the window is the desktop app's,
   but `Program Files\dog-vision` goes at the end of the system's `PATH`,
   for the consoles opened after, and comes off it again when the MSI is removed.
+- **The web page gets a shortcut in the Start menu's group alone**, *Dog Vision (web)*, with the app's icon,
+  which opens `web\index.html` in the system's browser.
 - **It removes `%ProgramData%\Dog Vision`, where a window downloads ffmpeg, with the product**,
   and leaves it over an upgrade.
 - **[`packaging/windows/dog-vision.wxs`](../packaging/windows/dog-vision.wxs) says what it does**, the WiX source the MSI is made of,
@@ -358,13 +362,14 @@ by `package_msi_on_linux.sh`, or on Windows, by `package_msi_on_windows.ps1`, th
   which the scripts hand candle.exe and light.exe.\
   Each launcher's files, its `.exe`, its `.cfg` and the JARs on its classpath alone,
   are a component group of their own, `Launcher.dog_vision_swing`, which the source's Feature of that launcher takes;
-  the rest is the group `Files`, in the runtime's Feature.
+  the rest is the group `Files`, in the runtime's Feature.\
+  The web page, which jpackage's image does not hold, comes from Gradle, as the deb's, into the group `Web`.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows machine to throw away**:
   it installs the MSI, runs the command line, from the `PATH` too,
-  looks at the shortcuts, installs a later version over it and removes that,
+  looks at the shortcuts, the web page's target among them, installs a later version over it and removes that,
   and checks that the installation folder is on the `PATH` once and off it after.\
   Then it installs the Swing window alone, by `ADDLOCAL=SwingGui`, into a folder of its own, adds the Compose window,
-  and checks that the later version keeps both there, without the command line.
+  and checks that the later version keeps both there, without the command line and the web page.
 - **The licence dialog shows [`LICENSE`](../LICENSE) line for line**,
   from the RTF that the `windowsLicense` task writes, as the GPL has its lines broken by hand.
 - **The dialogs show the dog**,
