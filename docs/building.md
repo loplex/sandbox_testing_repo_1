@@ -164,10 +164,11 @@ pwsh tools/package_cli_zip_on_windows.ps1
 ```sh
 ./gradlew :packaging:packageDeb      # packaging/build/distributions: dog-vision_0.1.0_amd64.deb,
                                      # dog-vision-swing_0.1.0_amd64.deb, dog-vision-cli_0.1.0_all.deb,
-                                     # dog-vision-web_0.1.0_all.deb
+                                     # dog-vision-web_0.1.0_all.deb, dog-vision-web-sourcemap_0.1.0_all.deb
 ./gradlew :packaging:packageRpm      # packaging/build/distributions: dog-vision-0.1.0-1.x86_64.rpm,
                                      # dog-vision-swing-0.1.0-1.x86_64.rpm, dog-vision-cli-0.1.0-1.noarch.rpm,
-                                     # dog-vision-web-0.1.0-1.noarch.rpm
+                                     # dog-vision-web-0.1.0-1.noarch.rpm,
+                                     # dog-vision-web-sourcemap-0.1.0-1.noarch.rpm
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 ./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
@@ -182,8 +183,8 @@ pwsh tools/package_msi_on_windows.ps1
 ```
 
 Each deb and rpm alone is a task of `:packaging` named after it: `packageDogVisionDeb`,
-`packageDogVisionSwingDeb`, `packageDogVisionCliDeb` and `packageDogVisionWebDeb`, and the same
-with `Rpm`.
+`packageDogVisionSwingDeb`, `packageDogVisionCliDeb`, `packageDogVisionWebDeb` and
+`packageDogVisionWebSourcemapDeb`, and the same with `Rpm`.
 
 Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
 
@@ -237,6 +238,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   - its menu entry, `cz.loplex.dogvision.web.desktop` ("Dog Vision (web)", "Psí vidění (web)"),
     which opens that `index.html` in the system's browser through `xdg-open`, and its icons;
   - no command in `/usr/bin`, as the menu entry is what opens the page.
+- **The script's source map is a package of its own, `dog-vision-web-sourcemap`**:
+  `dog-vision.js.map` in `/usr/share/dog-vision-web`, beside the script of `dog-vision-web`, with
+  which a browser's developer tools show the Kotlin sources.
+  It is for debugging, and larger than the script, so the page's own packages leave it out.
 - **FlatLaf's natives stay in its JAR** in `dog-vision-swing`: it loads them on Linux only for
   window decorations of its own, which the window does not use, and they link GTK 3.
 - **Each launcher finds its Java** in `JAVA_HOME`, then on `PATH`, then the newest in
@@ -259,15 +264,15 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 - **The MSI, `dog-vision`, installs both windows, the command line and the web page** into
   `Program Files\dog-vision`, each program a launcher on the one runtime: `dog-vision.exe`,
   `dog-vision-swing.exe` and `dog-vision-cli.exe`; the page in its folder `web`, as the deb's,
-  without the script's source map.
+  the script's source map a part of its own.
   The installer and the system's list of programs name it *Dog Vision*.
 - **Each JAR is in `app` once**, as Gradle resolves it, rather than merged into an uber JAR per
   launcher: a JAR more than one launcher runs on, as the Kotlin standard library or LWJGL, is
   shared, and every other belongs to the one launcher that runs on it.
 - **The installer offers each as a part of its own**, a Feature in its tree, under the runtime's,
   which cannot be left out; the table below lists them.
-  Every part is selected by default, so a plain or a silent install (`msiexec /qn`, winget)
-  installs them all.
+  Every part but the source map is selected by default, so a plain or a silent install
+  (`msiexec /qn`, winget) installs all the others.
   `ADDLOCAL` names fewer, as `msiexec /i dog-vision-0.1.0.msi ADDLOCAL=DogVision,SwingGui` installs
   the Swing window alone; Windows adds `DogVision` by itself, Wine does not.
   *Change* in the system's list of programs adds or removes parts later, as do `ADDLOCAL` and
@@ -275,13 +280,14 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   A later version installed over it keeps the parts installed, and a part added later or a later
   version goes into the folder chosen at the first install, which the MSI reads from the registry.
 
-| Feature       | In the tree                 | Installs                                           |
-|---------------|-----------------------------|----------------------------------------------------|
-| `DogVision`   | Dog Vision                  | the runtime and the shared JARs                    |
-| `ComposeGui`  | GUI (Compose Multiplatform) | `dog-vision.exe`, its JARs and its shortcuts       |
-| `SwingGui`    | GUI (Java Swing)            | `dog-vision-swing.exe`, its JARs and its shortcuts |
-| `WebGui`      | GUI (web browser)           | the folder `web`, and its shortcut                 |
-| `CommandLine` | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH` |
+| Feature        | In the tree                 | Installs                                           |
+|----------------|-----------------------------|----------------------------------------------------|
+| `DogVision`    | Dog Vision                  | the runtime and the shared JARs                    |
+| `ComposeGui`   | GUI (Compose Multiplatform) | `dog-vision.exe`, its JARs and its shortcuts       |
+| `SwingGui`     | GUI (Java Swing)            | `dog-vision-swing.exe`, its JARs and its shortcuts |
+| `WebGui`       | GUI (web browser)           | the folder `web`, and its shortcut                 |
+| `WebSourceMap` | Source map, under the above | `web\dog-vision.js.map`, not selected by default   |
+| `CommandLine`  | Command line                | `dog-vision-cli.exe`, and the folder on the `PATH` |
 
 - **Each window gets a shortcut in the Start menu and on the desktop**, *Dog Vision* and
   *Dog Vision (Swing)*, the Start menu's in a group *Dog Vision*.
@@ -321,6 +327,8 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   The Compose window draws its text through skiko and needs none.
 - **`xdg-utils` alone, for `dog-vision-web`**, whose `xdg-open` the menu entry runs: the browser
   is the user's, as a desktop has one, and the windows' packages name no desktop either.
+- **`dog-vision-web` of its own version, for `dog-vision-web-sourcemap`**, as the map describes
+  that one script.
 - **Nothing else, and no scripts**: the menu entry and the icons are files of the package, which
   the desktop finds by itself.
 
@@ -340,7 +348,12 @@ runtime into its packages.
     so that its X libraries hide none the deb misses, and that skiko, LWJGL and FlatLaf unpacked no
     natives of their own into the home or `/tmp`;
   - of `dog-vision-web`, which no browser opens there, that its menu entry is valid, as
-    `desktop-file-validate` has it, and that the file it opens with `xdg-open` is there.
+    `desktop-file-validate` has it, and that the file it opens with `xdg-open` is there;
+  - of `dog-vision-web-sourcemap`, that the map lies beside the script, and that removing it leaves
+    the page.
+  - A deb of the project's that the deb depends on at its own version, `dog-vision-web` of
+    `dog-vision-web-sourcemap`, no repository has, so the script installs it with the deb from the
+    deb's own folder.
   - It holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.
     Debian 11 is not among them: its support ended in August 2026, and its repositories moved to
     archive.debian.org.
@@ -403,7 +416,7 @@ both.
   group of their own, `Launcher.dog_vision_swing`, which the source's Feature of that launcher
   takes; the rest is the group `Files`, in the runtime's Feature.
   The web page, which jpackage's image does not hold, comes from Gradle, as the deb's, into the
-  group `Web`.
+  group `Web`, and its script's source map into `Web.SourceMap`.
 - **[`tools/test_msi_on_windows.ps1`](../tools/test_msi_on_windows.ps1) tries it on a Windows
   machine to throw away**: it installs the MSI, runs the command line, from the `PATH` too, looks
   at the shortcuts, the web page's target among them, installs a later version over it and removes

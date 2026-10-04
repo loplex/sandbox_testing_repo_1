@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Installs an rpm of the project's, dog-vision, dog-vision-swing, dog-vision-cli or
-# dog-vision-web, in a bare container, runs it and removes it, checking each step. With
+# Installs an rpm of the project's, dog-vision, dog-vision-swing, dog-vision-cli, dog-vision-web or
+# dog-vision-web-sourcemap, in a bare container, runs it and removes it, checking each step. With
 # --upgrade, it installs a later rpm over the first before removing it, as an update does. With
 # --temurin, it installs Adoptium's Temurin JRE first, from Adoptium's repository, and checks that
 # the rpm takes it rather than an OpenJDK.
@@ -12,6 +12,9 @@
 # are, as tools/test_deb.sh does, and of dog-vision-web the desktop entry and the file it opens, as
 # tools/test_deb.sh says. Each check says whether it held, and every check runs, so that one
 # failing does not hide the others; the script fails if any did.
+#
+# An rpm of the project's that the rpm requires at its own version is installed with it from the
+# rpm's own folder, as tools/test_deb.sh says.
 #
 # Both convert test_photo.jpg, beside this script, as tools/test_deb.sh says.
 #
@@ -43,7 +46,7 @@ if [[ "${1:-}" == --upgrade ]]; then
     (( $# >= 2 )) || usage
     later="$(realpath "$2")"
     [[ -f "$later" ]] || die "$later does not exist" 2
-    mounts+=(-v "$later:/rpm/later/package.rpm:ro")
+    mounts+=(-v "$later:/rpm/later/package.rpm:ro" -v "$(dirname "$later"):/rpm/later/beside:ro")
     shift 2
 fi
 (( $# >= 1 && $# <= 2 )) || usage
@@ -55,9 +58,10 @@ photo="$(dirname "$(realpath "$0")")/test_photo.jpg"
 command -v docker >/dev/null || die "Missing command: docker"
 
 # What runs in the container, as root, with the rpm at /rpm/package.rpm, the later one, if any, at
-# /rpm/later/package.rpm, and the photo at /photo/test_photo.jpg.
-docker run --rm -i -e "JRE=$jre" -v "$rpm:/rpm/package.rpm:ro" -v "$photo:/photo/test_photo.jpg:ro" \
-    "${mounts[@]}" "$image" sh -s <<'EOF'
+# /rpm/later/package.rpm, each one's folder at /rpm/beside and /rpm/later/beside, and the photo at
+# /photo/test_photo.jpg.
+docker run --rm -i -e "JRE=$jre" -v "$rpm:/rpm/package.rpm:ro" -v "$(dirname "$rpm"):/rpm/beside:ro" \
+    -v "$photo:/photo/test_photo.jpg:ro" "${mounts[@]}" "$image" sh -s <<'EOF'
 package="$(rpm -qp --qf '%{NAME}' /rpm/package.rpm)"
 # What a check shows although check hides its output: fd 3.
 exec 3>&1
@@ -207,6 +211,10 @@ check_installed() {
             check "dog-vision-cli runs from PATH$1" dog-vision-cli --help
             check "it converts a JPEG to a PNG$1" converts dog-vision-cli
             ;;
+        dog-vision-web-sourcemap)
+            check "the source map is beside the page's script$1" \
+                test -f /usr/share/dog-vision-web/dog-vision.js.map -a -f /usr/share/dog-vision-web/dog-vision.js
+            ;;
         dog-vision-web)
             check "the page is in the desktop menu folder$1" \
                 test -f /usr/share/applications/cz.loplex.dogvision.web.desktop
@@ -244,6 +252,10 @@ check_removed() {
             check "/usr/bin/dog-vision-cli is gone" test ! -e /usr/bin/dog-vision-cli
             check "/usr/share/dog-vision-cli is gone" test ! -e /usr/share/dog-vision-cli
             ;;
+        dog-vision-web-sourcemap)
+            check "the source map is gone" test ! -e /usr/share/dog-vision-web/dog-vision.js.map
+            check "the page stays, dog-vision-web's" test -f /usr/share/dog-vision-web/index.html
+            ;;
         dog-vision-web)
             check "its menu entry is gone" test ! -e /usr/share/applications/cz.loplex.dogvision.web.desktop
             check "its icons are gone" test ! -e /usr/share/icons/hicolor/256x256/apps/cz.loplex.dogvision.web.png
@@ -255,17 +267,28 @@ check_removed() {
 [ -e /usr/share/applications ] && echo "note: the image has /usr/share/applications already"
 [ -e /etc/xdg/menus ] && echo "note: the image has /etc/xdg/menus already"
 
-# Each installs the rpm $1, or upgrades the one installed to it.
+# The rpms in the folder $2 of the project's packages that the rpm $1 requires at a version, one a
+# line; it fails where one is not there.
+beside() {
+    rpm -qpR "$1" | sed -n 's/^\(dog-vision[a-z-]*\) = \(.*\)$/\1-\2/p' | while read -r name; do
+        ls "$2/$name".*.rpm || return 1
+    done
+}
+
+# Each installs the rpms $@, or upgrades those installed to them.
 if command -v zypper >/dev/null; then
-    install_rpm() { zypper -q -n install --allow-unsigned-rpm "$1"; }
+    install_rpm() { zypper -q -n install --allow-unsigned-rpm "$@"; }
 elif command -v dnf >/dev/null; then
-    install_rpm() { dnf -q -y install "$1"; }
+    install_rpm() { dnf -q -y install "$@"; }
 elif command -v microdnf >/dev/null; then
-    # microdnf installs no file: what the rpm requires comes from the image's repositories, one at
-    # a time, and the rpm itself through rpm, past what none of them has. Of a rich dependency,
-    # (A or B), the first alternative a repository has.
+    # microdnf installs no file: what the rpms require, but one another, comes from the image's
+    # repositories, one at a time, and the rpms themselves through rpm, past what none of them has.
+    # Of a rich dependency, (A or B), the first alternative a repository has.
     install_rpm() {
-        rpm -qpR "$1" | grep -v '^rpmlib(' >/tmp/requires
+        names="$(rpm -qp --qf '%{NAME}\n' "$@")"
+        rpm -qpR "$@" | grep -v '^rpmlib(' | while IFS= read -r requirement; do
+            echo "$names" | grep -qx "${requirement%% *}" || echo "$requirement"
+        done >/tmp/requires
         while IFS= read -r requirement; do
             case "$requirement" in
                 "("*) alternatives="$(echo "$requirement" | sed 's/^(//; s/)$//; s/ or /\n/g')" ;;
@@ -282,9 +305,9 @@ elif command -v microdnf >/dev/null; then
             [ -n "$provided" ] || unavailable="$unavailable $requirement"
         done </tmp/requires
         if [ -z "$unavailable" ]; then
-            rpm -U "$1"
+            rpm -U "$@"
         else
-            rpm -U --nodeps "$1"
+            rpm -U --nodeps "$@"
         fi
     }
 else
@@ -297,7 +320,7 @@ if [ "$JRE" = temurin ]; then
     check "Temurin's JRE installs from Adoptium's repository" rpm -q temurin-25-jre
 fi
 # A scriptlet that fails leaves the package installed, and only the status tells.
-install_rpm /rpm/package.rpm >/tmp/install.log 2>&1
+install_rpm /rpm/package.rpm $(beside /rpm/package.rpm /rpm/beside) >/tmp/install.log 2>&1
 status=$?
 [ "$status" -eq 0 ] || tail -n 20 /tmp/install.log
 [ -n "$unavailable" ] && echo "note: installed without what no repository has:$unavailable"
@@ -315,7 +338,7 @@ check_installed ""
 # passes from the one to the other.
 if [ -e /rpm/later/package.rpm ]; then
     version="$(rpm -qp --qf '%{VERSION}-%{RELEASE}' /rpm/later/package.rpm)"
-    install_rpm /rpm/later/package.rpm >/tmp/upgrade.log 2>&1
+    install_rpm /rpm/later/package.rpm $(beside /rpm/later/package.rpm /rpm/later/beside) >/tmp/upgrade.log 2>&1
     status=$?
     [ "$status" -eq 0 ] || tail -n 20 /tmp/upgrade.log
     check "the upgrade to $version exits with 0 (it exited with $status)" test "$status" -eq 0
