@@ -178,7 +178,7 @@ graph TD
     class android,web program
 ```
 
-What the packages take, which `packaging` makes of the windows and the command line:
+What the packages take, which `packaging` makes of the windows, the command line and the web page:
 
 ```mermaid
 graph TD
@@ -189,12 +189,14 @@ graph TD
         gui-compose
         gui-swing
         cli
+        web
     end
     packaging --> gui-compose
     packaging --> gui-swing
     packaging --> cli
+    packaging --> web
     classDef program font-weight:bold
-    class packaging,gui-compose,gui-swing,cli program
+    class packaging,gui-compose,gui-swing,cli,web program
 ```
 
 - **`texts` has a graph of its own, as with it in the first one lines have to cross**, however the
@@ -208,8 +210,9 @@ graph TD
   `cli` and, through it, the two `cli` uses.
 - **`ui` passes on `texts`**, as its `text` and `InfoButton` take an entry of `texts`' `Str`.
 - **`packaging` has no code of its own**: it takes from the module that has them the JARs a Linux
-  package installs, through `jvmRuntimeOf`, as a module takes a library's, and each launcher of a
-  package for Windows, its JAR and what it runs on, through the module's `windowsLauncher` task.
+  package installs, through `jvmRuntimeOf`, as a module takes a library's, each launcher of a
+  package for Windows, its JAR and what it runs on, through the module's `windowsLauncher` task,
+  and the web page through the variant `webPage` registers in `web`.
 - **Only tests use `testing`**, so no program ships it.
   `core`'s tests use `testing`, which in turn uses `core`; Gradle builds `core` itself first, as
   its code does not use `testing`.
@@ -293,10 +296,11 @@ in [`.editorconfig`](../.editorconfig):
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push:
 
 - **On Ubuntu 24.04, `./gradlew check`**, the window's GL tests on Mesa's llvmpipe, as the runner
-  has no GPU; then the debs and the rpms of `dog-vision`, `dog-vision-swing` and `dog-vision-cli`,
-  each built in two versions and tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and
-  `test_rpm.sh --upgrade` in Fedora 42, each window under Xvfb; and each window's tar.gz, unpacked
-  on the runner, where its command line runs and its window's main converts a photo.
+  has no GPU; then the debs and the rpms of `dog-vision`, `dog-vision-swing`, `dog-vision-cli` and
+  `dog-vision-web`, each built in two versions and tried by `test_deb.sh --upgrade` in
+  Ubuntu 20.04 and `test_rpm.sh --upgrade` in Fedora 42, each window under Xvfb; and each window's
+  tar.gz, unpacked on the runner, where its command line runs and its window's main converts a
+  photo.
 - **On Windows Server 2022, `./gradlew :gui-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and

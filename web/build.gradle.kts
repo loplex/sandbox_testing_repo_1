@@ -1,4 +1,5 @@
 import cz.loplex.dogvision.packaging.artifact
+import cz.loplex.dogvision.packaging.webPage
 
 // The web page: a photo shown as a species sees it, rendered by the shared shaders in WebGL 2.
 plugins {
@@ -40,3 +41,5 @@ kotlin {
 
 // The page's artifact, the page for production, whose task Kotlin's plugin registers.
 artifact("jsBrowserDistribution")
+// The same page, handed to :packaging, which installs it with the other programs.
+webPage(tasks.named<Sync>("jsBrowserDistribution"))

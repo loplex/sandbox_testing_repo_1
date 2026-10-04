@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Installs a deb of the project's, dog-vision, dog-vision-swing or dog-vision-cli, in a bare
-# container, runs it and removes it, checking each step. With --upgrade, it installs a later deb
-# over the first before removing it, as an update does. With --temurin, it installs Adoptium's
-# Temurin JRE first, from Adoptium's repository, and checks that the deb takes it rather than an
-# OpenJDK.
+# Installs a deb of the project's, dog-vision, dog-vision-swing, dog-vision-cli or dog-vision-web,
+# in a bare container, runs it and removes it, checking each step. With --upgrade, it installs a
+# later deb over the first before removing it, as an update does. With --temurin, it installs
+# Adoptium's Temurin JRE first, from Adoptium's repository, and checks that the deb takes it rather
+# than an OpenJDK.
 #
 # A bare image has no desktop and none of its folders, /usr/share/applications among them, which
 # is what a headless install for the command line alone meets. apt installs the deb there with its
 # dependencies, a Java among them. dog-vision's window is then opened under Xvfb, which is
 # installed only once the deb's own dependencies are, so that its X libraries hide none the deb
-# misses. Each check says whether it held, and every check runs, so that one failing does not hide
-# the others; the script fails if any did.
+# misses. No browser runs there, so of dog-vision-web it checks the desktop entry, with
+# desktop-file-validate, and that the file it opens with xdg-open is there. Each check says
+# whether it held, and every check runs, so that one failing does not hide the others; the script
+# fails if any did.
 #
 # Both convert test_photo.jpg, beside this script, which ffmpeg made:
 #   ffmpeg -f lavfi -i testsrc2=size=160x120:rate=1 -frames:v 1 -q:v 4 test_photo.jpg
@@ -121,6 +123,21 @@ unpacks_no_natives() {
     ! ls -d /tmp/home/.skiko /tmp/home/.lwjgl* /tmp/lwjgl* /tmp/home/.flatlaf* /tmp/flatlaf* 2>/dev/null |
         grep -q .
 }
+# The desktop entry $1 is valid, as desktop-file-validate has it, which is installed only once the
+# package's own dependencies are; what it says is shown.
+entry_is_valid() {
+    command -v desktop-file-validate >/dev/null ||
+        apt-get install -y -qq desktop-file-utils >/tmp/validate.log 2>&1 || tail -n 20 /tmp/validate.log >&3
+    said="$(desktop-file-validate "$1" 2>&1)"
+    status=$?
+    [ -z "$said" ] || echo "$said" >&3
+    return "$status"
+}
+# The desktop entry $1 runs xdg-open, which is on PATH, on a file that is there.
+opens_a_file() {
+    set -- $(sed -n 's/^Exec=//p' "$1")
+    [ "$#" -eq 2 ] && [ "$1" = xdg-open ] && command -v xdg-open && [ -f "$2" ]
+}
 # Xvfb and xwininfo, for the window.
 install_display() {
     apt-get install -y -qq xvfb x11-utils >/tmp/display.log 2>&1 || tail -n 20 /tmp/display.log
@@ -165,6 +182,16 @@ check_installed() {
             check "dog-vision-cli runs from PATH$1" dog-vision-cli --help
             check "it converts a JPEG to a PNG$1" converts dog-vision-cli
             ;;
+        dog-vision-web)
+            check "the page is in the desktop menu folder$1" \
+                test -f /usr/share/applications/cz.loplex.dogvision.web.desktop
+            check "its desktop entry is valid$1" entry_is_valid /usr/share/applications/cz.loplex.dogvision.web.desktop
+            check "its desktop entry opens the page with xdg-open$1" \
+                opens_a_file /usr/share/applications/cz.loplex.dogvision.web.desktop
+            check "the page's script and style are beside it$1" \
+                test -f /usr/share/dog-vision-web/dog-vision.js -a -f /usr/share/dog-vision-web/styles.css
+            check "/usr/bin has nothing of the page's$1" test ! -e /usr/bin/dog-vision-web
+            ;;
         *)
             echo "FAILED: no checks for the package $package"
             failed=$((failed + 1))
@@ -191,6 +218,11 @@ check_removed() {
         dog-vision-cli)
             check "/usr/bin/dog-vision-cli is gone" test ! -e /usr/bin/dog-vision-cli
             check "/usr/share/dog-vision-cli is gone" test ! -e /usr/share/dog-vision-cli
+            ;;
+        dog-vision-web)
+            check "its menu entry is gone" test ! -e /usr/share/applications/cz.loplex.dogvision.web.desktop
+            check "its icons are gone" test ! -e /usr/share/icons/hicolor/256x256/apps/cz.loplex.dogvision.web.png
+            check "/usr/share/dog-vision-web is gone" test ! -e /usr/share/dog-vision-web
             ;;
     esac
 }

@@ -1,6 +1,8 @@
 import cz.loplex.dogvision.packaging.DebPackage
+import cz.loplex.dogvision.packaging.DesktopEntry
 import cz.loplex.dogvision.packaging.JavaLauncher
 import cz.loplex.dogvision.packaging.RpmPackage
+import cz.loplex.dogvision.packaging.WEB_PAGE_USAGE
 import cz.loplex.dogvision.packaging.WINDOWS_LAUNCHER_USAGE
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.jvmRuntimeOf
@@ -12,6 +14,8 @@ import cz.loplex.dogvision.packaging.windowsRuntimeImage
 // Packages made apart from the modules they hold:
 // - the deb and the rpm of the Compose window, the Swing window and the command line, on the system's Java, each of
 //   the JARs its module runs on, which jvmRuntimeOf takes;
+// - the deb and the rpm of the web page, the folder web hands this module through webPage, opened in the system's
+//   browser;
 // - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line, each a launcher of
 //   one app image, on one runtime, and the command line's zip, of its launcher alone. Each of those modules hands this
 //   one its launcher through windowsLauncher. The scripts in tools run jpackage and WiX over what this module writes.
@@ -204,3 +208,93 @@ val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
     recommends = emptyList()
 }
 artifact(packageCliRpm)
+
+// The deb and the rpm, dog-vision-web: the page in /usr/share/dog-vision-web, as web hands it over but for the script's
+// source map, and a desktop entry that opens its index.html in the system's browser through xdg-open. It needs no
+// command in /usr/bin, and has no natives, so one package serves every architecture.
+val webPackage = "dog-vision-web"
+val webHome = "/usr/share/$webPackage"
+val webApplicationId = "cz.loplex.dogvision.web"
+
+val webPage = configurations.dependencyScope("webPage")
+val webPageFiles = configurations.resolvable("webPageFiles") {
+    extendsFrom(webPage.get())
+    attributes { attribute(Usage.USAGE_ATTRIBUTE, objects.named(WEB_PAGE_USAGE)) }
+}
+dependencies {
+    webPage(project(":web"))
+}
+
+val webDesktopEntry = tasks.register<DesktopEntry>("dogVisionWebDesktopEntry") {
+    description = "Writes build/linux/dog-vision-web/$webApplicationId.desktop, the desktop entry that puts the page " +
+        "in the desktop's menu, named in each language of texts/strings with \" (web)\" after it."
+    strings = rootProject.layout.projectDirectory.dir("texts/strings")
+    nameString = "app_name"
+    nameSuffix = " (web)"
+    commentString = "desktop_comment"
+    exec = "xdg-open $webHome/index.html"
+    icon = webApplicationId
+    categories = listOf("Graphics")
+    entry = layout.buildDirectory.file("linux/$webPackage/$webApplicationId.desktop")
+}
+
+val webTree = tasks.register<Sync>("dogVisionWebTree") {
+    description = "Lays out in build/linux/dog-vision-web/tree the files its deb and its rpm install: the page, the " +
+        "desktop entry and the icons."
+    into(layout.buildDirectory.dir("linux/$webPackage/tree"))
+    from(webPageFiles) {
+        into(webHome.removePrefix("/"))
+        exclude("*.map")
+    }
+    from(webDesktopEntry) { into("usr/share/applications") }
+    val icons = rootProject.layout.projectDirectory.dir("gui-compose/packaging")
+    from(icons.file("dog-vision.png")) {
+        into("usr/share/icons/hicolor/256x256/apps")
+        rename("dog-vision.png", "$webApplicationId.png")
+    }
+    from(icons.file("dog-vision.svg")) {
+        into("usr/share/icons/hicolor/scalable/apps")
+        rename("dog-vision.svg", "$webApplicationId.svg")
+    }
+}
+
+/** What the deb and the rpm are listed with, in a package manager's search and its details. */
+val webSummary = "How a dog or another animal sees colours (web page)"
+val webDescription = """
+    dog-vision shows a photo, a video or the camera with the colours a dog,
+    a cat or another animal can tell apart, beside the original.
+
+    This package is the web page, which the system's web browser shows from
+    the installed files: the page fetches nothing.
+
+    The desktop windows, which need no browser, are the packages
+    dog-vision and dog-vision-swing.
+""".trimIndent()
+
+val packageWebDeb = tasks.register<DebPackage>("packageDogVisionWebDeb") {
+    description = "Packs build/distributions/dog-vision-web_<version>_all.deb."
+    group = "distribution"
+    tree = layout.dir(webTree.map { it.destinationDir })
+    packageName = webPackage
+    architecture = "all"
+    summary = webSummary
+    longDescription = webDescription
+    // xdg-open, which the desktop entry runs; the browser is the user's.
+    depends = listOf("xdg-utils")
+    recommends = emptyList()
+}
+artifact(packageWebDeb)
+
+val packageWebRpm = tasks.register<RpmPackage>("packageDogVisionWebRpm") {
+    description = "Packs build/distributions/dog-vision-web-<version>-1.noarch.rpm."
+    group = "distribution"
+    tree = layout.dir(webTree.map { it.destinationDir })
+    packageName = webPackage
+    architecture = "noarch"
+    summary = webSummary
+    longDescription = webDescription
+    // As the deb's.
+    requires = listOf("xdg-utils")
+    recommends = emptyList()
+}
+artifact(packageWebRpm)
