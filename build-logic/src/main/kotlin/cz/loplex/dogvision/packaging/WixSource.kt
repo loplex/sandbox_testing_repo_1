@@ -26,19 +26,26 @@ import java.util.UUID
  *   out too, each a component of its own whose key path it is, in the folder INSTALLDIR, which [product] defines. A
  *   launcher's files are in a component group of its own, which [product]'s Feature of that launcher takes:
  *   Launcher.dog_vision_swing holds dog-vision-swing.exe, app/dog-vision-swing.cfg and each JAR on that .cfg's
- *   classpath and on no other launcher's. Every other file is in the component group Files.
+ *   classpath and on no other launcher's. Every other file is in the component group Files. Every file of [web] is in
+ *   the folder web in INSTALLDIR, in the component group Web.
  * - [codePage], the localization that sets the MSI's code page, as it is.
  *
- * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision.exe, by which [product]
- * refers to it; every other file, folder and component one of a hash of its path. Each component's GUID is made of
- * [upgradeCode] and the file's path, so that it stays the same while the file is in the same place, as Windows
- * Installer counts the installations of a component by its GUID.
+ * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision.exe, and one directly in
+ * [web] of web_ and its name, as web_index.html, by which [product] refers to them; every other file, folder and
+ * component one of a hash of its path in INSTALLDIR. Each component's GUID is made of [upgradeCode] and that path, so
+ * that it stays the same while the file is in the same place, as Windows Installer counts the installations of a
+ * component by its GUID.
  */
 abstract class WixSource : DefaultTask() {
     /** The app image the MSI installs, with the launchers' .cfg as [WindowsLauncherConfigs] writes them. */
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val image: DirectoryProperty
+
+    /** The web page, which jpackage's image does not hold, as a browser opens it. */
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val web: DirectoryProperty
 
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NAME_ONLY)
@@ -140,25 +147,33 @@ abstract class WixSource : DefaultTask() {
 
     private fun files(): String {
         val root = image.get().asFile
+        val page = web.get().asFile
+        check(!File(root, WEB).exists()) { "$root holds $WEB, where the web page goes" }
         val groups = launcherGroups(root)
         val components = sortedMapOf(FILES to mutableListOf<String>())
         val grouped = groups.keys.toMutableSet()
         val body = StringBuilder()
 
-        fun folder(directory: File, depth: Int) {
+        // The files of the folder [top], [under] in INSTALLDIR, each in the component group [groups] gives it or else
+        // in [group].
+        fun folder(top: File, under: String, group: String, directory: File, depth: Int) {
             val indent = "  ".repeat(depth)
             for (entry in directory.listFiles().orEmpty().sortedBy { it.name }) {
-                val relative = entry.relativeTo(root).invariantSeparatorsPath
+                val relative = under + entry.relativeTo(top).invariantSeparatorsPath
                 if (relative == JPACKAGE_RECORD) continue
                 if (entry.isDirectory) {
                     body.append("$indent<Directory Id=\"d${hash(relative)}\" Name=\"${xml(entry.name)}\">\n")
-                    folder(entry, depth + 1)
+                    folder(top, under, group, entry, depth + 1)
                     body.append("$indent</Directory>\n")
                 } else {
-                    val file = if (directory == root) entry.name.replace('-', '_') else "f${hash(relative)}"
+                    val file = if (directory == top) {
+                        (under.replace('/', '_') + entry.name).replace('-', '_')
+                    } else {
+                        "f${hash(relative)}"
+                    }
                     check(Regex("[A-Za-z_][A-Za-z0-9_.]*").matches(file)) { "$relative gives no WiX ID: $file" }
                     val component = "c${hash(relative)}"
-                    components.getOrPut(groups[relative] ?: FILES, ::mutableListOf) += component
+                    components.getOrPut(groups[relative] ?: group, ::mutableListOf) += component
                     grouped -= relative
                     body.append(
                         "$indent<Component Id=\"$component\" Guid=\"{${uuid("${upgradeCode.get()}/$relative")}}\"" +
@@ -169,7 +184,11 @@ abstract class WixSource : DefaultTask() {
                 }
             }
         }
-        folder(root, 3)
+        folder(root, "", FILES, root, 3)
+        body.append("      <Directory Id=\"d${hash(WEB)}\" Name=\"$WEB\">\n")
+        folder(page, "$WEB/", WEB_GROUP, page, 4)
+        body.append("      </Directory>\n")
+        check(components[WEB_GROUP].orEmpty().isNotEmpty()) { "$page holds no file" }
         check(grouped.isEmpty()) { "A launcher's .cfg names what $root does not hold: $grouped" }
         check(components.getValue(FILES).isNotEmpty()) { "$root holds no file but its launchers'" }
 
@@ -235,5 +254,11 @@ abstract class WixSource : DefaultTask() {
 
         /** The component group of the files that belong to no launcher alone. */
         const val FILES = "Files"
+
+        /** The web page's folder in INSTALLDIR. */
+        const val WEB = "web"
+
+        /** The component group of the web page's files. */
+        const val WEB_GROUP = "Web"
     }
 }
