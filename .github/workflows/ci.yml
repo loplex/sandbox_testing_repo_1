@@ -1,6 +1,7 @@
 # The checks on Linux and the Linux packages, installed, upgraded and removed;
 # on Windows what Linux cannot show: the windows' GL contexts, ANGLE's and WGL's,
-# the one MSI of both windows and the command line, built with WiX and installed, upgraded and removed,
+# the one MSI of both windows, the command line and the web page,
+# built with WiX and installed, upgraded and removed,
 # and the command line's zip, built with jpackage and run.
 name: CI
 
