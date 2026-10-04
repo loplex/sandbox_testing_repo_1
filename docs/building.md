@@ -14,8 +14,8 @@ What each program does is [Using it](using.md)'s.
 - [The command line's zip for Windows](#the-command-lines-zip-for-windows) — `dog-vision-cli.exe`
   on a runtime of its own, built by jpackage on Windows or under Wine.
 - [The desktop packages](#the-desktop-packages) — the deb, the rpm and the tar.gz of each window,
-  and the one MSI of both and the command line: the tools they need, what they install, their
-  dependencies, and the scripts that try them.
+  the web page's deb and rpm, and the one MSI of both windows and the command line: the tools they
+  need, what they install, their dependencies, and the scripts that try them.
 
 ## What the build needs
 
@@ -42,6 +42,7 @@ Each artifact lands here:
 |----------------|------------------------------|-----------------------------------------------|
 | Android app    | the debug APK                | `android/build/outputs/apk/debug`             |
 | web page       | the page                     | `web/build/dist/js/productionExecutable`      |
+| web page       | the deb, the rpm             | `packaging/build/distributions`               |
 | command line   | the JAR                      | `cli/build/jars`                              |
 | command line   | the deb, the rpm             | `packaging/build/distributions`               |
 | Compose window | the JARs, Linux's, Windows's | `gui-compose/build/compose/jars`              |
@@ -87,6 +88,8 @@ The phone needs Android 8.0 (API 26) or later, and OpenGL ES 3.0.
 ./gradlew :web:jsBrowserDevelopmentRun   # serves the page, and builds it again on every change
 ./gradlew :web:jsBrowserDistribution     # web/build/dist/js/productionExecutable
 ```
+
+Its deb and its rpm, `dog-vision-web`, are among [the desktop packages](#the-desktop-packages).
 
 ## The command line
 
@@ -160,9 +163,11 @@ pwsh tools/package_cli_zip_on_windows.ps1
 
 ```sh
 ./gradlew :packaging:packageDeb      # packaging/build/distributions: dog-vision_0.1.0_amd64.deb,
-                                     # dog-vision-swing_0.1.0_amd64.deb, dog-vision-cli_0.1.0_all.deb
+                                     # dog-vision-swing_0.1.0_amd64.deb, dog-vision-cli_0.1.0_all.deb,
+                                     # dog-vision-web_0.1.0_all.deb
 ./gradlew :packaging:packageRpm      # packaging/build/distributions: dog-vision-0.1.0-1.x86_64.rpm,
-                                     # dog-vision-swing-0.1.0-1.x86_64.rpm, dog-vision-cli-0.1.0-1.noarch.rpm
+                                     # dog-vision-swing-0.1.0-1.x86_64.rpm, dog-vision-cli-0.1.0-1.noarch.rpm,
+                                     # dog-vision-web-0.1.0-1.noarch.rpm
 ./gradlew :gui-compose:packageTarGz  # gui-compose/build/compose/binaries/main/tar/dog-vision-0.1.0-linux-x64.tar.gz
 ./gradlew :gui-swing:packageTarGz    # gui-swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
@@ -177,7 +182,8 @@ pwsh tools/package_msi_on_windows.ps1
 ```
 
 Each deb and rpm alone is a task of `:packaging` named after it: `packageDogVisionDeb`,
-`packageDogVisionSwingDeb` and `packageDogVisionCliDeb`, and the same with `Rpm`.
+`packageDogVisionSwingDeb`, `packageDogVisionCliDeb` and `packageDogVisionWebDeb`, and the same
+with `Rpm`.
 
 Besides the build's own needs, making them takes these tools, on Ubuntu from the packages named:
 
@@ -205,8 +211,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
 
 ### What each package holds
 
-- **The deb and the rpm run on the system's Java**, 17 or newer, which they depend on: the
-  distribution updates it, and a machine with a JRE downloads little more.
+- **The windows' and the command line's deb and rpm run on the system's Java**, 17 or newer,
+  which they depend on: the distribution updates it, and a machine with a JRE downloads little
+  more.
   They come in three packages:
   - `dog-vision`, the Compose window, which converts a photo given alone as the command line does;
   - `dog-vision-swing`, the Swing window, which does the same, and installs beside `dog-vision`;
@@ -223,6 +230,13 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     `cz.loplex.dogvision.desktop` ("Dog Vision", "Psí vidění") and
     `cz.loplex.dogvision.swing.desktop` ("Dog Vision (Swing)", "Psí vidění (Swing)"), in
     `/usr/share/applications`.
+- **The web page's deb and rpm, `dog-vision-web`, need no Java**, and have no natives, so one
+  package serves every architecture:
+  - the page in `/usr/share/dog-vision-web`, `index.html`, `dog-vision.js` and `styles.css`, without
+    the script's source map;
+  - its menu entry, `cz.loplex.dogvision.web.desktop` ("Dog Vision (web)", "Psí vidění (web)"),
+    which opens that `index.html` in the system's browser through `xdg-open`, and its icons;
+  - no command in `/usr/bin`, as the menu entry is what opens the page.
 - **FlatLaf's natives stay in its JAR** in `dog-vision-swing`: it loads them on Linux only for
   window decorations of its own, which the window does not use, and they link GTK 3.
 - **Each launcher finds its Java** in `JAVA_HOME`, then on `PATH`, then the newest in
@@ -301,6 +315,8 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   It is DejaVu by name, as Fedora and Rocky or openSUSE package it, not `font(:lang=en)`:
   openSUSE's `xorg-x11-fonts-core` provides that, with bitmap fonts only, which Java does not read.
   The Compose window draws its text through skiko and needs none.
+- **`xdg-utils` alone, for `dog-vision-web`**, whose `xdg-open` the menu entry runs: the browser
+  is the user's, as a desktop has one, and the windows' packages name no desktop either.
 - **Nothing else, and no scripts**: the menu entry and the icons are files of the package, which
   the desktop finds by itself.
 
@@ -312,13 +328,15 @@ runtime into its packages.
 
 ### Trying the Linux packages
 
-- **[`tools/test_deb.sh`](../tools/test_deb.sh) installs a deb in a bare container**, `dog-vision`,
-  `dog-vision-swing` or `dog-vision-cli`, with the Java apt chooses for it, and checks that each
-  runs from `PATH`, converts [`test_photo.jpg`](../tools/test_photo.jpg) and is removed with nothing
-  left behind.
-  - Of each window, it also opens the window under Xvfb, installed only after the deb's own
-    dependencies so that its X libraries hide none the deb misses, and checks that skiko, LWJGL and
-    FlatLaf unpacked no natives of their own into the home or `/tmp`.
+- **[`tools/test_deb.sh`](../tools/test_deb.sh) installs a deb in a bare container**, checks what
+  it does there, and that it is removed with nothing left behind:
+  - of `dog-vision`, `dog-vision-swing` and `dog-vision-cli`, installed with the Java apt chooses
+    for it, that each runs from `PATH` and converts [`test_photo.jpg`](../tools/test_photo.jpg);
+  - of each window, also that it opens under Xvfb, installed only after the deb's own dependencies
+    so that its X libraries hide none the deb misses, and that skiko, LWJGL and FlatLaf unpacked no
+    natives of their own into the home or `/tmp`;
+  - of `dog-vision-web`, which no browser opens there, that its menu entry is valid, as
+    `desktop-file-validate` has it, and that the file it opens with `xdg-open` is there.
   - It holds on Ubuntu 20.04, 22.04 and 24.04 and on Debian 12.
     Debian 11 is not among them: its support ended in August 2026, and its repositories moved to
     archive.debian.org.

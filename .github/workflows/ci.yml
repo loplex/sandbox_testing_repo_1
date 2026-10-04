@@ -22,8 +22,8 @@ jobs:
       # ffmpeg for the window's feed; Mesa's EGL and llvmpipe for its GL tests, as the runner has no GPU.
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
       - run: ./gradlew check
-      # The Linux packages, dog-vision, dog-vision-swing and dog-vision-cli, and a later version of
-      # each, which the build writes beside the first.
+      # The Linux packages, dog-vision, dog-vision-swing, dog-vision-cli and dog-vision-web, and a
+      # later version of each, which the build writes beside the first.
       - name: Build the debs and the rpms
         id: packages
         run: |
@@ -32,7 +32,8 @@ jobs:
           ./gradlew "${tasks[@]}"
           ./gradlew "${tasks[@]}" -PappVersion=0.1.1
       # Each in a bare Ubuntu 20.04, the oldest release their dependencies are named for, upgraded to
-      # the later version; each window opens under Xvfb there.
+      # the later version; each window opens under Xvfb there, and the page's desktop entry is
+      # checked.
       - name: Try the dog-vision deb
         run: >-
           tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision_0.1.1_amd64.deb
@@ -47,6 +48,11 @@ jobs:
         run: >-
           tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision-cli_0.1.1_all.deb
           packaging/build/distributions/dog-vision-cli_0.1.0_all.deb ubuntu:20.04
+      - name: Try the dog-vision-web deb
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_deb.sh --upgrade packaging/build/distributions/dog-vision-web_0.1.1_all.deb
+          packaging/build/distributions/dog-vision-web_0.1.0_all.deb ubuntu:20.04
       # Each in a bare Fedora, with no desktop, upgraded the same way.
       - name: Try the dog-vision rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'
@@ -63,6 +69,11 @@ jobs:
         run: >-
           tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-cli-0.1.1-1.noarch.rpm
           packaging/build/distributions/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42
+      - name: Try the dog-vision-web rpm
+        if: (success() || failure()) && steps.packages.outcome == 'success'
+        run: >-
+          tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-web-0.1.1-1.noarch.rpm
+          packaging/build/distributions/dog-vision-web-0.1.0-1.noarch.rpm fedora:42
       # The tar.gz, unpacked and run where it is, on its own runtime: the command line, and the
       # window's main converting a photo given alone.
       - name: Build the tar.gz and try it
