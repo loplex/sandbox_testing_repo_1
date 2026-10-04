@@ -16,7 +16,8 @@
 # An rpm of the project's that the rpm requires at its own version is installed with it from the
 # rpm's own folder, as tools/test_deb.sh says.
 #
-# Both convert test_photo.jpg, beside this script, as tools/test_deb.sh says.
+# The command line and both windows convert test_photo.jpg, beside this script, as
+# tools/test_deb.sh says.
 #
 # A later rpm is the same build with another version, `-PappVersion=0.1.1`, which
 # `:packaging:packageRpm` writes beside the first.
