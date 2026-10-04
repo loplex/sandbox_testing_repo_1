@@ -6,8 +6,8 @@ What each program shows and how it is driven. Building them is [Building it](bui
   recording, the language, and how it differs from the desktop program.
 - [The web page](#the-web-page) — what a browser needs for the camera, snapshots and recording.
 - [The command line](#the-command-line) — converting a photo, `--species` and the other options.
-- [The desktop window](#the-desktop-window) — `dog-vision` in Compose and `dog-vision-swing` in
-  Swing, their GL on Linux and Windows, and ffmpeg for a video or the camera.
+- [The desktop window](#the-desktop-window) — `dog-vision-compose` in Compose and
+  `dog-vision-swing` in Swing, their GL on Linux and Windows, and ffmpeg for a video or the camera.
 
 ## The Android app
 
@@ -229,9 +229,9 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 ## The desktop window
 
 ```sh
-dog-vision                          # the camera, /dev/video0 on Linux
-dog-vision --window photo.jpg       # a photo, or a video played over and over
-dog-vision --species cat photo.jpg  # converts it, as the command line does
+dog-vision-compose                          # the camera, /dev/video0 on Linux
+dog-vision-compose --window photo.jpg       # a photo, or a video played over and over
+dog-vision-compose --species cat photo.jpg  # converts it, as the command line does
 ```
 
 It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
@@ -240,12 +240,14 @@ program's.
 ![The Compose window: the apples as they are and as a dog sees them side by side, and the controls
 on the right](images/window.png)
 
-- **On Linux it installs from the deb or the rpm `dog-vision`**, as `dog-vision` on the `PATH` and
-  *Dog Vision* in the desktop's menu (*Psí vidění* in Czech), on the system's Java 17 or newer,
-  which the package manager installs with it where there is none.
+- **On Linux it installs from the deb or the rpm `dog-vision-compose`**, as `dog-vision-compose` on
+  the `PATH` and *Dog Vision (Kotlin Compose)* in the desktop's menu (*Psí vidění (Kotlin Compose)*
+  in Czech), on the system's Java 17 or newer, which the package manager installs with it where
+  there is none.
   It recommends `dog-vision-cli`, the command line alone, which is a package of its own.
-- **The tar.gz runs without installing**, unpacked anywhere, as `dog-vision/bin/dog-vision`, on a
-  Java of its own; on Windows, the MSI installs it with one as well.
+- **The tar.gz runs without installing**, unpacked anywhere, as
+  `dog-vision-compose/bin/dog-vision-compose`, on a Java of its own; on Windows, the MSI installs
+  it with one as well.
 - **Its launcher takes the Java in `JAVA_HOME`**, else the one on the `PATH`, else the newest in
   `/usr/lib/jvm` or `/usr/lib64/jvm`, whichever is first 17 or newer and not headless.
 - **It takes the command line's options**, and converts a photo given without `--window` as the
@@ -267,7 +269,7 @@ on the right](images/window.png)
 ### The same window in Swing: `dog-vision-swing`
 
 ```sh
-dog-vision-swing --window photo.jpg   # as dog-vision, with the same options, keys and dialog
+dog-vision-swing --window photo.jpg   # as dog-vision-compose, with the same options, keys and dialog
 ```
 
 ![The Swing window: the same images and controls as the Compose window's, in Swing's own
@@ -279,8 +281,8 @@ widgets](images/window-swing.png)
 - **It needs neither Compose nor skiko**, so its packages leave out Compose's JARs and skiko's
   natives.
 - **On Linux it installs from the deb or the rpm `dog-vision-swing`**, as `dog-vision-swing` on the
-  `PATH` and *Dog Vision (Swing)* in the desktop's menu (*Psí vidění (Swing)* in Czech), beside
-  `dog-vision` where both are installed.
+  `PATH` and *Dog Vision (Java Swing)* in the desktop's menu (*Psí vidění (Java Swing)* in Czech),
+  beside `dog-vision-compose` where both are installed.
   Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`, and on Windows the MSI installs it,
   as its part *GUI (Java Swing)*, beside the Compose window's *GUI (Compose Multiplatform)*.
 - **It is light or dark as the desktop asks**: on Linux as the desktop portal's colour scheme says,
