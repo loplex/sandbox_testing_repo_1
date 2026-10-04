@@ -57,7 +57,7 @@ compose.desktop {
         mainClass = mainClassName
         javaHome = packagingJdk.get().metadata.installationPath.asFile.path
         nativeDistributions {
-            packageName = "dog-vision"
+            packageName = "dog-vision-compose"
             packageVersion = providers.gradleProperty("appVersion").get()
             description = "How a dog or another animal sees a photo, a video or the camera"
             vendor = "Martin Lopatář"
@@ -79,11 +79,12 @@ val armAngle = "nucleus/native/win32-aarch64"
 // The JAR with this machine's natives, in place of Compose's packageUberJarForCurrentOS, which merges the JARs
 // without the checks of uberJar.
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
-    description = "Assembles build/compose/jars/dog-vision-linux-x64-<version>.jar, the window for this machine."
+    description = "Assembles build/compose/jars/dog-vision-compose-linux-x64-<version>.jar, the window for this " +
+        "machine."
     group = "compose desktop"
     destinationDirectory = layout.buildDirectory.dir("compose/jars")
     uberJar(
-        "dog-vision-linux-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
+        "dog-vision-compose-linux-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
         mainClassName,
         windowJar,
         configurations.named("jvmRuntimeClasspath"),
@@ -91,7 +92,7 @@ val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
 }
 artifact(linuxUberJar)
 
-// dog-vision-cli beside dog-vision in the app image: Compose runs jpackage for it from the JARs.
+// dog-vision-cli beside dog-vision-compose in the app image: Compose runs jpackage for it from the JARs.
 tasks.withType<AbstractJPackageTask>().configureEach {
     val launcher = packaging.file("dog-vision-cli.properties")
     freeArgs.addAll("--add-launcher", "dog-vision-cli=${launcher.asFile}")
@@ -101,10 +102,11 @@ tasks.withType<AbstractJPackageTask>().configureEach {
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
 val packageTarGz = tasks.register<Tar>("packageTarGz") {
-    description = "Packs the app image into build/compose/binaries/main/tar/dog-vision-<version>-linux-x64.tar.gz."
+    description = "Packs the app image into " +
+        "build/compose/binaries/main/tar/dog-vision-compose-<version>-linux-x64.tar.gz."
     group = "compose desktop"
     val version = compose.desktop.application.nativeDistributions.packageVersion
-    archiveFileName = "dog-vision-$version-linux-x64.tar.gz"
+    archiveFileName = "dog-vision-compose-$version-linux-x64.tar.gz"
     destinationDirectory = layout.buildDirectory.dir("compose/binaries/main/tar")
     compression = Compression.GZIP
     // The launchers and the runtime's jspawnhelper, which starts ffmpeg, stay executable: Gradle's archives otherwise
@@ -116,11 +118,12 @@ artifact(packageTarGz)
 
 // Built on any machine, as jpackage's installers are not: Windows's natives and ANGLE in place of this machine's.
 val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
-    description = "Assembles build/compose/jars/dog-vision-windows-x64-<version>.jar, the window for Windows."
+    description = "Assembles build/compose/jars/dog-vision-compose-windows-x64-<version>.jar, the window for " +
+        "Windows."
     group = "compose desktop"
     destinationDirectory = layout.buildDirectory.dir("compose/jars")
     uberJar(
-        "dog-vision-windows-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
+        "dog-vision-compose-windows-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
         mainClassName,
         windowJar,
         configurations.named("windowsRuntime"),
@@ -129,11 +132,11 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
 }
 artifact(windowsUberJar)
 
-// dog-vision.exe, the MSI's main launcher, which :packaging takes, on the JARs windowsUberJar merges, and on a
+// dog-vision-compose.exe, the MSI's main launcher, which :packaging takes, on the JARs windowsUberJar merges, and on a
 // runtime of the modules the app image's has: Compose's own and those added above. Compose's launchers pass the Java
 // option, with which its application gives Swing the system's look.
 windowsLauncher(
-    name = "dog-vision",
+    name = "dog-vision-compose",
     ownJar = windowJar,
     classpath = configurations.named("windowsRuntime"),
     mainClass = mainClassName,

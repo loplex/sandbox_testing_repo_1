@@ -55,10 +55,10 @@ val windowsWebPage = tasks.register<Sync>("windowsWebPage") {
     from(webPageFiles)
 }
 
-// One runtime of every module a launcher needs, and dog-vision.exe the image's main launcher, whose name the image's
-// folder has.
+// One runtime of every module a launcher needs, and dog-vision-compose.exe the image's main launcher, whose name the
+// image's folder has.
 windowsAppImage(
-    packageName = "dog-vision",
+    packageName = "dog-vision-compose",
     description = "How a dog or another animal sees a photo, a video or the camera",
     launchers = launcherFiles.get(),
     runtime = windowsRuntimeImage(
@@ -107,13 +107,14 @@ tasks.register("packageRpm") {
     dependsOn(tasks.withType<RpmPackage>())
 }
 
-// The deb and the rpm, dog-vision, on the system's Java.
+// The deb and the rpm, dog-vision-compose, on the system's Java.
 windowPackages(
-    packageName = "dog-vision",
+    packageName = "dog-vision-compose",
     jars = jvmRuntimeOf(":gui-compose"),
     // The application's ID, which the Windows MSI does not use.
-    applicationId = "cz.loplex.dogvision",
+    applicationId = "cz.loplex.dogvision.compose",
     mainClass = "cz.loplex.dogvision.desktop.MainKt",
+    nameSuffix = " (Kotlin Compose)",
     // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
     jvmOptions = { natives ->
         listOf("-Dcompose.application.configure.swing.globals=true", "-Dskiko.library.path=$natives")
@@ -130,22 +131,23 @@ windowPackages(
     """.trimIndent(),
 )
 
-// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision, with the desktop
-// entry and icons under names of their own, so that both windows install side by side.
+// The deb and the rpm, dog-vision-swing, on the system's Java, as the Compose window's dog-vision-compose, with the
+// desktop entry and icons under names of their own, so that both windows install side by side.
 windowPackages(
     packageName = "dog-vision-swing",
     jars = jvmRuntimeOf(":gui-swing"),
-    // Not the Compose window's cz.loplex.dogvision.
+    // Not the Compose window's cz.loplex.dogvision.compose.
     applicationId = "cz.loplex.dogvision.swing",
     mainClass = "cz.loplex.dogvision.swing.MainKt",
-    nameSuffix = " (Swing)",
+    nameSuffix = " (Java Swing)",
     summary = "How a dog or another animal sees colours (Java Swing GUI)",
     description = """
         dog-vision shows a photo, a video or the camera with the colours a dog,
         a cat or another animal can tell apart, beside the original.
 
         This package is the desktop window in Swing, which needs neither Compose
-        nor skiko. The package dog-vision is the same window in Compose.
+        nor skiko. The package dog-vision-compose is the same window in
+        Compose.
 
         Given a photo alone, it converts it as the command line does, which is
         the package dog-vision-cli.
@@ -196,7 +198,7 @@ val cliDescription = """
     colours, as a PNG beside it, with no window and no display.
 
     The desktop windows, which show a video or the camera as well, are
-    the packages dog-vision and dog-vision-swing.
+    the packages dog-vision-compose and dog-vision-swing.
 """.trimIndent()
 
 val packageCliDeb = tasks.register<DebPackage>("packageDogVisionCliDeb") {
@@ -280,7 +282,7 @@ val webDescription = """
     the installed files: the page fetches nothing.
 
     The desktop windows, which need no browser, are the packages
-    dog-vision and dog-vision-swing.
+    dog-vision-compose and dog-vision-swing.
 """.trimIndent()
 
 val packageWebDeb = tasks.register<DebPackage>("packageDogVisionWebDeb") {

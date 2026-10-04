@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Builds the app images for Windows on x86-64 on Linux, through Wine: each a folder with its
 # launchers, their JARs and a runtime of its own, which runs under Wine as it is, without being
-# installed. Without --image both, one after the other; with --image dog-vision the one the MSI
-# installs, with the Compose window's dog-vision.exe, the Swing window's dog-vision-swing.exe and
-# the command line's dog-vision-cli.exe, which runs in a console; with --image dog-vision-cli the
-# command line's, with dog-vision-cli.exe alone.
+# installed. Without --image both, one after the other; with --image dog-vision-compose the one the
+# MSI installs, with the Compose window's dog-vision-compose.exe, the Swing window's
+# dog-vision-swing.exe and the command line's dog-vision-cli.exe, which runs in a console; with
+# --image dog-vision-cli the command line's, with dog-vision-cli.exe alone.
 #
-# Each is written to tools/build/app-image, as tools/build/app-image/dog-vision, and its folder
-# printed; tools/build holds what the scripts in tools build, which git ignores.
+# Each is written to tools/build/app-image, as tools/build/app-image/dog-vision-compose, and its
+# folder printed; tools/build holds what the scripts in tools build, which git ignores.
 # tools/package_msi_on_linux.sh makes the MSI of the one, and tools/package_cli_zip_on_linux.sh the
 # command line's zip of the other.
 #
@@ -51,7 +51,7 @@ die() {
 
 usage() {
     die "usage: $0 [--tools <directory>] [--jdk <Windows JDK 17>] [--app-version <version>]
-       [--image dog-vision|dog-vision-cli]" 2
+       [--image dog-vision-compose|dog-vision-cli]" 2
 }
 
 # The path as Windows programs under Wine see it: through the drive Wine maps to the root, Z:.
@@ -87,7 +87,7 @@ if [[ -z "$name" ]]; then
     options=(--tools "$tools")
     [[ -z "$jdk" ]] || options+=(--jdk "$jdk")
     [[ -z "$app_version" ]] || options+=(--app-version "$app_version")
-    for each in dog-vision dog-vision-cli; do
+    for each in dog-vision-compose dog-vision-cli; do
         "${BASH_SOURCE[0]}" "${options[@]}" --image "$each"
     done
     exit 0
@@ -101,9 +101,9 @@ fi
 
 # The image's tasks of :packaging, windows<image>Jpackage, and their folder in packaging/build.
 case "$name" in
-        dog-vision) image_tasks="windows" image_folder="windows" ;;
-    dog-vision-cli) image_tasks="windowsCli" image_folder="windows/cli" ;;
-                 *) usage ;;
+    dog-vision-compose) image_tasks="windows" image_folder="windows" ;;
+        dog-vision-cli) image_tasks="windowsCli" image_folder="windows/cli" ;;
+                     *) usage ;;
 esac
 
 require "wine" "wine" "wine"

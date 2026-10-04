@@ -107,8 +107,8 @@ val packagingJdk = packagingJdk()
 /** The modules of the tar.gz's runtime and the MSI's: what jdeps --print-module-deps finds the JARs using. */
 val runtimeModules = listOf("java.base", "java.desktop", "java.instrument", "jdk.unsupported")
 
-// dog-vision-swing.exe beside the Compose window's dog-vision.exe in the MSI, which :packaging takes, on the JARs
-// windowsUberJar merges.
+// dog-vision-swing.exe beside the Compose window's dog-vision-compose.exe in the MSI, which :packaging takes, on the
+// JARs windowsUberJar merges.
 windowsLauncher(
     name = "dog-vision-swing",
     ownJar = windowJar,
