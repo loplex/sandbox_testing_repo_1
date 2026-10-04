@@ -156,8 +156,8 @@ Test-Check "dog-vision-cli.exe converts a photo" (
     $LASTEXITCODE -eq 0 -and @(Get-ChildItem $converted.FullName -Filter "*.png").Count -eq 1
 )
 
-# Each window has a shortcut in the Start menu and on the desktop; the command line, which only
-# prints its usage when started from one, has none.
+# Each window has a shortcut in the Start menu and on the desktop; the command line, which started
+# from one would only say that the window is the desktop app's, has none.
 Write-Host "Start menu: $(@(Get-ChildItem $startMenu -ErrorAction SilentlyContinue).Name -join ', ')"
 Write-Host "Desktop: $(@(Get-ChildItem $desktop -Filter "$product*" -ErrorAction SilentlyContinue).Name -join ', ')"
 foreach ($shortcut in $shortcuts) {
