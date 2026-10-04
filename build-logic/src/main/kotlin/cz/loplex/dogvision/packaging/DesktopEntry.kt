@@ -31,7 +31,10 @@ abstract class DesktopEntry : DefaultTask() {
     @get:Input
     abstract val nameString: Property<String>
 
-    /** What follows the name in every language, such as " (Swing)", where two packages share one; none by default. */
+    /**
+     * What follows the name in every language, such as " (Java Swing)", where two packages share one; none by
+     * default.
+     */
     @get:Input
     abstract val nameSuffix: Property<String>
 

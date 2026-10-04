@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Builds the MSI for Windows on x86-64 on Linux, through Wine, into tools/build/msi, which git
 # ignores, as tools/build/msi/dog-vision-0.1.0.msi. It installs the app image that
-# tools/package_app_image_on_linux.sh builds first as dog-vision, with the Compose window's
-# dog-vision.exe, the Swing window's dog-vision-swing.exe and the command line's dog-vision-cli.exe.
+# tools/package_app_image_on_linux.sh builds first as dog-vision-compose, with the Compose window's
+# dog-vision-compose.exe, the Swing window's dog-vision-swing.exe and the command line's
+# dog-vision-cli.exe.
 #
 # WiX Toolset 3's candle.exe and light.exe make it of what :packaging's windowsWix task writes:
 # packaging/windows/dog-vision.wxs, which says what the MSI does, and the app image's files.
@@ -97,7 +98,7 @@ wix="$(realpath "$wix")"
 version_pattern=$'(^|\n)appVersion=([^\n]+)'
 [[ "$(<"$root/gradle.properties")" =~ $version_pattern ]] || die "gradle.properties has no appVersion"
 version="${app_version:-${BASH_REMATCH[2]}}"
-image_options=(--tools "$tools" --image dog-vision)
+image_options=(--tools "$tools" --image dog-vision-compose)
 [[ -z "$jdk" ]] || image_options+=(--jdk "$jdk")
 gradle_options=()
 if [[ -n "$app_version" ]]; then

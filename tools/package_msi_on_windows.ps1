@@ -3,8 +3,8 @@
 # Wine, but with the jpackage of the JDK this runs on, and with light.exe's validation (ICE), which
 # fails under Wine.
 #
-# jpackage makes the app image, into tools\build\app-image\dog-vision, of the arguments that
-# :packaging's windowsJpackage task writes: the Compose window's dog-vision.exe, the Swing
+# jpackage makes the app image, into tools\build\app-image\dog-vision-compose, of the arguments that
+# :packaging's windowsJpackage task writes: the Compose window's dog-vision-compose.exe, the Swing
 # window's dog-vision-swing.exe and the command line's dog-vision-cli.exe, with their JARs and the
 # runtime that its windowsRuntime task links. jpackage puts every JAR on each launcher's classpath,
 # so this then copies the launchers' .cfg that the windowsLauncherConfigs task writes, each with its
@@ -65,7 +65,7 @@ if ($AppVersion) {
 Invoke-Checked $gradlew ($gradleOptions + ":packaging:windowsJpackage")
 
 $images = Join-Path $root "tools\build\app-image"
-$image = Join-Path $images "dog-vision"
+$image = Join-Path $images "dog-vision-compose"
 # jpackage refuses an image's folder that is there already.
 if (Test-Path $image) {
     Remove-Item -Recurse -Force $image
