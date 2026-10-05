@@ -7,6 +7,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kover)
+    alias(libs.plugins.detekt)
 }
 
 /**

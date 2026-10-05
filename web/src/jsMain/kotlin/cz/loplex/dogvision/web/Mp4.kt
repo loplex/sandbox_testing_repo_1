@@ -1,3 +1,6 @@
+// The offsets and sizes of the MP4 format's boxes and fields, as ISO/IEC 14496-12 lays them out.
+@file:Suppress("MagicNumber")
+
 package cz.loplex.dogvision.web
 
 import org.khronos.webgl.ArrayBuffer
@@ -40,6 +43,7 @@ fun readRotation(file: Blob, onRead: (Int) -> Unit) {
 }
 
 /** The rotation that the first video track in [movie], a whole movie box, states in its track header's matrix. */
+@Suppress("CyclomaticComplexMethod", "ReturnCount")
 internal fun rotationOfMovie(movie: ByteArray): Int {
     val tracks = children(movie, boxAt(movie, 0, movie.size) ?: return 0).filter { it.type == "trak" }
     val video = tracks.firstOrNull { track ->
@@ -74,6 +78,7 @@ private class Mp4Box(val type: String, val content: Int, val end: Int)
  * The box whose header is in [bytes] at [start], which ends by [end]; null if the header is cut short or states a size
  * that does not fit before [end]. A size of 0 runs to [end].
  */
+@Suppress("ReturnCount")
 private fun boxAt(bytes: ByteArray, start: Int, end: Int): Mp4Box? {
     if (start + 8 > end) return null
     val type = fourCc(bytes, start + 4)
