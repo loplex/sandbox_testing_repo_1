@@ -144,7 +144,8 @@ Test-Ice $Msi
 Test-Check "the MSI of $Version installs" (Invoke-Msiexec "install-$Version.log" @("/i", "`"$Msi`""))
 Test-Installed $Version
 
-# The command line converts a photo, red on the left and blue on the right, with the runtime in the MSI.
+# The command line converts a photo, red on the left and blue on the right,
+# with the runtime in the MSI.
 $work = Join-Path ([System.IO.Path]::GetTempPath()) "dog-vision-msi-test"
 Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 $converted = New-Item -ItemType Directory -Path (Join-Path $work "converted")
@@ -192,7 +193,8 @@ if ($found) {
 Test-Check "dog-vision-cli runs from the PATH" ($found -and $LASTEXITCODE -eq 0)
 
 
-# The later version, over it, with a file in the folder a window downloads ffmpeg into, as if it had.
+# The later version, over it,
+# with a file in the folder a window downloads ffmpeg into, as if it had.
 
 New-Item -ItemType Directory -Force -Path (Join-Path $data "ffmpeg\bin") | Out-Null
 Set-Content (Join-Path $data "ffmpeg\bin\ffmpeg.exe") "downloaded"
