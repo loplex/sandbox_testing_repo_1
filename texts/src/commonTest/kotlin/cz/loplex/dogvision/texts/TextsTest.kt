@@ -1,5 +1,8 @@
 package cz.loplex.dogvision.texts
 
+import cz.loplex.dogvision.core.CameraChoice
+import cz.loplex.dogvision.core.CameraOption
+import cz.loplex.dogvision.core.Facing
 import cz.loplex.dogvision.core.View
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -76,5 +79,40 @@ class TextsTest {
         val captions = Texts.of("en").captions(View(sideBySide = true, difference = true), 0.25)
         assertEquals(listOf("original", "dog (dichromat)"), captions.take(2))
         assertTrue("25" in captions[2], captions[2])
+    }
+
+    @Test
+    fun namesACameraBySystemElseByFacingElseByNumber() {
+        val texts = Texts.of("en")
+        val cameras = listOf(
+            CameraOption("0", null, Facing.BACK),
+            CameraOption("1", null, Facing.FRONT),
+            CameraOption("2", null, Facing.UNKNOWN),
+            CameraOption("/dev/video0", "Integrated Camera", Facing.FRONT),
+        )
+        assertEquals(
+            listOf("Off", "Back camera", "Front camera", "Camera 3", "Integrated Camera"),
+            texts.cameraNames(CameraChoice(cameras)),
+        )
+        assertEquals(listOf("Vypnutá", "Kamera 1"), Texts.of("cs").cameraNames(CameraChoice(shown = cameras[2])))
+    }
+
+    @Test
+    fun aSwitchIsBetweenTheBackAndTheFrontCameraOnlyWhereThoseAreTheTwo() {
+        val back = CameraOption("0", null, Facing.BACK)
+        val front = CameraOption("1", null, Facing.FRONT)
+        val external = CameraOption("2", null, Facing.UNKNOWN)
+        assertEquals(Str.SWITCH_CAMERA, CameraChoice(listOf(front, back)).switchKey)
+        assertEquals(Str.NEXT_CAMERA, CameraChoice(listOf(back, front, external)).switchKey)
+        assertEquals(Str.NEXT_CAMERA, CameraChoice(listOf(back, external)).switchKey)
+        assertEquals(Str.NEXT_CAMERA, CameraChoice(listOf(back, back.copy(id = "3"))).switchKey)
+    }
+
+    @Test
+    fun automaticMirroringSaysWhereTheCameraFaces() {
+        val texts = Texts.of("cs")
+        assertEquals("Automaticky (přední)", texts.automaticMirroring(Facing.FRONT))
+        assertEquals("Automaticky (zadní)", texts.automaticMirroring(Facing.BACK))
+        assertEquals("Automaticky", texts.automaticMirroring(Facing.UNKNOWN))
     }
 }

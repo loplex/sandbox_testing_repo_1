@@ -84,10 +84,12 @@ jobs:
         run: >-
           tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-swing-0.1.1-1.x86_64.rpm
           packaging/build/distributions/dog-vision-swing-0.1.0-1.x86_64.rpm fedora:42
-      - name: Try the dog-vision-cli rpm
+      # dog-vision-cli brings a headless Java, which a window installed after it must pass over.
+      - name: Try the dog-vision-cli rpm, then dog-vision-compose beside it
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: >-
           tools/test_rpm.sh --upgrade packaging/build/distributions/dog-vision-cli-0.1.1-1.noarch.rpm
+          --switch packaging/build/distributions/dog-vision-compose-0.1.1-1.x86_64.rpm
           packaging/build/distributions/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42
       - name: Try the dog-vision-common rpm
         if: (success() || failure()) && steps.packages.outcome == 'success'

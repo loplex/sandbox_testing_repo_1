@@ -41,7 +41,7 @@ jobs:
     steps:
       - id: plan
         run: |
-          echo 'include=[{"name": "fedora: cli -> dog-vision", "args": "--upgrade dist/dog-vision-cli-0.1.1-1.noarch.rpm --switch dist/dog-vision-0.1.1-1.x86_64.rpm dist/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42"}, {"name": "fedora: cli then dog-vision-compose", "args": "--switch dist/dog-vision-compose-0.1.0-1.x86_64.rpm dist/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42"}, {"name": "leap: compose -> dog-vision", "args": "--upgrade dist/dog-vision-compose-0.1.1-1.x86_64.rpm --switch dist/dog-vision-0.1.1-1.x86_64.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm opensuse/leap:15.6"}, {"name": "leap: compose then dog-vision-swing", "args": "--switch dist/dog-vision-swing-0.1.0-1.x86_64.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm opensuse/leap:15.6"}]' >> "$GITHUB_OUTPUT"
+          echo 'include=[{"name": "fedora: cli then compose (fix)", "cmd": "tools/test_rpm.sh --upgrade dist/dog-vision-cli-0.1.1-1.noarch.rpm --switch dist/dog-vision-compose-0.1.1-1.x86_64.rpm dist/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42"}, {"name": "fedora: cli -> dog-vision (fix)", "cmd": "tools/test_rpm.sh --upgrade dist/dog-vision-cli-0.1.1-1.noarch.rpm --switch dist/dog-vision-0.1.1-1.x86_64.rpm dist/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42"}, {"name": "ubuntu: cli then compose", "cmd": "tools/test_deb.sh --switch dist/dog-vision-compose_0.1.0_amd64.deb dist/dog-vision-cli_0.1.0_all.deb ubuntu:24.04"}, {"name": "leap: compose then swing (test)", "cmd": "tools/test_rpm_verbose.sh --switch dist/dog-vision-swing-0.1.0-1.x86_64.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm opensuse/leap:15.6"}, {"name": "leap probe: compose then swing", "cmd": "tools/probe_leap_fonts.sh dist/dog-vision-common-0.1.0-1.noarch.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm dist/dog-vision-swing-0.1.0-1.x86_64.rpm"}, {"name": "leap probe: swing alone", "cmd": "tools/probe_leap_fonts.sh dist/dog-vision-common-0.1.0-1.noarch.rpm dist/dog-vision-swing-0.1.0-1.x86_64.rpm"}, {"name": "leap probe: compose alone", "cmd": "tools/probe_leap_fonts.sh dist/dog-vision-common-0.1.0-1.noarch.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm"}]' >> "$GITHUB_OUTPUT"
 
   test:
     name: ${{ matrix.name }}
@@ -58,6 +58,6 @@ jobs:
         with:
           name: packages
           path: dist
-      - run: tools/test_rpm_verbose.sh ${{ matrix.args }}
+      - run: ${{ matrix.cmd }}
         env:
           JAVA_TOOL_OPTIONS: -Dorg.lwjgl.util.Debug=true -Dorg.lwjgl.util.DebugLoader=true

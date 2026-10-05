@@ -273,6 +273,9 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   the alternatives may point `java` at an older one on a machine that has a newer one as well.
   It is [`launcher.sh`](../build-logic/src/main/resources/cz/loplex/dogvision/packaging/launcher.sh),
   filled in by the build.
+- **A window's launcher passes over a headless Java**, one without `lib/libawt_xawt.so`:
+  where `dog-vision-cli` brought a headless Java and a window a full one of another version,
+  `java` may be the headless one.
 - **The tar.gz and the MSI bring a runtime of their own**, Temurin's JDK 25, which jlink cuts down
   to the modules their launchers use: each tar.gz the window's and `dog-vision-cli`, the MSI both
   windows' and `dog-vision-cli`.

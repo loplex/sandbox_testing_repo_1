@@ -77,7 +77,7 @@ fun Project.windowPackages(
 
     val linuxLauncher = tasks.register("${prefix}Launcher", JavaLauncher::class.java) {
         this.description = "Writes build/$work/launcher/$packageName, the script its deb and its rpm install in " +
-            "/usr/bin, which starts the window on the system's Java 17 or newer."
+            "/usr/bin, which starts the window on the system's Java 17 or newer, not a headless one."
         commandName.set(packageName)
         this.mainClass.set(mainClass)
         this.jars.from(linuxJars)
@@ -87,6 +87,7 @@ fun Project.windowPackages(
         jarNames.set(linuxJarNames)
         this.jvmOptions.set(jvmOptions(nativesHome) + "-Dorg.lwjgl.librarypath=$nativesHome")
         minimumJava.set(17)
+        opensWindow.set(true)
         script.set(layout.buildDirectory.file("$work/launcher/$packageName"))
     }
 

@@ -98,7 +98,7 @@ class FfmpegFeedTest {
      * after it.
      */
     @Test
-    fun directShowCamerasAreListedByTheirAlternativeNames() {
+    fun directShowCamerasAreListedWithTheirAlternativeNames() {
         val listed = """
             [in#0 @ 00007ffffe846280] "Integrated Camera: Integrated C" (video)
             [in#0 @ 00007ffffe846280]   Alternative name "@device_cm_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\video0"
@@ -106,8 +106,15 @@ class FfmpegFeedTest {
             [in#0 @ 00007ffffe846280] "OBS Virtual Camera" (video)
             Error opening input file dummy.
         """.trimIndent()
-        val cameras = listOf("""@device_cm_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\video0""", "OBS Virtual Camera")
+        val cameras = listOf(
+            DirectShowCamera(
+                "Integrated Camera: Integrated C",
+                """@device_cm_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\video0""",
+            ),
+            DirectShowCamera("OBS Virtual Camera"),
+        )
         assertEquals(cameras, FfmpegFeed.directShowCameras(listed))
+        assertEquals(listOf(cameras[0].alternativeName, "OBS Virtual Camera"), cameras.map { it.device })
     }
 
     @Test
@@ -121,7 +128,8 @@ class FfmpegFeedTest {
             [dshow @ 0000000000346f00]     Alternative name "@device_cm_{33D9A762}\wave_{A1B2}"
             dummy: Immediate exit requested
         """.trimIndent()
-        assertEquals(listOf("""@device_pnp_\\?\usb#vid_13d3"""), FfmpegFeed.directShowCameras(listed))
+        val camera = DirectShowCamera("USB2.0 HD UVC WebCam", """@device_pnp_\\?\usb#vid_13d3""")
+        assertEquals(listOf(camera), FfmpegFeed.directShowCameras(listed))
         @Suppress("KotlinMisorderedAssertEqualsArguments")
         assertEquals(emptyList(), FfmpegFeed.directShowCameras("dummy: Immediate exit requested"))
     }
