@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Installs an rpm of the project's, dog-vision-compose, dog-vision-swing, dog-vision-cli,
-# dog-vision-web or dog-vision-web-sourcemap, in a bare container, runs it and removes it, checking
-# each step. With --upgrade, it installs a later rpm over the first before removing it, as an update
-# does. With --temurin, it installs Adoptium's Temurin JRE first, from Adoptium's repository, and
-# checks that the rpm takes it rather than an OpenJDK.
+# dog-vision-common, dog-vision-web or dog-vision-web-sourcemap, in a bare container, runs it and
+# removes it, checking each step. With --upgrade, it installs a later rpm over the first before
+# removing it, as an update does. With --temurin, it installs Adoptium's Temurin JRE first, from
+# Adoptium's repository, and checks that the rpm takes it rather than an OpenJDK.
 #
 # A bare image has no desktop, and openSUSE's has no /etc/xdg/menus, which is what a headless
 # install for the command line alone meets. dnf or zypper installs the rpm there with its
@@ -210,6 +210,11 @@ check_installed() {
             check "dog-vision-cli runs from PATH$1" dog-vision-cli --help
             check "it converts a JPEG to a PNG$1" converts dog-vision-cli
             ;;
+        dog-vision-common)
+            check "its JARs are in /usr/share/dog-vision-common/lib$1" \
+                test -f /usr/share/dog-vision-common/lib/cli-jvm.jar
+            check "/usr/bin has nothing of its$1" test ! -e /usr/bin/dog-vision-common
+            ;;
         dog-vision-web-sourcemap)
             check "the source map is beside the page's script$1" \
                 test -f /usr/share/dog-vision-web/dog-vision.js.map -a -f /usr/share/dog-vision-web/dog-vision.js
@@ -250,6 +255,9 @@ check_removed() {
         dog-vision-cli)
             check "/usr/bin/dog-vision-cli is gone" test ! -e /usr/bin/dog-vision-cli
             check "/usr/share/dog-vision-cli is gone" test ! -e /usr/share/dog-vision-cli
+            ;;
+        dog-vision-common)
+            check "/usr/share/dog-vision-common is gone" test ! -e /usr/share/dog-vision-common
             ;;
         dog-vision-web-sourcemap)
             check "the source map is gone" test ! -e /usr/share/dog-vision-web/dog-vision.js.map
