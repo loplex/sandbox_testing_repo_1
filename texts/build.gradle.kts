@@ -6,6 +6,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 // Android's format, compiled into Kotlin at build time, and what words a species, a fact or a caption from them.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kover)
 }
 
 /**

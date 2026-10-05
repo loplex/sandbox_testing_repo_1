@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // may come in here, so that a window in another toolkit can do without them.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
