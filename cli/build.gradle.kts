@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // well, which read them through gui-core.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kover)
     id("cz.loplex.dogvision.packaging")
 }
 

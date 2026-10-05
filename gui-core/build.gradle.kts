@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // come in here, so that a window in another toolkit can do without them; Java's own AWT and Swing are all it uses.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
