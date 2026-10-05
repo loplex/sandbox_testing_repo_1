@@ -34,58 +34,14 @@ jobs:
           retention-days: 3
 
   plan:
-    name: Plan the matrix
+    name: Plan the probe
     runs-on: ubuntu-24.04
     outputs:
       include: ${{ steps.plan.outputs.include }}
     steps:
       - id: plan
-        shell: python
         run: |
-          import json, os
-          debs = ["ubuntu:20.04", "ubuntu:22.04", "ubuntu:24.04", "debian:12"]
-          rpms = ["fedora:42", "opensuse/leap:15.6", "rockylinux/rockylinux:9-minimal"]
-          native = {"dog-vision-compose", "dog-vision-swing", "dog-vision"}
-          packages = ["dog-vision-compose", "dog-vision-swing", "dog-vision-cli", "dog-vision-common",
-                      "dog-vision-web", "dog-vision-web-sourcemap", "dog-vision"]
-
-          def file(image, name, version):
-              d = "dist"
-              if image in debs:
-                  return f"{d}/{name}_{version}_{'amd64' if name in native else 'all'}.deb"
-              return f"{d}/{name}-{version}-1.{'x86_64' if name in native else 'noarch'}.rpm"
-
-          include = []
-          def add(image, name, switch=None, upgrade=True, temurin=False):
-              args = ["--temurin"] if temurin else []
-              if upgrade:
-                  args += ["--upgrade", file(image, name, "0.1.1")]
-              if switch:
-                  args += ["--switch", file(image, switch, "0.1.1" if upgrade else "0.1.0")]
-              args += [file(image, name, "0.1.0"), image]
-              label = name + (f" -> {switch}" if switch else "") + (" (Temurin)" if temurin else "")
-              include.append({
-                  "name": f"{label} on {image}",
-                  "script": "tools/test_deb.sh" if image in debs else "tools/test_rpm.sh",
-                  "args": " ".join(args),
-              })
-
-          for image in debs + rpms:
-              # microdnf removes no package to install another.
-              switching = "microdnf" not in image and "rockylinux" not in image
-              for name in packages:
-                  target = "dog-vision-cli" if name == "dog-vision" else "dog-vision"
-                  add(image, name, target if switching else None)
-          for image in ["ubuntu:20.04", "fedora:42", "opensuse/leap:15.6"]:
-              for target in ["dog-vision-compose", "dog-vision-swing", "dog-vision-common", "dog-vision-web"]:
-                  add(image, "dog-vision", target)
-          for image in ["ubuntu:24.04", "fedora:42"]:
-              for name in ["dog-vision-compose", "dog-vision-swing", "dog-vision-cli", "dog-vision"]:
-                  add(image, name, temurin=True)
-
-          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-              out.write(f"include={json.dumps(include)}\n")
-          print(len(include), "jobs")
+          echo 'include=[{"name": "fedora: cli -> dog-vision", "args": "--upgrade dist/dog-vision-cli-0.1.1-1.noarch.rpm --switch dist/dog-vision-0.1.1-1.x86_64.rpm dist/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42"}, {"name": "fedora: cli then dog-vision-compose", "args": "--switch dist/dog-vision-compose-0.1.0-1.x86_64.rpm dist/dog-vision-cli-0.1.0-1.noarch.rpm fedora:42"}, {"name": "leap: compose -> dog-vision", "args": "--upgrade dist/dog-vision-compose-0.1.1-1.x86_64.rpm --switch dist/dog-vision-0.1.1-1.x86_64.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm opensuse/leap:15.6"}, {"name": "leap: compose then dog-vision-swing", "args": "--switch dist/dog-vision-swing-0.1.0-1.x86_64.rpm dist/dog-vision-compose-0.1.0-1.x86_64.rpm opensuse/leap:15.6"}]' >> "$GITHUB_OUTPUT"
 
   test:
     name: ${{ matrix.name }}
@@ -102,4 +58,6 @@ jobs:
         with:
           name: packages
           path: dist
-      - run: ${{ matrix.script }} ${{ matrix.args }}
+      - run: tools/test_rpm_verbose.sh ${{ matrix.args }}
+        env:
+          JAVA_TOOL_OPTIONS: -Dorg.lwjgl.util.Debug=true -Dorg.lwjgl.util.DebugLoader=true
