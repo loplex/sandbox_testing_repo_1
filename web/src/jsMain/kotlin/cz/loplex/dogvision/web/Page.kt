@@ -50,6 +50,7 @@ private class Photo(val width: Int, val height: Int, val pixels: Uint8Array)
  * the page is hidden, as the Android app's does in the background, and starts again when it is shown, if it is still
  * the source; a video pauses meanwhile. Turned off in the controls, it stops, and nothing is shown.
  */
+@Suppress("TooManyFunctions")
 class Page(private var texts: Texts) {
     private val stage = element<HTMLElement>("stage")
     private val canvas = element<HTMLCanvasElement>("view")
@@ -403,6 +404,7 @@ class Page(private var texts: Texts) {
      * Records the view as shown from now on, until [stopRecording]: its images at the size they are composed, in the
      * arrangement they have now, as the Android app records them.
      */
+    @Suppress("MagicNumber", "ReturnCount")
     private fun startRecording() {
         val passes = passes ?: return
         if (recording != null || !shown(passes)) return

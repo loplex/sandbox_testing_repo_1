@@ -9,6 +9,7 @@ package cz.loplex.dogvision.gl
  * implementation copies where its platform wants a buffer of its own. Every call runs on the thread whose context is
  * current, as GL's own do.
  */
+@Suppress("TooManyFunctions")
 interface Gl {
     fun createProgram(): Int
 
@@ -61,6 +62,7 @@ interface Gl {
     fun texParameteri(target: Int, name: Int, value: Int)
 
     /** Allocates the texture bound, filled from [pixels], or left undefined if null. */
+    @Suppress("LongParameterList")
     fun texImage2D(
         target: Int,
         level: Int,
@@ -73,6 +75,7 @@ interface Gl {
     )
 
     /** Allocates the texture bound, filled from [pixels], a float per channel. */
+    @Suppress("LongParameterList")
     fun texImage2D(
         target: Int,
         level: Int,

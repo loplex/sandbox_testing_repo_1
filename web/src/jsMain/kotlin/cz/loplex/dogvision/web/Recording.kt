@@ -18,6 +18,9 @@ private const val RECORDING_FPS = 30
 /** The bits an encoder may spend on a pixel of a frame, as the Android app asks of its encoder. */
 private const val BITS_PER_PIXEL = 0.1
 
+/** How often the recorder hands over what it has encoded, in milliseconds. */
+private const val HANDED_OVER_EVERY = 1000
+
 /** The containers and codecs a recording is tried in, in this order: MP4 as the app's, else WebM. */
 private val TYPES = listOf("video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm")
 
@@ -53,7 +56,7 @@ internal class Recording private constructor(
                 onFailed(event.error?.message as String? ?: "")
             }
         }
-        recorder.start(1000)
+        recorder.start(HANDED_OVER_EVERY)
         drawEachFrame()
     }
 
@@ -111,6 +114,7 @@ internal class Recording private constructor(
          * says; throws IllegalStateException if the browser cannot. [onFailed] is handed the browser's message if the
          * recorder fails later, which stops it.
          */
+        @Suppress("TooGenericExceptionCaught")
         fun start(
             count: Int,
             width: Int,
@@ -144,7 +148,7 @@ internal class Recording private constructor(
                 MediaRecorder(stream, options)
             } catch (error: Throwable) {
                 canvas.remove()
-                throw IllegalStateException(error.message)
+                throw IllegalStateException(error.message, error)
             }
             return Recording(canvas, passes, boxes, recorder, type, onFailed)
         }
