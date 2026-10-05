@@ -32,6 +32,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** A row as wide as the column it is in and as high as it needs: BoxLayout would otherwise stretch it. */
+@Suppress("MagicNumber")
 internal open class Row(layout: LayoutManager = BorderLayout(UIScale.scale(8), 0)) : JPanel(layout) {
     init {
         isOpaque = false
