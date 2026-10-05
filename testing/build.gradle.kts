@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // JVM, which the Android app's instrumented tests run it on too, and for JavaScript.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.detekt)
 }
 
 kotlin {

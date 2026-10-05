@@ -72,6 +72,7 @@ internal class Passes(private val gl: WebGL2RenderingContext) {
      * transparent black, though; there the frame is uploaded as stored, scaled down bilinearly on the GPU, and turned
      * by the passes.
      */
+    @Suppress("MagicNumber", "ReturnCount")
     fun upload(video: HTMLVideoElement, mirrored: Boolean, rotation: Int = 0): Boolean {
         val longest = max(video.videoWidth, video.videoHeight)
         if (longest == 0) return false

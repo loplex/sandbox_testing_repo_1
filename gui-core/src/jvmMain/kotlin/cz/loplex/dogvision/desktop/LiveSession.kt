@@ -30,6 +30,7 @@ import kotlin.concurrent.thread
  * which [canInstallFfmpeg] says whether to offer where it is missing, and [wingetFound] whether to offer winget as
  * well; the tests give their own of each, and a [post] that runs what it is given there and then.
  */
+@Suppress("LongParameterList", "TooManyFunctions")
 class LiveSession<I>(
     private val arguments: WindowArguments,
     makeRenderer: (onPicture: (Picture<I>) -> Unit, onFailure: (String) -> Unit) -> Renderer,
@@ -39,7 +40,7 @@ class LiveSession<I>(
     private val ffmpegInstaller: () -> FfmpegInstall = FfmpegPrograms::install,
     private val ffmpegDownloader: (onPercent: (Int) -> Unit) -> FfmpegInstall = FfmpegDownload::download,
     private val canInstallFfmpeg: Boolean = onWindows,
-    private val wingetFound: Boolean = canInstallFfmpeg && FfmpegPrograms.wingetOnPath(),
+    wingetFound: Boolean = canInstallFfmpeg && FfmpegPrograms.wingetOnPath(),
     private val post: (() -> Unit) -> Unit = { EventQueue.invokeLater(it) },
     private val systemLanguage: () -> String = { Locale.getDefault().toLanguageTag() },
 ) : AutoCloseable {
