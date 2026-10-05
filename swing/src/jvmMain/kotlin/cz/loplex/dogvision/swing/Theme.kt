@@ -1,8 +1,10 @@
 package cz.loplex.dogvision.swing
 
 import cz.loplex.dogvision.desktop.onWindows
+import java.awt.RenderingHints
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import javax.swing.UIManager
 
 /**
  * Whether the system asks applications to be dark, as the Compose window's isSystemInDarkTheme has it: on Linux the
@@ -10,6 +12,19 @@ import java.util.concurrent.TimeUnit
  * registry's `AppsUseLightTheme`; light where the system cannot say.
  */
 internal fun systemPrefersDark(): Boolean = if (onWindows) windowsPrefersDark() else portalPrefersDark()
+
+/**
+ * Smooths the text at every size where the system has it smoothed as each font's gasp table says, as FlatLaf itself
+ * smooths it in the JetBrains runtime on macOS; called once the look and feel is set up. Windows asks for gasp under
+ * its standard smoothing, and Wine has it so: there the window's font is Wine's Tahoma, whose gasp table asks for no
+ * smoothing up to 16 pixels, so the window's 11-pixel text would come out jagged. Windows' default, ClearType, asks
+ * for LCD smoothing, which stays.
+ */
+internal fun smoothTextAtEverySize() {
+    if (UIManager.get(RenderingHints.KEY_TEXT_ANTIALIASING) == RenderingHints.VALUE_TEXT_ANTIALIAS_GASP) {
+        UIManager.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+    }
+}
 
 private fun portalPrefersDark(): Boolean {
     // ReadOne is the portal's since its version 2; Read, which wraps the value in one more variant, before it.

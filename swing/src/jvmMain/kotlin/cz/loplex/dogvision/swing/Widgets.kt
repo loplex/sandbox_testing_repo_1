@@ -82,8 +82,7 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
         }
 
     init {
-        font = UIManager.getFont("Label.font")
-        foreground = UIManager.getColor("Label.foreground")
+        lookAsLabel()
         val mouse = object : MouseAdapter() {
             override fun mouseClicked(event: MouseEvent) {
                 val link = link ?: return
@@ -101,8 +100,15 @@ internal class WrappedText(private val centred: Boolean = false) : JComponent() 
 
     override fun updateUI() {
         super.updateUI()
+        lookAsLabel()
+    }
+
+    private fun lookAsLabel() {
         font = UIManager.getFont("Label.font")
         foreground = UIManager.getColor("Label.foreground")
+        // Measured with the smoothing it is drawn with, which a component without a UI delegate is not given: text
+        // smoothed is wider than text that is not, and a line measured without it would run past the edge.
+        putClientProperty(RenderingHints.KEY_TEXT_ANTIALIASING, UIManager.get(RenderingHints.KEY_TEXT_ANTIALIASING))
     }
 
     /** The lines [pieces] take in [width], each piece whole, and alone on its line where it is wider. */
@@ -320,7 +326,10 @@ internal class ShapeIcon(private val shape: Shape, private val degrees: Double =
     }
 }
 
-/** Smooth edges, and text as the desktop smooths it, or smoothed where the desktop does not say. */
+/**
+ * Smooth edges, and text as the look and feel smooths it, which [smoothTextAtEverySize] may have changed from the
+ * desktop's; as the desktop smooths it where the look and feel does not say, and smoothed where neither says.
+ */
 internal fun antialiased(g: Graphics2D) {
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
     g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
@@ -330,4 +339,6 @@ internal fun antialiased(g: Graphics2D) {
     } else {
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
     }
+    val lookAndFeel = UIManager.get(RenderingHints.KEY_TEXT_ANTIALIASING)
+    if (lookAndFeel != null) g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, lookAndFeel)
 }

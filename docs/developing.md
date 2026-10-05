@@ -298,9 +298,11 @@ in [`.editorconfig`](../.editorconfig):
 
 - **On Ubuntu 24.04, `./gradlew check`**, the window's GL tests on Mesa's llvmpipe, as the runner
   has no GPU; then the debs and the rpms of `dog-vision-compose`, `dog-vision-swing`,
-  `dog-vision-cli`, `dog-vision-common`, `dog-vision-web` and `dog-vision-web-sourcemap`, each built
-  in two versions and tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and
-  `test_rpm.sh --upgrade` in Fedora 42, each window under Xvfb; and each window's tar.gz, unpacked on the runner, where its command line
+  `dog-vision-cli`, `dog-vision-common`, `dog-vision-web`, `dog-vision-web-sourcemap` and
+  `dog-vision`, each built in two versions and tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and
+  `test_rpm.sh --upgrade` in Fedora 42, each window under Xvfb, with `--switch` from
+  `dog-vision-compose` and the source map's `dog-vision-web` to `dog-vision`, and from `dog-vision`
+  to `dog-vision-cli`; and each window's tar.gz, unpacked on the runner, where its command line
   converts a photo and its window answers `--help`.
 - **On Windows Server 2022, `./gradlew :desktop-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.

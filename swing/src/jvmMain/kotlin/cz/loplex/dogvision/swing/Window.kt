@@ -58,6 +58,7 @@ fun showWindow(arguments: WindowArguments): Int {
 /** Opens the window, on the event thread; [onClosed] is told once it is closed and the session with it. */
 private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
     if (systemPrefersDark()) FlatDarkLaf.setup() else FlatLightLaf.setup()
+    smoothTextAtEverySize()
     val session = LiveSession.drawnOnGpu(arguments, ::swingImage)
     val frame = JFrame()
     val preview = Preview(session)

@@ -3,14 +3,13 @@ package cz.loplex.dogvision.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
@@ -74,7 +73,7 @@ fun Controls(
 ) {
     val params = view.params
     fun setParams(change: Params.() -> Params) = onChange { it.copy(params = it.params.change()) }
-    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    ScrollingColumn(modifier, PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         Section(Str.SPECIES, startsOpen = true) {
             SpeciesChoice(
                 label = text(Str.SPECIES),
@@ -372,7 +371,7 @@ fun InfoButton(title: String, about: Str) {
             onDismissRequest = { shown = false },
             confirmButton = { TextButton(onClick = { shown = false }) { Text(text(Str.CLOSE)) } },
             title = { Text(title) },
-            text = { Text(text(about), modifier = Modifier.verticalScroll(rememberScrollState())) },
+            text = { ScrollingColumn { Text(text(about)) } },
         )
     }
 }
