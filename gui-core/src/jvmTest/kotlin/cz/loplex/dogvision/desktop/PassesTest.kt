@@ -28,6 +28,7 @@ import kotlin.test.assertTrue
  * Every test runs on the one thread JUnit runs a class on, where its context is current.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Suppress("AbstractClassCanBeConcreteClass")
 abstract class PassesTest(private val api: TestApi) {
     private lateinit var context: GlContext
     private lateinit var passes: Passes
@@ -155,7 +156,7 @@ abstract class PassesTest(private val api: TestApi) {
         passes.draw(box, 60, 40)
         assertEquals(2, passes.reading)
         val sizes = mutableListOf<Int>()
-        repeat(1000) {
+        repeat(1000) { _ ->
             if (sizes.size < 2) passes.takeArea()?.let { sizes += it.size } ?: Thread.sleep(1)
         }
         assertEquals(listOf(100 * 80 * 4, 60 * 40 * 4), sizes, "areas handed over within a second")

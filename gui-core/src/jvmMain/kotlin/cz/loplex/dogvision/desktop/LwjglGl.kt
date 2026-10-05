@@ -68,6 +68,7 @@ import java.nio.ByteOrder
  * 3.30 reads as it is but for its first line, so that line is rewritten; precision qualifiers are allowed there and
  * mean nothing, and desktop GL's floats are as wide as ES's highp ones.
  */
+@Suppress("TooManyFunctions")
 class LwjglGl : DesktopGl {
     private var scratch: ByteBuffer = ByteBuffer.allocateDirect(0)
 
