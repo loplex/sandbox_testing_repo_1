@@ -1,12 +1,15 @@
 package cz.loplex.dogvision.web
 
 import cz.loplex.dogvision.core.Box
+import cz.loplex.dogvision.core.CameraChoice
+import cz.loplex.dogvision.core.CameraOption
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
 import cz.loplex.dogvision.core.snapshotName
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
+import cz.loplex.dogvision.texts.switchKey
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.khronos.webgl.Uint8Array
@@ -45,7 +48,7 @@ private class Photo(val width: Int, val height: Int, val pixels: Uint8Array)
  *
  * The camera starts only when asked for, as the browser asks the viewer whether the page may use it. It stops while
  * the page is hidden, as the Android app's does in the background, and starts again when it is shown, if it is still
- * the source; a video pauses meanwhile.
+ * the source; a video pauses meanwhile. Turned off in the controls, it stops, and nothing is shown.
  */
 class Page(private var texts: Texts) {
     private val stage = element<HTMLElement>("stage")
@@ -70,11 +73,17 @@ class Page(private var texts: Texts) {
 
     /**
      * The camera, where the browser offers one; [onCamera] once it has started, as the source shown instead of a photo,
-     * whether it runs or has stopped since, and [cameras] how many the browser knew of then.
+     * whether it runs or has stopped since; [cameraChoice] the cameras the browser knew of then, the one shown, and how
+     * its frames are mirrored; and [lastCamera] the one started last, which the camera button starts again.
      */
-    private val camera = if (Camera.available) Camera(::showFrame, onEnded = ::invalidate) else null
+    private val camera = if (Camera.available) {
+        Camera({ video -> showFrame(video, cameraChoice.mirrored) }, onEnded = ::invalidate)
+    } else {
+        null
+    }
     private var onCamera = false
-    private var cameras = 0
+    private var cameraChoice = CameraChoice()
+    private var lastCamera: CameraOption? = null
 
     /** The video shown, if it is the source. */
     private var feed: VideoFeed? = null
@@ -149,8 +158,8 @@ class Page(private var texts: Texts) {
         recordButton.addEventListener("click", { startRecording() })
         stopButton.addEventListener("click", { stopRecording() })
         cameraButton.hidden = camera == null
-        cameraButton.addEventListener("click", { startCamera(camera?.front ?: false) })
-        switchButton.addEventListener("click", { startCamera(!(camera?.front ?: false)) })
+        cameraButton.addEventListener("click", { startCamera(lastCamera) })
+        switchButton.addEventListener("click", { startCamera(cameraChoice.next) })
         document.addEventListener("visibilitychange", {
             val camera = camera ?: return@addEventListener
             // Started again whatever stopped it meanwhile: this page, or the system, which may end a hidden browser's
@@ -160,7 +169,7 @@ class Page(private var texts: Texts) {
                 stopRecording()
                 camera.stop()
             } else if (onCamera && !camera.running) {
-                startCamera(camera.front)
+                startCamera(lastCamera)
             }
         })
         document.addEventListener("visibilitychange", {
@@ -193,6 +202,15 @@ class Page(private var texts: Texts) {
             }
             invalidate()
         },
+        onCamera = if (camera == null) {
+            null
+        } else {
+            { chosen -> if (chosen == null) turnCameraOff() else startCamera(chosen) }
+        },
+        onMirroring = { mirroring ->
+            cameraChoice = cameraChoice.copy(mirroring = mirroring)
+            invalidate()
+        },
         onLanguage = ::switchLanguage,
     )
 
@@ -207,11 +225,10 @@ class Page(private var texts: Texts) {
         stopButton.textContent = texts.get(Str.STOP_RECORDING)
         cameraButton.textContent = texts.get(Str.SHOW_CAMERA)
         switchButton.textContent = texts.get(Str.SWITCH_CAMERA_SHORT)
-        switchButton.title = texts.get(Str.SWITCH_CAMERA)
         prompt.textContent = message?.invoke(texts).orEmpty()
         notice.title = texts.get(Str.CLOSE)
         showNotice(noticeText)
-        controls.show(view, recording != null)
+        controls.show(view, recording != null, cameraChoice)
     }
 
     /**
@@ -282,8 +299,16 @@ class Page(private var texts: Texts) {
     private fun closeLive() {
         camera?.stop()
         onCamera = false
+        cameraChoice = cameraChoice.copy(shown = null)
         feed?.close()
         feed = null
+    }
+
+    /** Stops the camera, if it is the source, and shows nothing in its place; a photo or a video shown stays. */
+    private fun turnCameraOff() {
+        if (!onCamera) return
+        closeLive()
+        showSource()
     }
 
     private fun show(photo: Photo) {
@@ -294,15 +319,16 @@ class Page(private var texts: Texts) {
     }
 
     /**
-     * Starts the front camera if [front], else the back one, which is shown in place of the photo once it runs; the
-     * photo stays until then, and if the camera cannot start.
+     * Starts [chosen], or the back camera where the device has one for null, which is shown in place of the photo once
+     * it runs; the photo stays until then, and if the camera cannot start.
      */
-    private fun startCamera(front: Boolean) {
+    private fun startCamera(chosen: CameraOption?) {
         val camera = camera ?: return
         camera.start(
-            front,
-            onStarted = { cameras ->
-                this.cameras = cameras
+            chosen?.id,
+            onStarted = { started ->
+                cameraChoice = cameraChoice.copy(shown = started)
+                lastCamera = started
                 if (!onCamera) {
                     feed?.close()
                     feed = null
@@ -312,6 +338,10 @@ class Page(private var texts: Texts) {
                 }
                 // A failure to start it, before a switch or a return to the page, no longer holds.
                 showNotice(null)
+                invalidate()
+            },
+            onListed = { cameras ->
+                cameraChoice = cameraChoice.copy(cameras = cameras)
                 invalidate()
             },
             onFailed = { name, message ->
@@ -440,7 +470,7 @@ class Page(private var texts: Texts) {
         drawScheduled = true
         window.requestAnimationFrame {
             drawScheduled = false
-            controls.show(view, recording != null)
+            controls.show(view, recording != null, cameraChoice)
             draw()
         }
     }
@@ -459,9 +489,10 @@ class Page(private var texts: Texts) {
         }
         val passes = passes
         val cameraRunning = onCamera && camera?.running == true
-        prompt.hidden = (photo != null || live) && prompt.textContent.isNullOrEmpty()
+        prompt.hidden = prompt.textContent.isNullOrEmpty()
         cameraButton.hidden = camera == null || cameraRunning
-        switchButton.hidden = !cameraRunning || cameras < 2
+        switchButton.hidden = !cameraRunning || cameraChoice.cameras.size < 2
+        switchButton.title = texts.get(cameraChoice.switchKey)
         // The source cannot change while recording, as its size would change the video's, as in the Android app.
         val recording = recording != null
         open.disabled = recording
@@ -472,6 +503,8 @@ class Page(private var texts: Texts) {
         if (passes == null || !shown(passes)) {
             save.disabled = true
             recordButton.disabled = true
+            // Nothing is drawn, the frame of a camera turned off included.
+            passes?.draw(emptyList(), width, height)
             showCaptions(scale, emptyList())
             return
         }
