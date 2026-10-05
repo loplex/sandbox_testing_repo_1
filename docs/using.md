@@ -297,6 +297,8 @@ on the right](images/window.png)
   second opening on.
 - **Camera goes back to the camera** shown last, or else the one the command line names; the
   panel's [*Camera*](#the-camera-and-its-mirroring) picks another, or *Off*.
+- **The cameras are listed again as the panel's list drops down**, so that one plugged in since
+  shows; on Windows, where ffmpeg lists them, they come a moment after it opens.
 - **F9 or the arrow at the images' edge hides the controls**, and the images take their room, as F9
   does in the desktop program's window; the same again shows them.
 - **q or Escape closes it**, as it closes the desktop program's window, but for while a list is
