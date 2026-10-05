@@ -187,8 +187,10 @@ buttons above them, and the controls on the right](images/web.png)
   640 x 480.
 - **Switch camera goes to the next camera the browser lists**; it shows only where the browser knows
   of two cameras or more.
-- **The cameras are listed once one has started**: until the page may use a camera, the browser
-  names none, and the panel's *Camera* lists only *Off*.
+- **The cameras are listed once the page may use a camera**: at once where it was allowed before,
+  else after the first start; until then the browser names none, and the panel's *Camera* lists
+  only *Off*.
+  A camera plugged in or out is listed or dropped as it happens.
 - **A camera says where it faces through its `facingMode`**, which a phone's cameras report and a
   laptop's webcam often does not; [*Automatic*](#the-camera-and-its-mirroring) follows it.
 - **The camera stops while the page is hidden**, and starts again when it is shown; opening a photo
@@ -296,6 +298,8 @@ on the right](images/window.png)
   second opening on.
 - **Camera goes back to the camera** shown last, or else the one the command line names; the
   panel's [*Camera*](#the-camera-and-its-mirroring) picks another, or *Off*.
+- **The cameras are listed again as the panel's list drops down**, so that one plugged in since
+  shows; on Windows, where ffmpeg lists them, they come a moment after it opens.
 - **F9 or the arrow at the images' edge hides the controls**, and the images take their room, as F9
   does in the desktop program's window; the same again shows them.
 - **q or Escape closes it**, as it closes the desktop program's window, but for while a list is

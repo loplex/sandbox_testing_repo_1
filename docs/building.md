@@ -345,9 +345,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
     names them, and the build fails on a library it lacks;
   - the rpm names libraries and a file (`libX11.so.6()(64bit)`, `libEGL.so.1()(64bit)`,
     `/usr/bin/ffmpeg` and the like), as Fedora and openSUSE name their packages differently.
-- **A font, for the rpm of `dog-vision-swing`**, `(font(:lang=en) or dejavu-fonts)`: Swing cannot
+- **A font, for the rpm of `dog-vision-swing`**, `(dejavu-sans-fonts or dejavu-fonts)`: Swing cannot
   start without one, and openSUSE's JRE brings none, where Debian's fontconfig does.
-  Fedora's and Rocky's font packages provide `font(:lang=en)`, which openSUSE's do not.
+  It is DejaVu by name, as Fedora and Rocky or openSUSE package it, not `font(:lang=en)`:
+  openSUSE's `xorg-x11-fonts-core` provides that, with bitmap fonts only, which Java does not read.
   The Compose window draws its text through skiko and needs none.
 - **`xdg-utils` alone, for `dog-vision-web`**, whose `xdg-open` the menu entry runs: the browser
   is the user's, as a desktop has one, and the windows' packages name no desktop either.

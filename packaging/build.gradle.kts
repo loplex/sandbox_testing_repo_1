@@ -195,9 +195,10 @@ val composeTree = windowPackages(
 // desktop entry and icons under names of their own, so that both windows install side by side.
 val swingPackage = "dog-vision-swing"
 
-// A font, without which Swing cannot start: openSUSE's JRE brings none, where Debian's fontconfig does. Fedora's and
-// Rocky's font packages provide font(:lang=en), which openSUSE's do not, so it names DejaVu there.
-val swingRpmRequires = listOf("(font(:lang=en) or dejavu-fonts)")
+// A font Java can use, without which Swing cannot start: openSUSE's JRE brings none, where Debian's fontconfig does.
+// Named outright, DejaVu Sans as Fedora and Rocky package it, or DejaVu as openSUSE does: font(:lang=en) is met on
+// openSUSE by xorg-x11-fonts-core, whose bitmap fonts Java does not read.
+val swingRpmRequires = listOf("(dejavu-sans-fonts or dejavu-fonts)")
 
 val swingTree = windowPackages(
     packageName = swingPackage,
