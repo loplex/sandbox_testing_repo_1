@@ -9,6 +9,11 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- A conversion runs in a foreground service, its progress in a notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -25,6 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Media processing from Android 15, data sync before, as ConversionService says. -->
+        <service
+            android:name=".ConversionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProcessing|dataSync" />
         <!-- Keeps the language chosen in the app before Android 13, which keeps it itself. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
