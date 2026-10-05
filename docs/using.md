@@ -242,7 +242,7 @@ program's.
 on the right](images/window.png)
 
 - **On Linux it installs from the deb or the rpm `dog-vision-compose`**, as `dog-vision-compose` on
-  the `PATH` and *Dog Vision (Kotlin Compose)* in the desktop's menu (*Psí vidění (Kotlin Compose)*
+  the `PATH` and *Dog Vision (Kotlin Compose)* in the desktop's menu (*Jak vidí pes (Kotlin Compose)*
   in Czech), on the system's Java 17 or newer, which the package manager installs with it where
   there is none.
   It recommends `dog-vision-cli`, the command line alone, which is a package of its own.
@@ -286,7 +286,7 @@ widgets](images/window-swing.png)
 - **It needs neither Compose nor skiko**, so its packages leave out Compose's JARs and skiko's
   natives.
 - **On Linux it installs from the deb or the rpm `dog-vision-swing`**, as `dog-vision-swing` on the
-  `PATH` and *Dog Vision (Java Swing)* in the desktop's menu (*Psí vidění (Java Swing)* in Czech),
+  `PATH` and *Dog Vision (Java Swing)* in the desktop's menu (*Jak vidí pes (Java Swing)* in Czech),
   beside `dog-vision-compose` where both are installed.
   Its tar.gz runs as `dog-vision-swing/bin/dog-vision-swing`, and on Windows the MSI installs it,
   as its part *GUI (Java Swing)*, beside the Compose window's *GUI (Compose Multiplatform)*.
