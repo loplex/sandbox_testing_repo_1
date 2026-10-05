@@ -61,10 +61,11 @@ The root project declares the plugin, so these are on every module's build scrip
   The app, the web page, the window and the command line all speak through it.
 - **`ui`'s Compose Multiplatform 1.12 is Jetpack Compose 1.12**, and its Material 3 1.9 is androidx
   Material 3 1.4, the versions of the app's Compose BOM, so that the app runs one of each.
-- **`cli`'s `main` is the window's too**:
-  [`runCommandLine`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Main.kt) answers `--help` and
-  a command line it cannot read itself, converts a photo, and hands anything else to a window given
-  to it.
+- **The command line and the windows take options of their own**, and share the view's:
+  [`cli`'s `ViewOptions`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Arguments.kt) reads them
+  for both, and
+  [`desktop-core`'s `runWindow`](../desktop-core/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/WindowArguments.kt)
+  answers a window's `--help` and a command line it cannot read, and opens the window on the rest.
 - **`desktop-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
   renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
   image of them.
@@ -297,10 +298,10 @@ in [`.editorconfig`](../.editorconfig):
 
 - **On Ubuntu 24.04, `./gradlew check`**, the window's GL tests on Mesa's llvmpipe, as the runner
   has no GPU; then the debs and the rpms of `dog-vision-compose`, `dog-vision-swing`,
-  `dog-vision-cli`, `dog-vision-web` and `dog-vision-web-sourcemap`, each built in two versions and
-  tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and `test_rpm.sh --upgrade` in Fedora 42, each
-  window under Xvfb; and each window's tar.gz, unpacked on the runner, where its command line runs
-  and its window's main converts a photo.
+  `dog-vision-cli`, `dog-vision-common`, `dog-vision-web` and `dog-vision-web-sourcemap`, each built
+  in two versions and tried by `test_deb.sh --upgrade` in Ubuntu 20.04 and
+  `test_rpm.sh --upgrade` in Fedora 42, each window under Xvfb; and each window's tar.gz, unpacked on the runner, where its command line
+  converts a photo and its window answers `--help`.
 - **On Windows Server 2022, `./gradlew :desktop-core:jvmTest`**, over ANGLE on WARP and over WGL on
   Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's own OpenGL is 1.1.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and

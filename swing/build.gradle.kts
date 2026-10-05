@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // The desktop window in Swing, with FlatLaf, for Linux and Windows: desktop-core's picture of a photo, a video or the
-// camera, with Swing's own controls beside it, as the Compose window has them, and without Compose or skiko. Its main
-// is the command line's as well, so that a photo given alone is converted as cli converts it.
+// camera, with Swing's own controls beside it, as the Compose window has them, and without Compose or skiko. It takes
+// desktop-core's options of a window, as the Compose window does.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     id("cz.loplex.dogvision.packaging")

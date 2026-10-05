@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Installs a deb of the project's, dog-vision-compose, dog-vision-swing, dog-vision-cli,
-# dog-vision-web or dog-vision-web-sourcemap, in a bare container, runs it and removes it, checking
-# each step. With --upgrade, it installs a later deb over the first before removing it, as an update
-# does. With --temurin, it installs Adoptium's Temurin JRE first, from Adoptium's repository, and
-# checks that the deb takes it rather than an OpenJDK.
+# dog-vision-common, dog-vision-web or dog-vision-web-sourcemap, in a bare container, runs it and
+# removes it, checking each step. With --upgrade, it installs a later deb over the first before
+# removing it, as an update does. With --temurin, it installs Adoptium's Temurin JRE first, from
+# Adoptium's repository, and checks that the deb takes it rather than an OpenJDK.
 #
 # A bare image has no desktop and none of its folders, /usr/share/applications among them, which is
 # what a headless install for the command line alone meets. apt installs the deb there with its
@@ -14,10 +14,12 @@
 # so that one failing does not hide the others; the script fails if any did.
 #
 # A deb of the project's that the deb depends on at its own version, as dog-vision-web-sourcemap
-# does on dog-vision-web, which no repository has, is installed with it from the deb's own folder,
-# and so is the later one's from the later deb's.
+# does on dog-vision-web and the command line and both windows on dog-vision-common, which no
+# repository has, is installed with it from the deb's own folder, and so is the later one's from
+# the later deb's.
 #
-# The command line and both windows convert test_photo.jpg, beside this script, which ffmpeg made:
+# The command line converts test_photo.jpg, beside this script, and both windows show it.
+# ffmpeg made it:
 #   ffmpeg -f lavfi -i testsrc2=size=160x120:rate=1 -frames:v 1 -q:v 4 test_photo.jpg
 #
 # A later deb is the same build with another version, `-PappVersion=0.1.1`, which
@@ -104,7 +106,7 @@ window_opens() {
     [ -e /tmp/.X11-unix/X99 ] || { Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & }
     for _ in 1 2 3 4 5 6 7 8 9 10; do [ -e /tmp/.X11-unix/X99 ] && break; sleep 1; done
     rm -rf /tmp/home && mkdir /tmp/home
-    DISPLAY=:99 HOME=/tmp/home "$package" --window /photo/test_photo.jpg >/tmp/window.log 2>&1 &
+    DISPLAY=:99 HOME=/tmp/home "$package" /photo/test_photo.jpg >/tmp/window.log 2>&1 &
     window=$!
     shown=""
     for _ in $(seq 60); do
@@ -176,7 +178,6 @@ check_installed() {
             check "the window is in the desktop menu folder$1" \
                 test -f /usr/share/applications/cz.loplex.dogvision.compose.desktop
             check "dog-vision-compose runs from PATH$1" dog-vision-compose --help
-            check "it converts a JPEG to a PNG$1" converts dog-vision-compose
             command -v Xvfb >/dev/null || install_display
             check "its window opens under Xvfb$1" window_opens
             check "skiko and LWJGL load the deb's natives$1" unpacks_no_natives
@@ -185,7 +186,6 @@ check_installed() {
             check "the window is in the desktop menu folder$1" \
                 test -f /usr/share/applications/cz.loplex.dogvision.swing.desktop
             check "dog-vision-swing runs from PATH$1" dog-vision-swing --help
-            check "it converts a JPEG to a PNG$1" converts dog-vision-swing
             command -v Xvfb >/dev/null || install_display
             check "its window opens under Xvfb$1" window_opens
             check "LWJGL and FlatLaf unpack no natives$1" unpacks_no_natives
@@ -193,6 +193,11 @@ check_installed() {
         dog-vision-cli)
             check "dog-vision-cli runs from PATH$1" dog-vision-cli --help
             check "it converts a JPEG to a PNG$1" converts dog-vision-cli
+            ;;
+        dog-vision-common)
+            check "its JARs are in /usr/share/dog-vision-common/lib$1" \
+                test -f /usr/share/dog-vision-common/lib/cli-jvm.jar
+            check "/usr/bin has nothing of its$1" test ! -e /usr/bin/dog-vision-common
             ;;
         dog-vision-web-sourcemap)
             check "the source map is beside the page's script$1" \
@@ -234,6 +239,9 @@ check_removed() {
         dog-vision-cli)
             check "/usr/bin/dog-vision-cli is gone" test ! -e /usr/bin/dog-vision-cli
             check "/usr/share/dog-vision-cli is gone" test ! -e /usr/share/dog-vision-cli
+            ;;
+        dog-vision-common)
+            check "/usr/share/dog-vision-common is gone" test ! -e /usr/share/dog-vision-common
             ;;
         dog-vision-web-sourcemap)
             check "the source map is gone" test ! -e /usr/share/dog-vision-web/dog-vision.js.map
