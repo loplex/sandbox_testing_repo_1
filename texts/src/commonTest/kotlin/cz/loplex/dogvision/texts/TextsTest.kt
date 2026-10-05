@@ -98,6 +98,17 @@ class TextsTest {
     }
 
     @Test
+    fun aSwitchIsBetweenTheBackAndTheFrontCameraOnlyWhereThoseAreTheTwo() {
+        val back = CameraOption("0", null, Facing.BACK)
+        val front = CameraOption("1", null, Facing.FRONT)
+        val external = CameraOption("2", null, Facing.UNKNOWN)
+        assertEquals(Str.SWITCH_CAMERA, CameraChoice(listOf(front, back)).switchKey)
+        assertEquals(Str.NEXT_CAMERA, CameraChoice(listOf(back, front, external)).switchKey)
+        assertEquals(Str.NEXT_CAMERA, CameraChoice(listOf(back, external)).switchKey)
+        assertEquals(Str.NEXT_CAMERA, CameraChoice(listOf(back, back.copy(id = "3"))).switchKey)
+    }
+
+    @Test
     fun automaticMirroringSaysWhereTheCameraFaces() {
         val texts = Texts.of("cs")
         assertEquals("Automaticky (přední)", texts.automaticMirroring(Facing.FRONT))
