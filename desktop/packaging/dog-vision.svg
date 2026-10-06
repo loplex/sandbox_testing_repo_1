@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The desktop packages' icon: the Android app's launcher icon (app/src/main/res/drawable/ic_launcher_foreground.xml on
+  values/ic_launcher_background.xml's colour), cropped to the part a launcher shows and set on a rounded square.
+  dog-vision.png and dog-vision.ico are drawn from it:
+    rsvg-convert -w 256 -h 256 dog-vision.svg -o dog-vision.png
+    for s in 16 24 32 48 64 128 256; do rsvg-convert -w $s -h $s dog-vision.svg -o $s.png; done
+    icotool -c -o dog-vision.ico 16.png 24.png 32.png 48.png 64.png 128.png -r 256.png
+  (-r keeps the largest as a PNG inside the ICO, which Windows has read since Vista.)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="18 18 72 72">
+  <defs>
+    <clipPath id="square"><rect x="18" y="18" width="72" height="72" rx="14"/></clipPath>
+    <clipPath id="behind"><rect x="0" y="0" width="54" height="108"/></clipPath>
+    <clipPath id="in-front"><rect x="54" y="0" width="54" height="108"/></clipPath>
+    <path id="head" fill-rule="evenodd" d="M30,100 L30,84 C27,72 27,57 31,47 C34,38 41,30.5 50.5,29.5 C56.5,29 60.5,31.5 62.8,35.5 C64,37.6 66,38.8 69,39.2 L80,40.8 C84.5,41.4 87.5,44.3 87.5,48 C87.5,51.2 85.4,53.4 82.2,53.8 C81.2,56.6 78.8,58.6 75,59.1 L66.5,59.6 C65.2,62.2 62.2,64.2 58.2,64.8 C54,66 51,70 50,75.5 C49.6,78.5 49.3,81.5 49.3,84 L49.3,100 Z M58.5,41 A2.5,2.5 0 1,0 63.5,41 A2.5,2.5 0 1,0 58.5,41 Z M81.5,45.6 A3.1,2.7 0 1,0 87.7,45.6 A3.1,2.7 0 1,0 81.5,45.6 Z"/>
+  </defs>
+  <g clip-path="url(#square)">
+    <rect x="18" y="18" width="72" height="72" fill="#2B2B2B"/>
+    <g transform="translate(54 54) scale(0.86) translate(-55 -54)">
+      <g clip-path="url(#behind)">
+        <use href="#head" fill="#3F6FD8"/>
+        <path fill="#2E57B3" d="M44,32.5 C38,32.5 33.8,37.8 33.8,46 C33.8,55 35.8,62 40,64.2 C43.2,65.8 46.3,63.4 47.3,59 C48.8,52 49.3,42.5 48.3,37 C47.8,34.4 46.2,32.5 44,32.5 Z"/>
+      </g>
+      <use href="#head" fill="#E8C13A" clip-path="url(#in-front)"/>
+    </g>
+  </g>
+</svg>
