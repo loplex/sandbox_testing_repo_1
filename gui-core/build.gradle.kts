@@ -19,7 +19,7 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            api(project(":cli"))
+            api(project(":jvm-common"))
             api(project(":ffmpeg"))
             implementation(project(":gl"))
             implementation(libs.lwjgl.asProvider())
