@@ -2,6 +2,8 @@ package cz.loplex.dogvision.desktop
 
 import cz.loplex.dogvision.core.CameraOption
 import cz.loplex.dogvision.core.Facing
+import org.junit.jupiter.api.condition.DisabledOnOs
+import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.nio.file.Files
@@ -12,6 +14,9 @@ import kotlin.test.assertEquals
  * Video4Linux's cameras are read from a sysfs laid out as Linux 6.14 lays out a laptop's USB webcam: each node's
  * device a link to its USB interface, the USB device's port a link to the hub's port, and physical_location where the
  * firmware places them.
+ *
+ * Windows, where listCameras asks ffmpeg instead, cannot lay that sysfs out, as a Windows path holds no colon; the
+ * tests that lay one out are left out there.
  */
 class CamerasTest {
     @TempDir
@@ -39,6 +44,7 @@ class CamerasTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     fun capturesAreListedInTheirNumbersOrderWithoutTheirMetadataNodes() {
         val webcam = usbDevice("5-1")
         node(0, "Integrated Camera: Integrated C", webcam)
@@ -57,6 +63,7 @@ class CamerasTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     fun theFacingIsThePanelTheUsbDeviceOrItsPortIsOn() {
         node(0, "front", usbDevice("5-1", portPanel = "front"))
         node(2, "back", usbDevice("5-2", devicePanel = "back"))
