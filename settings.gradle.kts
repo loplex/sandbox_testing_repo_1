@@ -56,6 +56,7 @@ include(
     ":gui-compose",
     ":gui-core",
     ":gui-swing",
+    ":jvm-common",
     ":testing",
     ":texts",
     ":ui",
