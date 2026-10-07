@@ -1,8 +1,11 @@
 import cz.loplex.dogvision.packaging.AppImage
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
+import cz.loplex.dogvision.packaging.javaRuntimeNote
 import cz.loplex.dogvision.packaging.packagingJdk
+import cz.loplex.dogvision.packaging.thirdPartyLicenses
 import cz.loplex.dogvision.packaging.uberJar
+import cz.loplex.dogvision.packaging.uberJarLicences
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -75,6 +78,12 @@ val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
 /** ANGLE for Windows on ARM, which LWJGL's natives here are not for. */
 val armAngle = "nucleus/native/win32-aarch64"
 
+val linuxUberJarNotices =
+    uberJarLicences(
+        "linuxUberJarLicences",
+        "dog-vision-swing-linux-x64-${packageVersion.get()}.jar",
+        configurations.named("jvmRuntimeClasspath"),
+    )
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/jars/dog-vision-swing-linux-x64-<version>.jar, the window for this machine."
     group = "distribution"
@@ -84,11 +93,18 @@ val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
         mainClassName,
         windowJar,
         configurations.named("jvmRuntimeClasspath"),
+        linuxUberJarNotices,
     )
 }
 artifact(linuxUberJar)
 
 // Built on any machine: Windows's natives and ANGLE in place of this machine's.
+val windowsUberJarNotices =
+    uberJarLicences(
+        "windowsUberJarLicences",
+        "dog-vision-swing-windows-x64-${packageVersion.get()}.jar",
+        configurations.named("windowsRuntime"),
+    )
 val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/jars/dog-vision-swing-windows-x64-<version>.jar, the window for Windows."
     group = "distribution"
@@ -98,6 +114,7 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
         mainClassName,
         windowJar,
         configurations.named("windowsRuntime"),
+        windowsUberJarNotices,
         excludes = listOf("$armAngle/**"),
     )
 }
@@ -139,6 +156,12 @@ val appImage = tasks.register<AppImage>("appImage") {
 }
 
 // The app image as it is, to unpack and run anywhere on Linux on x86-64 without installing it.
+// What the archive holds that is not this project's own: the JARs, and the runtime, which keeps its notices in its own
+// legal folder.
+val tarGzNotices = thirdPartyLicenses("tarGzLicences", listOf(configurations.named("jvmRuntimeClasspath"))) {
+    artifactName = "The archive of dog-vision-swing for Linux"
+    notes.add(packagingJdk.map { javaRuntimeNote("lib/runtime", it.metadata.javaRuntimeVersion) })
+}.flatMap { it.notices }
 val packageTarGz = tasks.register<Tar>("packageTarGz") {
     description = "Packs the app image into build/packages/tar/dog-vision-swing-<version>-linux-x64.tar.gz."
     group = "distribution"
@@ -148,5 +171,7 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     // The launchers and the runtime's jspawnhelper, which starts ffmpeg, stay executable.
     eachFile { permissions { unix(if (file.canExecute()) "755" else "644") } }
     from(appImage.flatMap { it.destination })
+    // The licence, and what the archive holds that is not this project's own, in the app's folder.
+    from(files(rootProject.file("LICENSE"), tarGzNotices)) { into("dog-vision-swing") }
 }
 artifact(packageTarGz)

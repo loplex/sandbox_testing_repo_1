@@ -256,7 +256,9 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
   `photo.cat.png` with `--species cat`, and `photo.horse-vs-cat.png` with `--compare horse` too.
 - **It takes the desktop program's options** for the view: `--species`, `--compare`,
   `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`; `--help`
-  lists them. `--info`, a video and the window are not in it.
+  lists them. A video and the window are not in it.
+- **`--info` prints the model derived for `--species`**, as the desktop program's does: the cone
+  and simulation matrices, the checks they pass, and the species' facts.
 - **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program.
 - **It speaks the system's language**, English or Czech, as gettext reads it: the list in
   `LANGUAGE`, such as `cs:en`, where it is set, or else `LC_ALL`, `LC_MESSAGES` or `LANG`, and on
