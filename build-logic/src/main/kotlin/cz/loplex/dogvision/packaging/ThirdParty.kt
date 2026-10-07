@@ -29,7 +29,7 @@ const val APACHE_TEXT = "Apache-2.0.txt"
 fun spdxOf(name: String?, url: String?): String? = when {
     url != null && APACHE_URL.matches(url) -> "Apache-2.0"
     name in APACHE_NAMES -> "Apache-2.0"
-    name == "BSD-3-Clause" -> "BSD-3-Clause"
+    name == "BSD-3-Clause" || name == "BSD 3-Clause License" -> "BSD-3-Clause"
     else -> null
 }
 
@@ -41,8 +41,12 @@ private val APACHE_NAMES =
  * The holder of a library whose POM names a person rather than who holds the copyright, and the text of a licence
  * other than Apache-2.0, which names its holder; keyed by the library's group.
  */
-private val GROUP_HOLDERS = mapOf("org.lwjgl" to "Lightweight Java Game Library")
-private val GROUP_TEXTS = mapOf("org.lwjgl" to "lwjgl.txt")
+private val GROUP_HOLDERS = mapOf(
+    "org.lwjgl" to "Lightweight Java Game Library",
+    // ANGLE's DLLs, which Nucleus builds and publishes.
+    "dev.nucleusframework" to "The ANGLE Project Authors",
+)
+private val GROUP_TEXTS = mapOf("org.lwjgl" to "lwjgl.txt", "dev.nucleusframework" to "angle.txt")
 
 /**
  * The part a library is, read from its [pom], as the module [group]:[module]:[version] whose JAR the artifact holds as
@@ -97,12 +101,17 @@ val EMBEDDED_PARTS: List<Pair<Regex, List<ThirdPartyPart>>> = listOf(
     Regex("""lwjgl-glfw-[0-9.]+-natives-windows\.jar""") to listOf(
         ThirdPartyPart("GLFW", "3.5.1", "Zlib", "Marcus Geelnard, Camilla Löwy", "glfw.txt", listOf("glfw.dll")),
     ),
-    Regex("""nucleus\.angle-natives-.*\.jar""") to listOf("libEGL.dll", "libGLESv2.dll").let { dlls ->
-        listOf(
-            ThirdPartyPart("ANGLE", "chromium/8037", "BSD-3-Clause", "The ANGLE Project Authors", "angle.txt", dlls),
-            ThirdPartyPart("Abseil", "chromium/8037's", "Apache-2.0", "The Abseil Authors", APACHE_TEXT, dlls),
-        )
-    },
+    // ANGLE chromium/8037, whose own licence its POM names.
+    Regex("""nucleus\.angle-natives-.*\.jar""") to listOf(
+        ThirdPartyPart(
+            "Abseil",
+            "chromium/8037's",
+            "Apache-2.0",
+            "The Abseil Authors",
+            APACHE_TEXT,
+            listOf("libEGL.dll", "libGLESv2.dll"),
+        ),
+    ),
 )
 
 private fun libffi(file: String) =
