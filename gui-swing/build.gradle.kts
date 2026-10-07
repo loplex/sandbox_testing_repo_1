@@ -3,6 +3,7 @@ import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.glNatives
 import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.uberJar
+import cz.loplex.dogvision.packaging.uberJarLicences
 import cz.loplex.dogvision.packaging.windowsLauncher
 import cz.loplex.dogvision.packaging.windowsRuntime
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -75,6 +76,12 @@ val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
 /** ANGLE for Windows on ARM, which LWJGL's natives here are not for. */
 val armAngle = "nucleus/native/win32-aarch64"
 
+val linuxUberJarNotices =
+    uberJarLicences(
+        "linuxUberJarLicences",
+        "dog-vision-swing-linux-x64-${packageVersion.get()}.jar",
+        configurations.named("jvmRuntimeClasspath"),
+    )
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/jars/dog-vision-swing-linux-x64-<version>.jar, the window for this machine."
     group = "distribution"
@@ -84,11 +91,18 @@ val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
         mainClassName,
         windowJar,
         configurations.named("jvmRuntimeClasspath"),
+        linuxUberJarNotices,
     )
 }
 artifact(linuxUberJar)
 
 // Built on any machine: Windows's natives and ANGLE in place of this machine's.
+val windowsUberJarNotices =
+    uberJarLicences(
+        "windowsUberJarLicences",
+        "dog-vision-swing-windows-x64-${packageVersion.get()}.jar",
+        configurations.named("windowsRuntime"),
+    )
 val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/jars/dog-vision-swing-windows-x64-<version>.jar, the window for Windows."
     group = "distribution"
@@ -98,6 +112,7 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
         mainClassName,
         windowJar,
         configurations.named("windowsRuntime"),
+        windowsUberJarNotices,
         excludes = listOf("$armAngle/**"),
     )
 }
