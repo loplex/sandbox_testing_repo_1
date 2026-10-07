@@ -31,6 +31,10 @@ class ThirdPartyTest {
         )
         for ((name, url) in spellings) assertEquals("Apache-2.0", spdxOf(name, url), "$name $url")
         assertEquals("BSD-3-Clause", spdxOf("BSD-3-Clause", "https://www.lwjgl.org/license"))
+        assertEquals(
+            "BSD-3-Clause",
+            spdxOf("BSD 3-Clause License", "https://chromium.googlesource.com/angle/angle/+/main/LICENSE"),
+        )
         assertNull(spdxOf("GNU Lesser General Public License", "https://www.gnu.org/licenses/lgpl-3.0.txt"))
     }
 
