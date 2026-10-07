@@ -112,7 +112,8 @@ pwsh tools/package_cli_zip_on_windows.ps1
   Windows on x86-64; it adds itself to neither the `PATH` nor the Start menu, where the MSI, in
   [What each package holds](#what-each-package-holds), puts it on the `PATH`.
 - **It holds jpackage's app image**: `dog-vision-cli.exe`, a native launcher that runs in a
-  console, its JARs in `app`, a runtime of its own in `runtime`, and the licence.
+  console, its JARs in `app`, a runtime of its own in `runtime`, and the licences: `LICENSE`, and
+  `THIRD-PARTY-LICENSES.txt`, which lists what it holds that is not the project's own.
 - **Its runtime is Temurin's JDK 25, cut down by jlink to `java.base` and `java.desktop`**, which
   ImageIO needs.
   `./gradlew :packaging:windowsCliRuntime` links it, on any system, from Temurin's jmods for
@@ -299,6 +300,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   system, so the tar.gz needs little more than glibc 2.28 or later, which LWJGL's natives ask for,
   X11 and ALSA, and for the Compose window fontconfig and the C++ runtime as well, which skiko
   links.
+  The runtime keeps its own licence and notices in its folder `legal`.
+- **Each tar.gz and the MSI hold `LICENSE` and `THIRD-PARTY-LICENSES.txt` in the app's folder**: the
+  libraries, what their natives hold and, in the MSI, the web page's script, each with its licence,
+  and every licence's full text, as the Linux packages list them.
   It is to run as `dog-vision-compose/bin/dog-vision-compose` or
   `dog-vision-swing/bin/dog-vision-swing` without installing it.
 - **The MSI, `dog-vision`, installs both windows, the command line and the web page** into
