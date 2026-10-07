@@ -112,7 +112,7 @@ class LiveSessionTest {
         canInstallFfmpeg = canInstallFfmpeg,
         wingetFound = wingetFound,
         post = { it() },
-        systemLanguage = { "en" },
+        systemLanguages = { listOf("en") },
     )
 
     @Test
@@ -353,7 +353,7 @@ class LiveSessionTest {
             cameraLister = { cameras },
             inBackground = { it() },
             post = { it() },
-            systemLanguage = { "en" },
+            systemLanguages = { listOf("en") },
         )
         failDrawing("no EGL")
         session.openFile(File("b.mp4"))
@@ -397,7 +397,7 @@ class LiveSessionTest {
             cameraLister = { cameras },
             inBackground = { listings += it },
             post = { it() },
-            systemLanguage = { "en" },
+            systemLanguages = { listOf("en") },
         )
         listings.removeAt(0)()
         val first = cameras
@@ -449,7 +449,7 @@ class LiveSessionTest {
             cameraLister = { cameras },
             inBackground = { it() },
             post = { it() },
-            systemLanguage = { "en" },
+            systemLanguages = { listOf("en") },
         )
         val picture = Picture(Unit, layOut(1, 1, 1, 1, 1, 0, 0), View(), null)
         onPicture(picture)
