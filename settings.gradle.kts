@@ -51,6 +51,7 @@ include(
     ":android",
     ":cli",
     ":core",
+    ":ffmpeg",
     ":gl",
     ":gui-compose",
     ":gui-core",
