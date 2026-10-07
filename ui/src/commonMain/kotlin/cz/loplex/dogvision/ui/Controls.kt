@@ -4,7 +4,9 @@ package cz.loplex.dogvision.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,7 +45,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import cz.loplex.dogvision.core.CameraChoice
 import cz.loplex.dogvision.core.CameraOption
@@ -463,13 +468,18 @@ fun InfoButton(title: String, about: Str) {
 }
 
 /**
- * What is known about the species, a row per fact. A value breaks only between its pieces, so that
- * a share stays with its source's opening and a citation's authors stay together.
+ * What is known about the species, a row per fact. A value breaks between its pieces, so that a
+ * share stays with its source's opening and a citation's authors stay together; a piece wider than
+ * the column on its own breaks at its spaces, as the web page's pieces do.
  */
 @Composable
 private fun Facts(species: Species) {
     val texts = LocalTexts.current
     val facts = remember(species, texts) { speciesFacts(species, texts.facts) }
+    val style = MaterialTheme.typography.bodyMedium
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val space = remember(measurer, style, density) { with(density) { measurer.measure(" ", style).size.width.toDp() } }
     facts.forEach { fact ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -477,11 +487,13 @@ private fun Facts(species: Species) {
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.width(112.dp),
             )
-            Text(
-                fact.value.joinToString(" ") { it.replace(' ', '\u00A0') },
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f).padding(vertical = 4.dp),
-            )
+            // Laid out in pieces, read out as one text.
+            FlowRow(
+                Modifier.weight(1f).padding(vertical = 4.dp).semantics(mergeDescendants = true) {},
+                horizontalArrangement = Arrangement.spacedBy(space),
+            ) {
+                fact.value.forEach { Text(it, style = style) }
+            }
             InfoButton(text(fact.label.nameKey), fact.label.aboutKey)
         }
     }

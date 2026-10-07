@@ -6,7 +6,7 @@ enum class FactLabel { COLOUR_VISION, CONE_PEAKS, S_CONES, L_TO_M, NEUTRAL_POINT
 /**
  * One row of what is known about a species. [value] is the pieces of information it holds, such as
  * a share and its source: joined by spaces they read as one line, and a window that has to break it
- * breaks it only between them.
+ * breaks it between them, inside a piece only where that piece alone is wider than the line.
  */
 data class Fact(val label: FactLabel, val value: List<String>)
 

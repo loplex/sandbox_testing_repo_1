@@ -1,10 +1,12 @@
 package cz.loplex.dogvision.ui
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -14,6 +16,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
@@ -21,6 +24,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import cz.loplex.dogvision.core.CameraChoice
 import cz.loplex.dogvision.core.CameraOption
 import cz.loplex.dogvision.core.Facing
@@ -32,6 +38,7 @@ import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** The shared controls, shown in Compose's test scene as the app and the desktop window show them. */
 @OptIn(ExperimentalTestApi::class)
@@ -55,6 +62,7 @@ class ControlsTest {
         recording: Boolean = false,
         texts: Texts = english,
         camera: CameraChoice = CameraChoice(listOf(back, webcam), shown = back),
+        width: Dp? = null,
     ): Held {
         val held = Held(view, camera)
         setContent {
@@ -70,6 +78,7 @@ class ControlsTest {
                         onMirroring = { held.camera = held.camera.copy(mirroring = it) },
                         language = held.language,
                         onLanguage = { held.language = it },
+                        modifier = width?.let { Modifier.width(it) } ?: Modifier,
                         onCamerasOpened = { held.camerasOpened++ },
                     )
                 }
@@ -108,6 +117,26 @@ class ControlsTest {
         held.view = View(Params(Species.HUMAN))
         node(Str.FACT_NEUTRAL_POINT).assertDoesNotExist()
         node(Str.FACT_L_TO_M).assertExists()
+    }
+
+    @Test
+    fun aSourceTooWideForItsColumnBreaksOnlyAtItsSpaces() = runComposeUiTest {
+        // The app's panel in landscape: the cone peaks' citation is wider than the value's column.
+        show(width = 360.dp)
+        val values = onAllNodes(hasText("1989", substring = true), useUnmergedTree = true).fetchSemanticsNodes()
+        val layouts = values.map { node ->
+            val results = mutableListOf<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action!!(results)
+            results.single()
+        }
+        assertTrue(layouts.any { it.lineCount > 1 }, "no citation needed a second line")
+        layouts.forEach { layout ->
+            val text = layout.layoutInput.text.text
+            (0 until layout.lineCount - 1).forEach { line ->
+                val end = layout.getLineEnd(line)
+                assertTrue(text[end - 1].isWhitespace(), "\"$text\" broken after \"${text.substring(0, end)}\"")
+            }
+        }
     }
 
     @Test

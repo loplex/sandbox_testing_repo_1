@@ -5,7 +5,8 @@ What each program shows and how it is driven. Building them is [Building it](bui
 - [The Android app](#the-android-app) — the controls, the camera and its mirroring, a photo or a
   video, saving at full size, recording, the language, and how it differs from the desktop program.
 - [The web page](#the-web-page) — what a browser needs for the camera, snapshots and recording.
-- [The command line](#the-command-line) — converting a photo, `--species` and the other options.
+- [The command line](#the-command-line) — converting a photo or a video, `--species` and the other
+  options, and [ffmpeg for a video](#a-video-needs-ffmpeg).
 - [The desktop window](#the-desktop-window) — `dog-vision-compose` in Compose and
   `dog-vision-swing` in Swing, their GL on Linux and Windows, and ffmpeg for a video or the camera.
 
@@ -234,6 +235,7 @@ dog-vision-cli --species cat --compare dog photo.jpg            # from the deb o
 dog-vision-cli --species cat --compare dog photo.jpg            # from the MSI, on Windows
 dog-vision-cli\dog-vision-cli.exe --species cat photo.jpg       # from the zip, on Windows
 java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
+dog-vision-cli --species cat clip.mp4                           # a video, through ffmpeg
 ```
 
 - **On Linux it installs as a package of its own, `dog-vision-cli`**, from its deb or its rpm, or
@@ -252,11 +254,15 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
 - **It converts a photo at full size**, as the desktop program's `dog-vision photo.jpg` does: it
   writes a PNG next to the photo, or into `--output-dir`, and says what share of the pixels differ
   when `--difference` asks for the map.
-- **The PNG is named after the photo and the species it shows**: `photo.dog.png`,
-  `photo.cat.png` with `--species cat`, and `photo.horse-vs-cat.png` with `--compare horse` too.
+- **It converts a video at full size, frame by frame**, as the desktop program's
+  `dog-vision clip.mp4` does: each frame as a photo is, the scene's mean taken again for each, into
+  an .mp4 with the original's sound; on a terminal it shows how far it is.
+- **The PNG or the .mp4 is named after the file and the species it shows**: `photo.dog.png`,
+  `photo.cat.png` with `--species cat`, `photo.horse-vs-cat.png` with `--compare horse` too, and
+  `clip.dog.mp4` for a video.
 - **It takes the desktop program's options** for the view: `--species`, `--compare`,
   `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`; `--help`
-  lists them. A video and the window are not in it.
+  lists them. The window is not in it.
 - **`--info` prints the model derived for `--species`**, as the desktop program's does: the cone
   and simulation matrices, the checks they pass, and the species' facts.
 - **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program.
@@ -264,6 +270,23 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
   `LANGUAGE`, such as `cs:en`, where it is set, or else `LC_ALL`, `LC_MESSAGES` or `LANG`, and on
   Windows the system's own; so do the windows. The desktop program's command line speaks
   English only.
+
+### A video needs ffmpeg
+
+- **ffmpeg and ffprobe read and write a video**, from the `PATH`, or on Windows from where a window
+  downloaded them.
+  The deb and the rpm recommend ffmpeg, which apt, dnf and zypper install with them unless told not
+  to.
+  Without them a video cannot be converted: the desktop program falls back to OpenCV, without the
+  sound, and the JVM has no decoder to fall back on.
+- **The .mp4 is written by the best encoder ffmpeg has here**: H.265 (`libx265`, or a GPU's), else
+  H.264, else MPEG-4, each tried on a frame first, as the desktop program chooses.
+- **It is tagged BT.709**, the matrix its frames are encoded with, so that a player shows the
+  colours as they were.
+- **The sound is copied** where an .mp4 holds its codec as it is, and re-encoded to AAC where not.
+- **A video of a varying frame rate is read at its average rate**, frames repeated or dropped so
+  that the sound stays in step; the desktop program writes every frame at the rate OpenCV reports.
+- **An HDR video is not tone-mapped**, as the desktop program's is not; the app tone-maps one.
 
 ## The desktop window
 

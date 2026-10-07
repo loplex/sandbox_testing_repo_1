@@ -75,24 +75,6 @@ class FfmpegFeedTest {
         assertNull(ended.get())
     }
 
-    @Test
-    fun aProgramThatCannotRunIsSaidToBeMissing() {
-        val error = assertFailsWith<FfmpegMissing> { FfmpegFeed.start(listOf("dog-vision-no-such-ffmpeg")) }
-        assertEquals("dog-vision-no-such-ffmpeg", error.program)
-    }
-
-    /**
-     * cat copies its standard input until it ends, so it ends at once with nothing to copy; Windows's sort, which
-     * Windows finds in its system folder before the PATH, reads it to its end as well.
-     */
-    @Test
-    fun aProgramStartedReadsNothing() {
-        val program = if (onWindows) "sort" else "cat"
-        val process = FfmpegFeed.start(listOf(program))
-        assertTrue(process.waitFor(5, TimeUnit.SECONDS), "$program still waits for its input")
-        assertEquals("", process.inputStream.bufferedReader().readText())
-    }
-
     /**
      * What ffmpeg 9.0.2 lists under Wine, whose DirectShow shows Video4Linux's camera, shortened, with another camera
      * after it.

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.RandomAccessFile
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -73,6 +74,14 @@ class PhotosTest {
     @Test
     fun whatIsNoImageReadsAsNull() {
         val file = File(directory, "text.jpg").apply { writeText("not an image") }
+        assertNull(readPhoto(file))
+    }
+
+    @Test
+    fun aFileTooLargeForAnArrayIsToldNoImageByItsHeader() {
+        // A video of 3 GB, as a window or the command line may be given: sparse, so it takes no room on the disk.
+        val file = File(directory, "clip.mp4")
+        RandomAccessFile(file, "rw").use { it.setLength(3L shl 30) }
         assertNull(readPhoto(file))
     }
 

@@ -47,6 +47,19 @@ dependencyResolutionManagement {
 
 rootProject.name = "dog-vision"
 
-include(":app", ":cli", ":core", ":desktop", ":desktop-core", ":gl", ":swing", ":testing", ":texts", ":ui", ":web")
+include(
+    ":app",
+    ":cli",
+    ":core",
+    ":desktop",
+    ":desktop-core",
+    ":ffmpeg",
+    ":gl",
+    ":swing",
+    ":testing",
+    ":texts",
+    ":ui",
+    ":web",
+)
 // The packages, made apart from the modules they hold.
 include(":packaging")

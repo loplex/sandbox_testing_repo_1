@@ -1,4 +1,4 @@
-package cz.loplex.dogvision.desktop
+package cz.loplex.dogvision.ffmpeg
 
 import java.io.File
 import java.io.IOException
@@ -16,8 +16,9 @@ sealed interface FfmpegInstall {
 }
 
 /**
- * Where the feeds run ffmpeg and ffprobe from: the PATH the window started with, or, once they are installed from the
- * window, where they were put; on Windows, where they are on neither, the folder [FfmpegDownload] unpacks them into.
+ * Where a window's feeds and the command line run ffmpeg and ffprobe from: the PATH the program started with, or, once
+ * they are installed from the window, where they were put; on Windows, where they are on neither, the folder
+ * [FfmpegDownload] unpacks them into, which the command line takes too.
  *
  * Windows has no ffmpeg of its own, so the window offers to download it, as [FfmpegDownload] does, and where winget is
  * on the PATH to install it through winget, the package manager Windows 10 and 11 come with, as Gyan's build, which
@@ -51,7 +52,7 @@ object FfmpegPrograms {
 
     /**
      * What runs [program]: its whole path, where it was found after the window started, or on Windows where it is
-     * downloaded and not on the PATH the window started with; else its name.
+     * downloaded and not on the PATH the program started with; else its name.
      */
     fun command(program: String): String = found[program] ?: downloaded(program) ?: program
 
@@ -126,4 +127,22 @@ object FfmpegPrograms {
     /** The last line of [output] with words in it, past the progress bars and spinners that winget draws. */
     internal fun lastSaid(output: String): String? =
         output.split('\r', '\n').map(String::trim).lastOrNull { line -> line.any(Char::isLetter) }
+
+    /**
+     * [command] started, its program from where it is run, with nothing to read on its standard input, which is
+     * closed, unless it reads [input] there. Throws [FfmpegMissing] if the program cannot be run.
+     */
+    fun start(command: List<String>, input: Boolean = false): Process = try {
+        val program = FfmpegPrograms.command(command.first())
+        ProcessBuilder(listOf(program) + command.drop(1)).start().apply { if (!input) outputStream.close() }
+    } catch (error: IOException) {
+        throw FfmpegMissing(command.first(), error)
+    }
 }
+
+/** ffmpeg's [program], ffmpeg or ffprobe, which cannot be run, as where it is not installed or not on the PATH. */
+class FfmpegMissing(val program: String, cause: IOException) :
+    IOException("Cannot run $program: ${cause.message}", cause)
+
+/** Whether this is Windows, which has no ffmpeg of its own. */
+internal val onWindows = System.getProperty("os.name").startsWith("Windows")

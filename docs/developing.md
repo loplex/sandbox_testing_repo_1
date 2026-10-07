@@ -25,6 +25,7 @@ Building the programs is [Building it](building.md)'s.
 | [`web`](../web)                   | the web page                               | JavaScript          |
 | [`cli`](../cli)                   | the command line                           | the JVM             |
 | [`desktop-core`](../desktop-core) | what the desktop windows share             | the JVM             |
+| [`ffmpeg`](../ffmpeg)             | ffmpeg and ffprobe, found and run          | the JVM             |
 | [`desktop`](../desktop)           | the desktop window, in Compose             | the JVM             |
 | [`swing`](../swing)               | the desktop window, in Swing               | the JVM             |
 | [`packaging`](../packaging)       | the debs, the rpms, the MSI and the zip    | Linux, Windows      |
@@ -71,6 +72,10 @@ The root project declares the plugin, so these are on every module's build scrip
   image of them.
   Its `LiveSession` holds what a window shows, as the Python program's does, so that the Compose
   window and the Swing one only lay it out.
+- **`ffmpeg` finds ffmpeg and ffprobe and starts them**:
+  on the PATH, where they were installed after a window started, or on Windows where a window
+  downloaded them.
+  Through them it probes a video, reads its frames and writes an .mp4, for the command line.
 
 ### Which module uses which
 
@@ -99,6 +104,7 @@ graph TD
         ui
         desktop-core
         cli
+        ffmpeg
     end
     subgraph base [built on core]
         testing
@@ -115,6 +121,8 @@ graph TD
     desktop --> desktop-core
     testing ==> core
     desktop-core ==> cli
+    desktop-core ==> ffmpeg
+    cli --> ffmpeg
     desktop --> ui
     web --> gl
     app --> core
@@ -135,6 +143,7 @@ graph TD
     subgraph shared [what the programs share]
         ui
         cli
+        ffmpeg
     end
     subgraph base [built on core]
         texts
@@ -146,6 +155,7 @@ graph TD
     web --> texts
     cli ==> texts
     ui ==> texts
+    ffmpeg --> texts
     texts ==> core
     programs ~~~ shared
     classDef program font-weight:bold
@@ -247,8 +257,9 @@ The test classes' comments say what each of them holds.
 | `./gradlew :core:allTests`                  | the same, and the JVM and Node.js agreeing           |
 | `./gradlew :texts:allTests`                 | every language having every string, and plurals      |
 | `./gradlew :ui:jvmTest`                     | the shared controls, in Compose's test scene         |
-| `./gradlew :cli:jvmTest`                    | the options, EXIF, a conversion, the figures         |
+| `./gradlew :cli:jvmTest`                    | the options, EXIF, photo and video, the figures      |
 | `./gradlew :desktop-core:jvmTest`           | the window's passes, GL contexts, ffmpeg, session    |
+| `./gradlew :ffmpeg:jvmTest`                 | finding ffmpeg, its download, video read and written |
 | `./gradlew :swing:jvmTest`                  | the Swing window's image, theme and a dropped file   |
 | `./gradlew :web:jsTest`                     | the page's passes, snapshot and recording            |
 | `./gradlew :app:connectedDebugAndroidTest`  | the renderer, recording and conversion, on a device  |
@@ -258,6 +269,8 @@ The test classes' comments say what each of them holds.
   page's and the window's alike, through [`testing`](../testing)'s reference pattern.
 - **`:desktop-core:jvmTest` draws on this machine's GPU**, through EGL on Linux and through
   ANGLE and WGL on Windows, and runs the machine's `ffmpeg`.
+- **`:cli:jvmTest` and `:ffmpeg:jvmTest` run the machine's `ffmpeg` too**, to make the videos they
+  convert, read and write.
 - **`:web:jsTest` runs in headless Chrome, which renders WebGL 2 in software**, with SwiftShader, as
   [`karma.config.d/webgl.js`](../web/karma.config.d/webgl.js) tells it to.
   `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead,
@@ -315,8 +328,8 @@ in [`.editorconfig`](../.editorconfig):
 ### The JVM tests' coverage is measured, not required
 
 - **`./gradlew koverHtmlReport` writes which lines and branches the JVM tests reach**, as the Python
-  program's `pytest --cov` lists them, for `cli`, `core`, `desktop`, `desktop-core`, `gl`, `swing`,
-  `texts` and `ui`, in one report: `build/reports/kover/html/index.html`.
+  program's `pytest --cov` lists them, for `cli`, `core`, `desktop`, `desktop-core`, `ffmpeg`, `gl`,
+  `swing`, `texts` and `ui`, in one report: `build/reports/kover/html/index.html`.
 - **Nothing fails on coverage**: the report is there to find what no test reaches.
 - **The web page's and the app's tests are not measured**: they run in a browser and on a device,
   which [Kover](https://github.com/Kotlin/kotlinx-kover) does not reach.

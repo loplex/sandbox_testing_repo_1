@@ -81,7 +81,7 @@ class ConversionTest {
         val input = File(directory, "clip.mp4").apply { writeText("not a photo") }
         val (status, _, err) = run("$input")
         assertEquals(1, status)
-        assertTrue("Cannot read $input as a photo" in err, err)
+        assertTrue("Cannot read $input as a photo or a video: " in err, err)
         val (missing, _, missingErr) = run("${File(directory, "missing.jpg")}")
         assertEquals(1, missing)
         assertTrue("Cannot read" in missingErr, missingErr)
@@ -94,7 +94,7 @@ class ConversionTest {
         assertTrue("The window is the desktop app's" in noneErr, noneErr)
         val (help, out, _) = run("--help")
         assertEquals(0, help)
-        assertTrue(out.startsWith("usage: dog-vision-cli [options] photo"), out)
+        assertTrue(out.startsWith("usage: dog-vision-cli [options] file"), out)
         val (wrong, _, err) = run("--species", "unicorn")
         assertEquals(2, wrong)
         assertTrue("dog-vision-cli: error: --species: no species unicorn" in err, err)
@@ -106,7 +106,7 @@ class ConversionTest {
     @Test
     fun theCommandLineSpeaksTheLanguageItIsGiven() {
         val (_, help, _) = run("--help", language = "cs")
-        assertTrue(help.startsWith("použití: dog-vision-cli [volby] fotka"), help)
+        assertTrue(help.startsWith("použití: dog-vision-cli [volby] soubor"), help)
         val (_, _, wrong) = run("--species", "unicorn", language = "cs")
         assertTrue("dog-vision-cli: chyba: --species: druh unicorn neexistuje" in wrong, wrong)
         val input = File(directory, "photo.png").apply { writeBytes(PhotosTest.pngBytes(photo)) }

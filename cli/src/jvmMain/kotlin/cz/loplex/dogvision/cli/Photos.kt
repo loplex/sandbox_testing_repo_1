@@ -2,6 +2,7 @@ package cz.loplex.dogvision.cli
 
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.exifTurn
+import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.File
 import javax.imageio.ImageIO
@@ -9,10 +10,16 @@ import javax.imageio.ImageIO
 /**
  * The photo in [file] as sRGB, turned as its EXIF orientation says, or null if ImageIO cannot read it as an image.
  * ImageIO converts a photo with a colour profile of its own to sRGB as it hands its pixels over.
+ * Whether it is one is told by its header first, so a video is not read whole only to be turned down.
  */
 fun readPhoto(file: File): Image? {
+    if (!isImage(file)) return null
     val bytes = file.readBytes()
-    val decoded = ImageIO.read(ByteArrayInputStream(bytes)) ?: return null
+    return ImageIO.read(ByteArrayInputStream(bytes))?.let { decoded -> upright(decoded, bytes) }
+}
+
+/** [decoded], read from [bytes], made opaque and turned as the EXIF orientation in [bytes] says. */
+private fun upright(decoded: BufferedImage, bytes: ByteArray): Image {
     val width = decoded.width
     val height = decoded.height
     val pixels = decoded.getRGB(0, 0, width, height, null, 0, width)
@@ -22,6 +29,10 @@ fun readPhoto(file: File): Image? {
 }
 
 private const val OPAQUE = 0xFF shl 24
+
+/** Whether one of ImageIO's readers takes [file] for its format, by the bytes it starts with. */
+private fun isImage(file: File): Boolean =
+    ImageIO.createImageInputStream(file)?.use { ImageIO.getImageReaders(it).hasNext() } ?: false
 
 /** [image] turned [rotation] degrees clockwise, a multiple of 90, then mirrored left to right if [mirrored]. */
 @Suppress("MagicNumber")
