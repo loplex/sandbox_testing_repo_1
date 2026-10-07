@@ -169,6 +169,8 @@ val packageCommonRpm = tasks.register<RpmPackage>("packageDogVisionCommonRpm") {
     longDescription = commonDescription
     requires = emptyList()
     recommends = emptyList()
+    licenseName = commonLicences.flatMap { it.spdx }.map { it.asFile.readText() }
+    thirdPartyLicenses = commonLicences.flatMap { it.notices }
 }
 artifact(packageCommonRpm)
 
@@ -314,6 +316,8 @@ val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
         listOf("/bin/sh", java, "$commonPackage = $version-$release")
     }
     recommends = emptyList()
+    licenseName = cliLicences.flatMap { it.spdx }.map { it.asFile.readText() }
+    thirdPartyLicenses = cliLicences.flatMap { it.notices }
 }
 artifact(packageCliRpm)
 
@@ -428,6 +432,8 @@ val packageWebRpm = tasks.register<RpmPackage>("packageDogVisionWebRpm") {
     // As the deb's.
     requires = listOf("xdg-utils")
     recommends = emptyList()
+    licenseName = webLicences.flatMap { it.spdx }.map { it.asFile.readText() }
+    thirdPartyLicenses = webLicences.flatMap { it.notices }
 }
 artifact(packageWebRpm)
 
@@ -532,6 +538,8 @@ val packageAllInOneRpm = tasks.register<RpmPackage>("packageDogVisionRpm") {
         file.asFile.readText().split(',') + others
     }
     recommends = emptyList()
+    licenseName = allInOneLicences.flatMap { it.spdx }.map { it.asFile.readText() }
+    thirdPartyLicenses = allInOneLicences.flatMap { it.notices }
 }
 artifact(packageAllInOneRpm)
 
@@ -596,5 +604,7 @@ val packageWebSourceMapRpm = tasks.register<RpmPackage>("packageDogVisionWebSour
         listOf("($webPackage = $version-$release or $allInOnePackage = $version-$release)")
     }
     recommends = emptyList()
+    licenseName = webSourceMapLicences.flatMap { it.spdx }.map { it.asFile.readText() }
+    thirdPartyLicenses = webSourceMapLicences.flatMap { it.notices }
 }
 artifact(packageWebSourceMapRpm)
