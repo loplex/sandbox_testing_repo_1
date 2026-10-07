@@ -120,7 +120,7 @@ fun usage(texts: Texts): String = usage(
     texts,
     texts.get(Str.USAGE_SYNOPSIS, COMMAND),
     texts.get(Str.USAGE_ABOUT),
-    listOf("$COMMAND photo.jpg" to texts.get(Str.USAGE_PHOTO)),
+    listOf("$COMMAND photo.jpg" to texts.get(Str.USAGE_PHOTO), "$COMMAND clip.mp4" to texts.get(Str.USAGE_VIDEO)),
     ViewOptions.usage(texts) + listOf(
         "--output-dir DIR" to texts.get(Str.USAGE_OPTION_OUTPUT_DIR),
         "--info" to texts.get(Str.USAGE_OPTION_INFO),
