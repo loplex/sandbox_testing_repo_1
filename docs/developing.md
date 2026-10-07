@@ -77,6 +77,7 @@ The root project declares the plugin, so these are on every module's build scrip
 - **`ffmpeg` finds ffmpeg and ffprobe and starts them**:
   on the PATH, where they were installed after a window started, or on Windows where a window
   downloaded them.
+  Through them it probes a video, reads its frames and writes an .mp4, for the command line.
 
 ### Which module uses which
 
@@ -123,6 +124,7 @@ graph TD
     testing ==> core
     gui-core ==> cli
     gui-core ==> ffmpeg
+    cli --> ffmpeg
     gui-compose --> ui
     web --> gl
     android --> core
@@ -257,9 +259,9 @@ The test classes' comments say what each of them holds.
 | `./gradlew :core:allTests`                     | the same, and the JVM and Node.js agreeing           |
 | `./gradlew :texts:allTests`                    | every language having every string, and plurals      |
 | `./gradlew :ui:jvmTest`                        | the shared controls, in Compose's test scene         |
-| `./gradlew :cli:jvmTest`                       | the options, EXIF, a conversion, the figures         |
+| `./gradlew :cli:jvmTest`                       | the options, EXIF, photo and video, the figures      |
 | `./gradlew :gui-core:jvmTest`                  | the window's passes, GL contexts, ffmpeg, session    |
-| `./gradlew :ffmpeg:jvmTest`                    | finding ffmpeg, starting it, its download            |
+| `./gradlew :ffmpeg:jvmTest`                    | finding ffmpeg, its download, video read and written |
 | `./gradlew :gui-swing:jvmTest`                 | the Swing window's image, theme and a dropped file   |
 | `./gradlew :web:jsTest`                        | the page's passes, snapshot and recording            |
 | `./gradlew :build-logic:test`                  | the licences a package lists, read and written       |
@@ -270,6 +272,8 @@ The test classes' comments say what each of them holds.
   page's and the window's alike, through [`testing`](../testing)'s reference pattern.
 - **`:gui-core:jvmTest` draws on this machine's GPU**, through EGL on Linux and through
   ANGLE and WGL on Windows, and runs the machine's `ffmpeg`.
+- **`:cli:jvmTest` and `:ffmpeg:jvmTest` run the machine's `ffmpeg` too**, to make the videos they
+  convert, read and write.
 - **`:web:jsTest` runs in headless Chrome, which renders WebGL 2 in software**, with SwiftShader, as
   [`karma.config.d/webgl.js`](../web/karma.config.d/webgl.js) tells it to.
   `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead,
