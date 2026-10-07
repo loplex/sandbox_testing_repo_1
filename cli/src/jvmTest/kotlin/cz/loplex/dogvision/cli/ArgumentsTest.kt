@@ -49,7 +49,7 @@ class ArgumentsTest {
             listOf("--chroma-scale", "vivid"),
             listOf("--fov", "0"),
             listOf("--acuity=yes"),
-            listOf("--info"),
+            listOf("--info=yes"),
             listOf("a.png", "b.png"),
         )
         for (args in wrong) assertFailsWith<UsageException>(args.toString()) { parseArguments(args) }
@@ -76,7 +76,7 @@ class ArgumentsTest {
     fun theUsageNamesEverySpeciesAndOptionOfItsOwnInEachLanguage() {
         val options = listOf(
             "--species", "--compare", "--difference", "--adaptation", "--strength", "--chroma-scale", "--acuity",
-            "--fov", "--output-dir", "--help",
+            "--fov", "--output-dir", "--info", "--help",
         )
         for (language in Texts.LANGUAGES) {
             val usage = usage(Texts.of(language))
