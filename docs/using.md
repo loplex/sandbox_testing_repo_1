@@ -258,8 +258,9 @@ java -jar dog-vision-cli.jar --species cat --compare dog photo.jpg
   `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`; `--help`
   lists them. `--info`, a video and the window are not in it.
 - **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program.
-- **It speaks the system's language**, English or Czech: the JVM takes it from `LC_ALL`,
-  `LC_MESSAGES` or `LANG`, and not from `LANGUAGE`. The desktop program's command line speaks
+- **It speaks the system's language**, English or Czech, as gettext reads it: the list in
+  `LANGUAGE`, such as `cs:en`, where it is set, or else `LC_ALL`, `LC_MESSAGES` or `LANG`, and on
+  Windows the system's own; so do the windows. The desktop program's command line speaks
   English only.
 
 ## The desktop window
