@@ -23,7 +23,6 @@ sources.
 
 - **The app, the web page and the window draw the view with the same GPU passes**, and the same
   controls, so each shows what the others do.
-- **The desktop window is a first version**: it has no recording yet.
 - **The desktop window comes in two toolkits**: `dog-vision-compose` in Compose, with the app's
   controls, and [`dog-vision-swing`](docs/using.md#the-same-window-in-swing-dog-vision-swing) in
   Swing, which shows the same from the same state and needs neither Compose nor skiko.

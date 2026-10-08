@@ -52,6 +52,12 @@ interface Renderer : AutoCloseable {
      * read back from the GPU on the renderer's thread; null where nothing is composed yet.
      */
     fun readImages(onImages: (List<Image>?) -> Unit)
+
+    /**
+     * Hands [onImages] the images of the view, as [readImages] reads them, at once and each time the view is composed
+     * anew, on the renderer's thread, until it is set to null: what a recording records.
+     */
+    fun record(onImages: ((List<Image>) -> Unit)?)
 }
 
 /**
@@ -91,6 +97,10 @@ class GlRenderer<I>(
     /** Who asked for the images composed, since the renderer's thread last answered. */
     private val imageRequests = mutableListOf<(List<Image>?) -> Unit>()
 
+    /** Who records the images composed, and whether they are to be handed over before the view is composed again. */
+    private var recording: ((List<Image>) -> Unit)? = null
+    private var recordNow = false
+
     private val thread = thread(name = "dog-vision-gl", isDaemon = true) { run() }
 
     override fun show(frame: Frame, live: Boolean, mirrored: Boolean) = lock.withLock {
@@ -118,6 +128,11 @@ class GlRenderer<I>(
     override fun setArea(area: Area) = update { this.area = area }
 
     override fun readImages(onImages: (List<Image>?) -> Unit) = update { imageRequests += onImages }
+
+    override fun record(onImages: ((List<Image>) -> Unit)?) = update {
+        recording = onImages
+        recordNow = onImages != null
+    }
 
     private inline fun update(change: () -> Unit) = lock.withLock {
         change()
@@ -172,6 +187,8 @@ class GlRenderer<I>(
         var drawnArea: Area? = null
         // The areas being read back, in the order Passes hands them over.
         val drawing = ArrayDeque<Drawn>()
+        // Whether a recording that started is still to be handed the images before the view is composed again.
+        var recordFirst = false
 
         fun handOver(pixels: ByteArray) {
             val drawn = drawing.removeFirst()
@@ -191,6 +208,7 @@ class GlRenderer<I>(
             val view: View?
             val area: Area?
             val requests: List<(List<Image>?) -> Unit>
+            val recorder: ((List<Image>) -> Unit)?
             lock.withLock {
                 while (!closed && !changed) {
                     // A read or a count under way is asked after, and a live frame may be long in coming.
@@ -219,6 +237,9 @@ class GlRenderer<I>(
                 area = this.area
                 requests = imageRequests.toList()
                 imageRequests.clear()
+                recorder = recording
+                if (recordNow) recordFirst = true
+                recordNow = false
             }
             if (cleared) {
                 clears++
@@ -254,9 +275,12 @@ class GlRenderer<I>(
                 }
                 composed = view
             }
-            if (requests.isNotEmpty()) {
+            val recorded = recorder != null && (recomposed || recordFirst)
+            if (requests.isNotEmpty() || recorded) {
                 val images = passes.readImages(view.images)
                 requests.forEach { it(images) }
+                if (recorded) recorder(images)
+                recordFirst = false
             }
             var counted = false
             if (live && passes.counting) {
