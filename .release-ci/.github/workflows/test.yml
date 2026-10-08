@@ -1,0 +1,42 @@
+# This repository's test suites, run on every push and pull request.
+# - `suite` takes its Python from .python-version, so the tests run on the version they are written against.
+# - `guards` runs the checks over this repository through the action, as any repository using it does.
+name: test
+
+on:
+  push:
+  pull_request:
+  # Asked for by release-publish.yml once a release has landed: a push made with GITHUB_TOKEN starts no run.
+  workflow_dispatch:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # .github reads CHANGELOG.md as it stood at every commit.
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - run: python3 -m pip install --require-hashes -r lib/requirements.txt -r .github/requirements.txt
+      - run: python3 -m unittest discover -s lib
+      - run: python3 -m unittest discover -s check-release
+      - run: python3 -m unittest discover -s release-flow
+      - run: python3 -m unittest discover -s intellij
+      - run: python3 -m unittest discover -s .github
+
+  guards:
+    # The checks run against this repository through the check-release action, so this job is its first user.
+    # The repository declares no version in a file, so it uses the `tags` source in its simplest form.
+    # The default checks leave out `version`: it asks what may be released next, a question for a release,
+    # not for every push.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # ancestry reads the whole history, and both default checks read the tags.
+      - uses: ./check-release
+        with:
+          version-source: tags
+          tag-prefix: v

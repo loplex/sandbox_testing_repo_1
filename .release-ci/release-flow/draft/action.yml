@@ -1,0 +1,68 @@
+name: draft
+description: |
+  Pushes the release branch and drafts the release from it, once the build has succeeded.
+  - The notes are the version's section of CHANGELOG.md.
+  - The files are the ones `files` names, and none when it is empty.
+  - A version with a pre-release suffix is marked as a pre-release.
+  - A draft of the same tag left by an earlier run is replaced.
+
+  The tag is named but not created.
+  GitHub creates it when the draft is published, so a draft that is thrown away leaves no tag behind.
+
+  Runs where release-flow/prepare left the workspace.
+  Needs `contents: write` on the job.
+  Needs `gh`, which GitHub-hosted runners have.
+  Installs the Python it runs on with actions/setup-python, leaving the job's own python3 as it was.
+
+inputs:
+  version:
+    description: |
+      The version being released, as release-flow/prepare gives it.
+    required: true
+  tag:
+    description: |
+      The tag the release will have, as release-flow/prepare gives it.
+    required: true
+  branch:
+    description: |
+      The branch that holds the release commit, as release-flow/prepare gives it.
+    required: true
+  files:
+    description: |
+      What to attach to the draft, one pattern or path per line.
+      Use a `|` block in YAML, so that a path may contain a space.
+      - A blank line is skipped.
+      - A pattern is a bash glob, in which `**` goes no deeper than `*`.
+      - A pattern that matches nothing, or a path that names no file, fails the run.
+
+      Left empty, nothing is attached.
+    default: ''
+  token:
+    description: |
+      The token `gh` uses to replace and create the draft.
+      The branch is pushed with the credentials actions/checkout left, not with this token.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    # The Python .python-version names, the one the tests run on, whatever python3 the runner carries.
+    # update-environment: false keeps it out of the calling job, whose steps go on with their own python3.
+    - id: python
+      uses: actions/setup-python@v7
+      with:
+        python-version-file: ${{ github.action_path }}/../../.python-version
+        update-environment: false
+    - shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        VERSION: ${{ inputs.version }}
+        TAG: ${{ inputs.tag }}
+        BRANCH: ${{ inputs.branch }}
+        FILES: ${{ inputs.files }}
+        GH_TOKEN: ${{ inputs.token }}
+      # The Python setup-python installs finds its libpython through LD_LIBRARY_PATH in a job that runs in a container,
+      # where the tool cache is mounted away from the path built into it. Set here, for this step alone.
+      run: |
+        export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        "$GITHUB_ACTION_PATH/draft.sh"

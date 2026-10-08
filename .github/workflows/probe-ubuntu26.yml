@@ -1,0 +1,70 @@
+name: probe-ubuntu26
+
+# Does release-ci 62b2425's Python run on the Ubuntu 26.04 runner, which ubuntu-latest moves to from 2026-10-19
+# (actions/runner-images#14748)? The same steps on 24.04 are the control.
+# Each job: check-release (setup-python from .release-ci/.python-version, update-environment: false), and
+# intellij/build's notes.sh (pip install of lib/requirements.txt, then notes --html).
+on:
+  push:
+    branches: [test/release-0.3.0-ubuntu26-20261008]
+
+jobs:
+  host:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: grep PRETTY_NAME /etc/os-release; ldd --version | head -1; command -v python3; python3 --version
+      - uses: ./.release-ci/check-release
+        with:
+          version-source: gradle.properties
+          tag-prefix: u26-
+      - id: python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .release-ci/.python-version
+          update-environment: false
+      - name: notes.sh, as intellij/build runs it
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          "$PYTHON" --version
+          .release-ci/intellij/build/notes.sh
+
+  container:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
+        image: ['ubuntu:24.04', 'ubuntu:26.04']
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+    steps:
+      - run: apt-get update -qq && apt-get install -y -qq git ca-certificates > /dev/null
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: grep PRETTY_NAME /etc/os-release; ldd --version | head -1
+      - uses: ./.release-ci/check-release
+        with:
+          version-source: gradle.properties
+          tag-prefix: u26-
+      - id: python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .release-ci/.python-version
+          update-environment: false
+      - name: notes.sh, as intellij/build runs it
+        shell: bash
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          "$PYTHON" --version
+          .release-ci/intellij/build/notes.sh
