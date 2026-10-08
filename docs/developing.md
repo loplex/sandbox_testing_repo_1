@@ -46,8 +46,8 @@ It holds:
 
 The root project declares the plugin, so these are on every module's build script classpath.
 
-- **`core` has no platform in it**: it holds what the desktop program's `dog_vision.core` holds,
-  less video and the window's session.
+- **`core` has no platform in it**: the species, the model and the image pipeline, with no video
+  and no window's session.
   The one part written for each platform is how a fact's number is rounded, in
   [`Facts.jvm.kt`](../core/src/jvmMain/kotlin/cz/loplex/dogvision/core/Facts.jvm.kt) and
   [`Facts.js.kt`](../core/src/jsMain/kotlin/cz/loplex/dogvision/core/Facts.js.kt), since JavaScript
@@ -71,7 +71,7 @@ The root project declares the plugin, so these are on every module's build scrip
 - **`gui-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
   renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
   image of them.
-  Its `LiveSession` holds what a window shows, as the Python program's does, so that the Compose
+  Its `LiveSession` holds what a window shows, so that the Compose
   window and the Swing one only lay it out.
 - **`ffmpeg` finds ffmpeg and ffprobe and starts them**:
   on the PATH, where they were installed after a window started, or on Windows where a window
@@ -346,9 +346,9 @@ in [`.editorconfig`](../.editorconfig):
 
 ### The JVM tests' coverage is measured, not required
 
-- **`./gradlew koverHtmlReport` writes which lines and branches the JVM tests reach**, as the Python
-  program's `pytest --cov` lists them, for `cli`, `core`, `ffmpeg`, `gl`, `gui-compose`, `gui-core`,
-  `gui-swing`, `jvm-common`, `texts` and `ui`, in one report: `build/reports/kover/html/index.html`.
+- **`./gradlew koverHtmlReport` writes which lines and branches the JVM tests reach**, for `cli`,
+  `core`, `ffmpeg`, `gl`, `gui-compose`, `gui-core`, `gui-swing`, `jvm-common`, `texts` and `ui`, in
+  one report: `build/reports/kover/html/index.html`.
 - **Nothing fails on coverage**: the report is there to find what no test reaches.
 - **The web page's and the app's tests are not measured**: they run in a browser and on a device,
   which [Kover](https://github.com/Kotlin/kotlinx-kover) does not reach.

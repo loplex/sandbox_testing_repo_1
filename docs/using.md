@@ -3,7 +3,7 @@
 What each program shows and how it is driven. Building them is [Building it](building.md)'s.
 
 - [The Android app](#the-android-app) — the controls, the camera and its mirroring, a photo or a
-  video, saving at full size, recording, the language, and how it differs from the desktop program.
+  video, saving at full size, recording and the language.
 - [The web page](#the-web-page) — what a browser needs for the camera, snapshots and recording.
 - [The command line](#the-command-line) — converting a photo or a video, `--species` and the other
   options, and [ffmpeg for a video](#a-video-needs-ffmpeg).
@@ -108,7 +108,8 @@ Images go to *Pictures/Dog Vision* and videos to *Movies/Dog Vision*, where the 
   It is called `dog-<species>-<time>.png`, or `dog-<left>-vs-<species>-<time>.png` when another
   species is compared.
 - **The corners button saves the photo or the video at its full size**, as the view shows it now,
-  with the same name ending in `-full.png` or `-full.mp4`.
+  with the same name ending in `-full.png` or `-full.mp4`, as the system photo picker does not tell
+  an app a file's name.
   A message says how far it has got, and the cross that replaces the button meanwhile cancels it.
 - **The conversion goes on in the background**, the app left or swiped away from the recent apps:
   a notification shows how far it has got, with a button that cancels it, and then where it was
@@ -130,7 +131,7 @@ Before Android 10, saving asks for the storage permission.
 - **The ring button records the view as shown**, every change included, until the square button
   stops it.
 - **The video has 30 frames a second, without sound**, each frame repeated for as long as it was
-  shown, as the desktop program records.
+  shown.
 - **It is called `dog-<species>-<time>.mp4`** and goes to *Movies/Dog Vision*.
 - **While it records, whatever would change the video's size is locked**: the source and the
   camera, *Side by side*, *Map of differences*, and the screen's orientation.
@@ -138,27 +139,10 @@ Before Android 10, saving asks for the storage permission.
 
 ### Language
 
-- **The app speaks English and Czech**, with the desktop program's Czech texts.
+- **The app speaks English and Czech.**
 - **It starts in the phone's language**, and in English when the phone's is neither.
 - **The *Language* choice at the end of the controls overrides it**, and so does the per-app
   language setting of Android 13 and later; Android remembers the choice.
-
-### How it differs from the desktop program
-
-- **Files go to the gallery**, not to an output folder chosen in the app.
-- **The cameras are named by where they face**, not by the system's names, and none is picked by
-  its number.
-- **A photo or a video converted at full size is named like a snapshot**, not `<name>.dog.png` or
-  `<name>.dog.mp4` after the original: the system photo picker does not tell an app a file's name.
-- **Videos are written by the phone's encoders**, not ffmpeg's, so a video too large for them is
-  scaled down, where the desktop program writes any size.
-- **Recording locks the screen's orientation**, since turning the phone would change the video's
-  size.
-- **The second image's choice is called *Compared with***, not *Left image*: on a tall screen it is
-  the top one.
-- **Tooltips are info buttons**, since a touch screen has no pointer to rest.
-- **There is no command line**, so *Reset* returns to the app's defaults, and `--info` has no
-  counterpart.
 
 ## The web page
 
@@ -262,25 +246,23 @@ dog-vision-cli --species cat clip.mp4                           # a video, throu
   `PATH`; [Building it](building.md#the-command-lines-zip-for-windows) says how it is made.
 - **Anywhere else, the JAR runs on a Java 17 or newer**: `./gradlew :cli:uberJar` builds it, with
   everything it needs.
-- **It converts a photo at full size**, as the desktop program's `dog-vision photo.jpg` does: it
-  writes a PNG next to the photo, or into `--output-dir`, and says what share of the pixels differ
-  when `--difference` asks for the map.
-- **It converts a video at full size, frame by frame**, as the desktop program's
-  `dog-vision clip.mp4` does: each frame as a photo is, the scene's mean taken again for each, into
-  an .mp4 with the original's sound; on a terminal it shows how far it is.
+- **It converts a photo at full size**: it writes a PNG next to the photo, or into `--output-dir`,
+  and says what share of the pixels differ when `--difference` asks for the map.
+- **It converts a video at full size, frame by frame**: each frame as a photo is, the scene's mean
+  taken again for each, into an .mp4 with the original's sound; on a terminal it shows how far it
+  is.
 - **The PNG or the .mp4 is named after the file and the species it shows**: `photo.dog.png`,
   `photo.cat.png` with `--species cat`, `photo.horse-vs-cat.png` with `--compare horse` too, and
   `clip.dog.mp4` for a video.
-- **It takes the desktop program's options** for the view: `--species`, `--compare`,
+- **It takes options for the view**: `--species`, `--compare`,
   `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`; `--help`
   lists them. The window is not in it.
-- **`--info` prints the model derived for `--species`**, as the desktop program's does: the cone
+- **`--info` prints the model derived for `--species`**: the cone
   and simulation matrices, the checks they pass, and the species' facts.
-- **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program.
+- **A photo is turned as its EXIF orientation says.**
 - **It speaks the system's language**, English or Czech, as gettext reads it: the list in
   `LANGUAGE`, such as `cs:en`, where it is set, or else `LC_ALL`, `LC_MESSAGES` or `LANG`, and on
-  Windows the system's own; so do the windows. The desktop program's command line speaks
-  English only.
+  Windows the system's own; so do the windows.
 
 ### A video needs ffmpeg
 
@@ -288,17 +270,16 @@ dog-vision-cli --species cat clip.mp4                           # a video, throu
   downloaded them.
   The deb and the rpm recommend ffmpeg, which apt, dnf and zypper install with them unless told not
   to.
-  Without them a video cannot be converted: the desktop program falls back to OpenCV, without the
-  sound, and the JVM has no decoder to fall back on.
+  Without them a video cannot be converted, as the JVM has no decoder to fall back on.
 - **The .mp4 is written by the best encoder ffmpeg has here**: H.265 (`libx265`, or a GPU's), else
-  H.264, else MPEG-4, as the desktop program chooses, each tried on three frames first;
+  H.264, else MPEG-4, each tried on three frames first;
   `libx265` only on a video 50 pixels wide or more.
 - **It is tagged BT.709**, the matrix its frames are encoded with, so that a player shows the
   colours as they were.
 - **The sound is copied** where an .mp4 holds its codec as it is, and re-encoded to AAC where not.
 - **A video of a varying frame rate is read at its average rate**, frames repeated or dropped so
-  that the sound stays in step; the desktop program writes every frame at the rate OpenCV reports.
-- **An HDR video is not tone-mapped**, as the desktop program's is not; the app tone-maps one.
+  that the sound stays in step.
+- **An HDR video is not tone-mapped**; the app tone-maps one.
 
 ## The desktop window
 
@@ -308,8 +289,7 @@ dog-vision-compose photo.jpg                # a photo, or a video played over an
 dog-vision-compose --species cat --camera 1 # the cat's view of the second camera
 ```
 
-It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
-program's.
+It runs on Linux and Windows on x86-64.
 
 ![The Compose window: the apples as they are and as a dog sees them side by side, and the controls
 on the right](images/window.png)
