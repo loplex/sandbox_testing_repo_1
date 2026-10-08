@@ -59,6 +59,8 @@ The example adds `version`.
 
 - Every check named runs, even after one of them fails.
 - The step fails at the end if any check failed, and names each one that did.
+- A check that finds nothing but a published release
+  [yet to land](../lib/README.md#a-release-yet-to-land-exits-with-4) here warns and does not fail.
 - The [outputs](#outputs) are written whenever `version` passed, even if another check failed.
 
 ### `<tag>` is a release tag

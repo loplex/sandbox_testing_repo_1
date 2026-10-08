@@ -53,6 +53,36 @@ The options go after the subcommand name, and a subcommand refuses an option it 
   `python3 -m pip install --require-hashes -r lib/requirements.txt`.
 - Neither `--version-source` nor `--tag-prefix`: `notes` and `channel`.
 
+## A release yet to land exits with 4
+
+A release is published from its branch, `release/<version>`.\
+It reaches the default branch only when `release-flow/merge-back` carries it there, or its pull
+request does once merged.\
+Until then its tag is off the default branch's history, and so is every commit made there in that
+window.
+
+`changelog`, `ancestry` and `version` tell such a release apart from one a rewrite took off the
+history.\
+A release is yet to land where all three hold:
+
+- `release/<version>` holds its tag, as fetched or as a local branch.
+- Every parent of the tagged commit is on the current history.\
+  A force-push below the point the release was cut from fails this.
+- `CHANGELOG.md` in the tree has no section for it.\
+  A squash or a rebase merge copies the release commit, and the section with it.
+
+Each check reports such a release as yet to land, naming the branch that holds it:
+
+- `changelog` does not compare its section.
+- `ancestry` does not blame a rewrite.
+- `version`, where the candidate is that release, does not refuse it as released already.\
+  The default branch still declares that version until merge-back writes the next one.
+
+A check that finds nothing else exits with status 4, and with 1 where it finds more.\
+`check-release` reads 4 as a warning.\
+`release-flow/prepare` and `release-flow/merge-back` read it as a refusal, as any other status
+but 0, so no release is prepared above one that has yet to land.
+
 ## Versions
 
 A version is a semantic version: `1.0.0`, `1.0.0-rc.1`, `1.0.0-eap-2`, `1.0.0+dfsg1`.\
@@ -184,7 +214,8 @@ The `changelog` check compares every released section with the copy in its relea
 - A release tagged before its section existed has nothing to compare, and is listed as not
   compared.
 - A section that is missing because its tag is not on the current history is reported as such:
-  the release has not reached this branch yet.
+  the release has not reached this branch yet.\
+  One still on its release branch is [awaited](#a-release-yet-to-land-exits-with-4), not failed.
 - The copy at a tag is read down to the end of that release's section.\
   An older section below it is not read there.\
   A copy without that section is read whole.

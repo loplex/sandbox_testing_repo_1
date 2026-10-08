@@ -118,10 +118,10 @@ All but `intellij/build` ran on the runner's `python3` before; `intellij/build` 
 first time, to read the signed archive.\
 A job without a `container:`, on a GitHub-hosted runner, has nothing to change.
 
-- A job with a `container:` runs these actions in that container.\
-  That Python is built for the runner's system, not the image's, and the image's own `python3` is
-  not used.\
-  It starts in `ubuntu:24.04` on `ubuntu-latest`, and not in `debian:bookworm`.\
-  Other images have not been tried: run such a job once before moving the pin.
+- A job with a `container:` runs these actions in that container, where they are not tried.\
+  The image's own `python3` is not used.\
+  [What an action needs of the runner](README.md#what-an-action-needs-of-the-runner) names the
+  limits of `actions/setup-python` and `actions/checkout` there: run such a job once before moving
+  the pin.
 - A self-hosted runner needs a system `actions/setup-python` publishes a build for, and a way to
   download it unless it already has that version.

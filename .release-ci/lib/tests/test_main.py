@@ -138,6 +138,8 @@ class TheChangelogCommand(TwoReleasesOneOffMain):
     its section, and one whose copy holds a line it does not read."""
 
     def test_a_section_off_this_history_is_not_called_deleted(self):
+        """Only `aside` holds v0.2.0 now, so the release is not on its way here (see AReleaseYetToLand)."""
+        self.git("branch", "-q", "-D", "release/0.2.0")
         with contextlib.redirect_stdout(io.StringIO()):
             problems = main.changelog_command(argparse.Namespace(version_source="tags", tag_prefix="v",
                                                                    skip_unread_tags=False))
@@ -247,6 +249,102 @@ class TheChangelogCommand(TwoReleasesOneOffMain):
         problems, printed = self.run_changelog(skip_unread_tags=True)
         self.assertEqual(problems, ["[0.2.0] is released but its section no longer reads as the tag has it"])
         self.assertIn("Not compared: 0.1.0 - CHANGELOG.md line 5 holds a block quote", printed)
+
+
+class AReleaseYetToLand(TwoReleasesOneOffMain):
+    """v0.2.0 is published from `release/0.2.0`, and main has yet to take it in: the window before merge-back lands it.
+
+    Every check reports that as an Awaiting problem, which main() exits with AWAITING on when it is all there is.
+    What a rewrite leaves looks alike, and is still failed outright."""
+
+    def checked(self, command, version_source="tags", tag_prefix="v", **options):
+        arguments = argparse.Namespace(version_source=version_source, tag_prefix=tag_prefix, **options)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return command(arguments)
+
+    def ancestry(self):
+        return self.checked(main.ancestry_command)
+
+    def changelog(self):
+        return self.checked(main.changelog_command, skip_unread_tags=False)
+
+    def test_every_check_awaits_it(self):
+        for problems in (self.ancestry(), self.changelog()):
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIsInstance(problems[0], main.Awaiting)
+            self.assertIn("has yet to land here: release/0.2.0 holds", problems[0])
+
+    def test_the_remote_s_release_branch_is_named(self):
+        self.git("update-ref", "refs/remotes/origin/release/0.2.0", "release/0.2.0")
+        self.git("branch", "-q", "-D", "release/0.2.0", "aside")
+        problems = self.ancestry()
+        self.assertIsInstance(problems[0], main.Awaiting)
+        self.assertIn("origin/release/0.2.0 holds", problems[0])
+
+    def test_the_sections_that_are_here_are_still_compared(self):
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            main.changelog_command(argparse.Namespace(version_source="tags", tag_prefix="v", skip_unread_tags=False))
+        self.assertIn("Compared 1 released section(s)", printed.getvalue())
+
+    def test_the_declared_version_it_released_is_awaited(self):
+        """Under a declaring source, main still names the version just released until merge-back writes the next."""
+        (self.here / "gradle.properties").write_text("version = 0.2.0-SNAPSHOT\ntagPrefix = v\n", encoding="utf-8")
+        problems = self.checked(main.version_command, version_source="gradle.properties", tag_prefix=None,
+                                version=None)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIsInstance(problems[0], main.Awaiting)
+        self.assertIn("0.2.0 is released, as v0.2.0, and has yet to land here", problems[0])
+
+    def test_a_release_no_release_branch_holds_is_failed(self):
+        self.git("branch", "-q", "-D", "release/0.2.0")
+        for problems in (self.ancestry(), self.changelog()):
+            self.assertFalse(any(isinstance(problem, main.Awaiting) for problem in problems), problems)
+            self.assertTrue(problems)
+
+    def test_a_squash_or_a_rebase_that_brought_its_section_is_failed(self):
+        """The copy brings the section with it; the tag is left on the original, which the release branch holds."""
+        self.git("commit", "-q", "--allow-empty", "-m", "meanwhile")  # Or the copy would be the original itself.
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        problems = self.ancestry()
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+        self.assertIn("release/0.2.0 still holds it", problems[0])
+
+    def test_a_release_cut_from_a_history_since_rewritten_is_failed(self):
+        """main's commit the release was cut from is replaced, as a force-push would, so v0.2.0's parent is gone."""
+        self.git("commit", "-q", "--amend", "-m", "rewritten")
+        problems = self.ancestry()
+        self.assertEqual(len(problems), 2, problems)
+        self.assertFalse(any(isinstance(problem, main.Awaiting) for problem in problems), problems)
+
+    def test_a_tree_without_a_changelog_cannot_tell_and_fails(self):
+        self.git("rm", "-q", "CHANGELOG.md")
+        self.git("commit", "-q", "-m", "no changelog")
+        problems = self.ancestry()
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+
+    def exit_of(self, *arguments):
+        run = subprocess.run([sys.executable, str(SCRIPT), *arguments, "--version-source", "tags", "--tag-prefix", "v"],
+                             cwd=self.here, capture_output=True, text=True)
+        return run.returncode, run.stderr
+
+    def test_a_check_that_found_only_that_exits_with_its_own_status(self):
+        for check in ("ancestry", "changelog"):
+            status, said = self.exit_of(check)
+            self.assertEqual(status, main.AWAITING, said)
+            self.assertIn("no release can be prepared from here before then", said)
+
+    def test_a_check_that_found_more_exits_as_a_failure(self):
+        self.git("switch", "-q", "-c", "other")
+        self.commit("## [0.1.1] - 2026-01-15\n\n- C\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        self.git("tag", "v0.1.1")  # Off main, and held by `other` alone.
+        self.git("switch", "-q", "main")
+        status, said = self.exit_of("ancestry")
+        self.assertEqual(status, 1, said)
+        self.assertIn("v0.2.0 is released, and has yet to land here", said)
+        self.assertNotIn("no release can be prepared", said)
 
 
 class WritingTheVersionBack(unittest.TestCase):

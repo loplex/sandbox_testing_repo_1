@@ -5,6 +5,8 @@ description: |
   - `changelog`: whether the released sections of CHANGELOG.md are unchanged.
   - `ancestry`: whether every release tag is still reachable from the history.
 
+  A check that finds nothing but a published release still on its release branch, yet to land here, only warns.
+
   Runs in the calling workspace.
   Installs the Python it runs on with actions/setup-python, leaving the job's own python3 as it was.
   Needs a checkout with `fetch-depth: 0`.

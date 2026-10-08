@@ -39,9 +39,8 @@ released it, so once a version has a section here, that section may not be edite
   `.python-version` names with `actions/setup-python`, leaving the job's own `python3` as it was.\
   They ran on the runner's `python3`, which had to be 3.10 or later; below that they failed with a
   traceback.\
-  In a job with a `container:`, that Python is built for the runner's system, not the image's: it
-  starts in `ubuntu:24.04` on `ubuntu-latest`, and not in `debian:bookworm`.\
-  Other images have not been tried.\
+  In a job with a `container:`, that Python is built for the runner's system, not the image's, and
+  the actions are not tried there.\
   A self-hosted runner needs a system `actions/setup-python` publishes a build for.\
   [UPGRADING.md](UPGRADING.md#actions-that-run-python-install-their-own) shows what that asks of a
   job.
@@ -72,6 +71,13 @@ released it, so once a version has a section here, that section may not be edite
   A pre-release compares from the release before it, which after a hotfix is the one before it in
   its train.\
   "Before" means SemVer order, not the order in the file.
+- `check-release` warns and passes where `changelog`, `ancestry` or `version` find nothing wrong
+  but a published release yet to land: one still on `release/<version>`, which merge-back has yet
+  to carry back.\
+  They failed, so a commit pushed while merge-back ran kept a red check run that no re-run could
+  turn green, and an open merge-back pull request kept the default branch red.\
+  `lib/main.py` exits with 4 for it, which `release-flow/prepare` still refuses.\
+  A squash, a rebase merge or a force-push that took a release off the history still fails.
 
 ### Removed
 

@@ -156,3 +156,33 @@ def holder(tag: str, version: str) -> str:
         if branches:
             return sorted(branches, key=lambda name: (name != wanted and not name.endswith("/" + wanted), name))[0]
     return ""
+
+
+def carried_by(prefix: str, versions) -> dict[str, str]:
+    """Of `versions`, released but off this history, those whose release branch still holds the tag, each with it.
+
+    A release is published from `release/<version>` and reaches the default branch only when merge-back carries it
+    there, or its pull request does once merged. Until then the tag is off this history, which is no fault.
+    Two things about the history tell that apart from a rewrite that took the tag off:
+    - `release/<version>` holds the tag. Once a release lands, merge-back deletes that branch.
+    - Every parent of the tagged commit is on this history: the history the release was cut from is all still here.
+      A force-push below the point the release was cut from fails this.
+    A squash or a rebase merge passes both, so the caller has a third question to ask, of the tree.
+    """
+    found = {}
+    for version in versions:
+        tag = f"{prefix}{version}"
+        branch = holder(tag, version)
+        if branch != f"release/{version}" and not branch.endswith(f"/release/{version}"):
+            continue
+        parents = git("rev-list", "--parents", "-n", "1", f"{tag}^{{commit}}").split()[1:]
+        if all(reaches(parent) for parent in parents):
+            found[version] = branch
+    return found
+
+
+def reaches(commit: str) -> bool:
+    """Whether HEAD reaches `commit`: it is HEAD or one of its ancestors."""
+    return subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=repository(), capture_output=True
+    ).returncode == 0

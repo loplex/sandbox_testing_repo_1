@@ -37,11 +37,19 @@ So nothing in the directories that are not tied to an ecosystem may assume one e
   `python3` as it was.\
   It is the version [`.python-version`](.python-version) names.\
   A self-hosted runner that does not have it downloads it, where `actions/setup-python` publishes
-  a build for its system.\
-  A job with a `container:` runs these actions in that container.\
-  That Python is built for the runner's system, not the image's: it starts in `ubuntu:24.04` on
-  `ubuntu-latest`, and not in `debian:bookworm`.\
-  Other images have not been tried.
+  a build for its system.
+- The actions are tried in jobs that run on a GitHub-hosted runner itself.\
+  A job with a `container:` runs them in that container, where two limits apply that are not this
+  repository's own:
+  - `actions/setup-python` brings the Python built for the runner's system, not the image's.\
+    It builds Python only for
+    [the systems GitHub-hosted runners run](https://github.com/actions/setup-python/blob/main/docs/advanced-usage.md#using-setup-python-with-a-self-hosted-runner).\
+    In an image other than the runner's it may not start, or start without a module such as `ssl`,
+    which `intellij/build` with `change-notes: true` needs to download cmarkgfm.
+  - `actions/checkout` marks the workspace safe for git only while it runs.\
+    A later step running git as another user, as a container's `root` does, is refused the
+    repository, unless a step after the checkout runs
+    `git config --global --add safe.directory "$GITHUB_WORKSPACE"`.
 - `release-flow/draft`, `release-flow/merge-back` and `release-flow/warn` need `gh`.
 - `intellij/publish` needs `curl`.
 - GitHub-hosted runners have both.

@@ -302,17 +302,25 @@ Merge the pull request merge-back opens with a merge commit, as the pull request
 The tag then stays reachable, which is all `ancestry` asks.\
 *Squash and merge* and *Rebase and merge* take it off the history.
 
-Until the pull request is merged, the default branch does not reach the release's tag, so:
-
-- `ancestry` and `changelog` fail on the default branch and on every pull request into it;
-- `version` fails there too, where the source declares a version: the default branch still
-  declares the one just released;
-- no next release can be prepared.
-
 The workflows on merge-back's pull request may wait for approval instead of running, as its body
 says too.\
 GitHub holds the runs of a pull request opened with `GITHUB_TOKEN` until someone with write access
 approves them.
+
+### The default branch warns until the release lands
+
+From the publish until the release lands, by merge-back's push or by its pull request, the default
+branch does not reach the release's tag.\
+That lasts until the merge-back job has pushed, or until its pull request is merged.
+
+- On the default branch and on every pull request into it, `ancestry`, `changelog` and, where the
+  source declares a version, `version` find the release
+  [yet to land](../lib/README.md#a-release-yet-to-land-exits-with-4).\
+  `check-release` warns of it and passes.
+- That includes a commit pushed while merge-back runs.\
+  Its check run could not be made to pass otherwise: a re-run checks out the same commit, which
+  never reaches the tag.
+- No next release can be prepared: `prepare` refuses.
 
 ### `check-workflow` needs `workflow_dispatch`, and `GITHUB_TOKEN` needs `actions: write`
 
