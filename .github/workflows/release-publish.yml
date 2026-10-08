@@ -1,0 +1,53 @@
+name: release-publish
+
+# release-flow/README.md "release-flow/merge-back", with this branch in place of the default branch,
+# and a pretend publish followed by release-flow/warn, as in intellij/README.md "The job that publishes".
+on:
+  release:
+    types: [published]
+concurrency:
+  group: merge-back-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+jobs:
+  merge-back:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.release-ci/release-flow/merge-back
+        id: back
+        with:
+          version-source: gradle.properties
+          tag-prefix: ^none
+          tag: ${{ github.event.release.tag_name }}
+          default-branch: test/release-0.3.0-flow-20261008
+          check-workflow: ci.yml
+      - name: merge-back's outputs
+        if: ${{ !cancelled() }}
+        env:
+          VERSION: ${{ steps.back.outputs.version }}
+          NEXT: ${{ steps.back.outputs.next }}
+          LANDED: ${{ steps.back.outputs.landed }}
+        run: printf 'version=%s next=%s landed=%s\n' "$VERSION" "$NEXT" "$LANDED"
+      # Stands in for intellij/publish: succeeds only while the repository variable SANDBOX_PUBLISH_OK is true.
+      - id: publish
+        if: ${{ !cancelled() && steps.back.outputs.version != '' }}
+        env:
+          OK: ${{ vars.SANDBOX_PUBLISH_OK }}
+        run: |
+          if [ "$OK" != true ]; then
+            echo "::error::pretend publish failed (SANDBOX_PUBLISH_OK=$OK)"
+            exit 1
+          fi
+          echo "pretend publish completed"
+      - uses: ./.release-ci/release-flow/warn
+        if: ${{ !cancelled() }}
+        with:
+          tag: ${{ github.event.release.tag_name }}
+          outcome: ${{ steps.publish.outcome }}
+          to: the sandbox's pretend store

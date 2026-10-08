@@ -1,12 +1,51 @@
 name: release
 
-# A stub: GitHub dispatches a workflow only once a file of its name is on the default branch,
-# and then runs the copy on the branch it is dispatched on. The test/* branches hold the real ones.
+# release-flow/README.md "The release job", with this branch in place of the default branch.
 on:
   workflow_dispatch:
-
+    inputs:
+      version:
+        description: The version to release; left empty, the one gradle.properties declares
+        default: ''
+      skip-unread-tags:
+        description: Pass over a release whose tag holds a CHANGELOG.md line the checks do not read
+        type: boolean
+        default: false
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  stub:
+  release:
+    if: github.ref == 'refs/heads/test/release-0.3.0-flow-20261008'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - run: echo "dispatch this workflow on a test/* branch"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: the job's python3 before the actions
+        run: command -v python3; python3 --version
+      - uses: ./.release-ci/release-flow/prepare
+        id: cut
+        with:
+          version-source: gradle.properties
+          tag-prefix: ^none
+          version: ${{ inputs.version }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+          skip-unread-tags: ${{ inputs.skip-unread-tags }}
+      - name: build
+        env:
+          VERSION: ${{ steps.cut.outputs.version }}
+        run: |
+          mkdir -p build/distributions
+          git show --stat HEAD
+          zip -j "build/distributions/demo-$VERSION.zip" gradle.properties CHANGELOG.md
+      - uses: ./.release-ci/release-flow/draft
+        with:
+          version: ${{ steps.cut.outputs.version }}
+          tag: ${{ steps.cut.outputs.tag }}
+          branch: ${{ steps.cut.outputs.branch }}
+          files: build/distributions/*.zip
+      - name: the job's python3 after the actions
+        run: command -v python3; python3 --version
