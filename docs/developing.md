@@ -278,7 +278,7 @@ The test classes' comments say what each of them holds.
 | `./gradlew :cli:jvmTest`                       | the options, photo and video, the figures            |
 | `./gradlew :gui-core:jvmTest`                  | the window's passes, GL contexts, ffmpeg, session    |
 | `./gradlew :ffmpeg:jvmTest`                    | finding ffmpeg, its download, video read and written |
-| `./gradlew :gui-swing:jvmTest`                 | the Swing window's image, theme and a dropped file   |
+| `./gradlew :gui-swing:jvmTest`                 | image, theme, a drop, controls, menus, wrapped text  |
 | `./gradlew :web:jsTest`                        | the page's passes, snapshot and recording            |
 | `./gradlew :android:connectedDebugAndroidTest` | the renderer, recording and conversion, on a device  |
 | `./gradlew :android:lintDebug`                 | Android Lint alone                                   |
