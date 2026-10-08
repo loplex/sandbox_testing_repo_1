@@ -204,7 +204,6 @@ private val WORDS = listOf(
     "fileSizeHeaderText" to Str.FILE_CHOOSER_SIZE_COLUMN,
     "fileTypeHeaderText" to Str.FILE_CHOOSER_TYPE_COLUMN,
     "fileDateHeaderText" to Str.FILE_CHOOSER_MODIFIED_COLUMN,
-    "fileAttrHeaderText" to Str.FILE_CHOOSER_ATTRIBUTES_COLUMN,
     "directoryDescriptionText" to Str.FILE_CHOOSER_FOLDER_TYPE,
     "newFolderErrorText" to Str.FILE_CHOOSER_NEW_FOLDER_ERROR,
     "newFolderParentDoesntExistTitleText" to Str.FILE_CHOOSER_NO_PARENT_TITLE,

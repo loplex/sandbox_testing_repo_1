@@ -218,7 +218,6 @@
     <string name="file_chooser_size_column">Velikost</string>
     <string name="file_chooser_type_column">Typ</string>
     <string name="file_chooser_modified_column">Změněno</string>
-    <string name="file_chooser_attributes_column">Atributy</string>
     <string name="file_chooser_folder_type">Složka</string>
     <string name="file_chooser_new_folder_error">Novou složku nejde vytvořit</string>
     <string name="file_chooser_no_parent_title">Složku nejde vytvořit</string>

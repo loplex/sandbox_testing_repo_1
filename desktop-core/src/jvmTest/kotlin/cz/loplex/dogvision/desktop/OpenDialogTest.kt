@@ -157,7 +157,9 @@ class OpenDialogTest {
 
     /**
      * The words a chooser of a folder in [directory] shows in [texts]: its labels', buttons' and menu entries' texts,
-     * tool tips and accessible names, its filters, and the columns of its details, which it is switched to.
+     * tool tips and accessible names, its filters, and the columns of its details, which it is switched to. Those the
+     * system gives in its own language are left out: on Windows the shell's columns past the name, size, type and date,
+     * which the JDK titles as the shell's GetDetailsOf does, and a folder's type wherever the system names it.
      */
     private fun shownWords(texts: Texts): Set<String> {
         val chooser = folderChooser("Folder", directory, texts)
@@ -172,7 +174,8 @@ class OpenDialogTest {
             words += component.accessibleContext?.accessibleName.orEmpty()
             if (component is JMenu) component.menuComponents.forEach(::collect)
             if (component is JTable) {
-                words += component.columnModel.columns.toList().map { "${it.headerValue}" }
+                val javas = component.columnModel.columns.toList().take(if (onWindows) JAVA_COLUMNS else Int.MAX_VALUE)
+                words += javas.map { "${it.headerValue}" }
             }
             if (component is Container) component.components.forEach(::collect)
         }
@@ -180,7 +183,9 @@ class OpenDialogTest {
         components(chooser).filterIsInstance<JToggleButton>().first { it.toolTipText == details }.doClick(0)
         collect(chooser)
         words += chooser.choosableFileFilters.map { it.description }
-        words += chooser.ui.getFileView(chooser).getTypeDescription(directory).orEmpty()
+        if (chooser.fileSystemView.getSystemTypeDescription(directory) == null) {
+            words += chooser.ui.getFileView(chooser).getTypeDescription(directory).orEmpty()
+        }
         return words.filter(String::isNotBlank).toSet()
     }
 
@@ -202,3 +207,6 @@ class OpenDialogTest {
         return opened
     }
 }
+
+/** How many of the details' columns, on Windows, the JDK titles itself: the name, size, type and date. */
+private const val JAVA_COLUMNS = 4

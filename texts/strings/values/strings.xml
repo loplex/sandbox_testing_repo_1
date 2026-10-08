@@ -237,7 +237,6 @@
     <string name="file_chooser_size_column">Size</string>
     <string name="file_chooser_type_column">Type</string>
     <string name="file_chooser_modified_column">Modified</string>
-    <string name="file_chooser_attributes_column">Attributes</string>
     <string name="file_chooser_folder_type">Directory</string>
     <string name="file_chooser_new_folder_error">Error creating new folder</string>
     <string name="file_chooser_no_parent_title">Unable to create folder</string>
