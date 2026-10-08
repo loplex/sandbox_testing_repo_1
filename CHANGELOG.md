@@ -4,12 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The farewell ends with one too.
+
 ## [0.1.1] - 2026-10-08
 
 ### Fixed
 
 - The greeting ends with a full stop.
-- The farewell ends with one too.
 
 ## [0.1.0] - 2026-10-08
 
