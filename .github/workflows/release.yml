@@ -1,12 +1,53 @@
 name: release
 
-# A stub: GitHub dispatches a workflow only once a file of its name is on the default branch,
-# and then runs the copy on the branch it is dispatched on. The test/* branches hold the real ones.
+# release-flow/README.md "The release job" with intellij/README.md "In the release job",
+# on this branch in place of the default branch. The draft is thrown away, never published.
 on:
   workflow_dispatch:
-
+    inputs:
+      version:
+        description: The version to release; left empty, the one gradle.properties declares
+        default: ''
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  stub:
+  release:
+    if: github.ref == 'refs/heads/test/release-0.3.0-intellij-20261008'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - run: echo "dispatch this workflow on a test/* branch"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: the job's JDK before the actions
+        run: |
+          printf 'JAVA_HOME=%s\n' "$JAVA_HOME"; command -v java; java -version 2>&1
+      - uses: ./.release-ci/release-flow/prepare
+        id: cut
+        with:
+          version-source: gradle.properties
+          version: ${{ inputs.version }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+      - uses: ./.release-ci/intellij/build
+        id: built
+        with:
+          certificate-chain: ${{ secrets.TEST_CERTIFICATE_CHAIN }}
+          private-key: ${{ secrets.TEST_PRIVATE_KEY }}
+          private-key-password: ${{ secrets.TEST_PRIVATE_KEY_PASSWORD }}
+          change-notes: 'true'
+          free-disk-space: 'true'
+      - name: the job's JDK after the actions
+        run: |
+          printf 'JAVA_HOME=%s\n' "$JAVA_HOME"; command -v java; java -version 2>&1
+      - uses: ./.release-ci/release-flow/draft
+        with:
+          version: ${{ steps.cut.outputs.version }}
+          tag: ${{ steps.cut.outputs.tag }}
+          branch: ${{ steps.cut.outputs.branch }}
+          files: ${{ steps.built.outputs.archive }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: signed-archive
+          path: ${{ steps.built.outputs.archive }}

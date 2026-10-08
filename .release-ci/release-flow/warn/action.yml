@@ -1,0 +1,70 @@
+name: warn
+description: |
+  Says on a published release that publishing it somewhere else did not complete, or takes that back once it has.
+  - Where the publishing step failed or did not run, it puts a warning at the start of the release notes,
+    with a link to this run.
+  - Where the step succeeded, it takes the warning off.
+
+  The rest of the notes is left as it is.
+  Notes that already say what this run would say are not touched.
+
+  The warning is looked for only at the start of the notes.
+  A line holding only one of its markers anywhere else fails the run, and the warning has to be removed by hand.
+
+  Meant to follow the publishing step in the same job, under an `if` of `!cancelled()`,
+  so that it runs whatever failed before it.
+  Needs no checkout.
+  Needs `contents: write` on the job.
+  Needs `gh`, which GitHub-hosted runners have.
+  Installs the Python it runs on with actions/setup-python, leaving the job's own python3 as it was.
+
+inputs:
+  tag:
+    description: |
+      The tag of the published release whose notes carry the warning.
+    required: true
+  outcome:
+    description: |
+      The outcome of the publishing step, as `steps.<id>.outcome` gives it:
+      - `success` takes the warning off.
+      - `failure` and `skipped` put it on.
+      - Anything else fails the run, including the empty value an id naming no step gives.
+
+      `outcome` rather than `conclusion`, so that a step allowed to fail with `continue-on-error` still counts
+      as failed.
+    required: true
+  to:
+    description: |
+      What the release is published to, as it reads in the middle of a sentence, on one line.
+      For example: `the JetBrains Marketplace`.
+    required: true
+  token:
+    description: |
+      The token `gh` uses to read and write the release notes.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    # The Python .python-version names, the one the tests run on, whatever python3 the runner carries.
+    # update-environment: false keeps it out of the calling job, whose steps go on with their own python3.
+    - id: python
+      uses: actions/setup-python@v7
+      with:
+        python-version-file: ${{ github.action_path }}/../../.python-version
+        update-environment: false
+    - shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        TAG: ${{ inputs.tag }}
+        OUTCOME: ${{ inputs.outcome }}
+        TO: ${{ inputs.to }}
+        RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GH_TOKEN: ${{ inputs.token }}
+        # The release is asked for in this repository by name, so that no checkout is needed to say which.
+        GH_REPO: ${{ github.repository }}
+      # The Python setup-python installs finds its libpython through LD_LIBRARY_PATH in a job that runs in a container,
+      # where the tool cache is mounted away from the path built into it. Set here, for this step alone.
+      run: |
+        export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        "$PYTHON" "$GITHUB_ACTION_PATH/warn.py"

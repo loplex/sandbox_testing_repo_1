@@ -1,0 +1,116 @@
+name: check-release
+description: |
+  Checks a repository before a release:
+  - `version`: which version may be released next.
+  - `changelog`: whether the released sections of CHANGELOG.md are unchanged.
+  - `ancestry`: whether every release tag is still reachable from the history.
+
+  Runs in the calling workspace.
+  Installs the Python it runs on with actions/setup-python, leaving the job's own python3 as it was.
+  Needs a checkout with `fetch-depth: 0`.
+  A shallow checkout has no tags and no history, so the checks find nothing to compare and pass.
+  The exception is `version` under `version-source: tags` without a `version` input: it fails, because it finds no
+  release to count from.
+
+inputs:
+  version-source:
+    description: |
+      Where the version of the next release comes from:
+      - `gradle.properties`: the file declares it in `version`, for example `0.2.0-SNAPSHOT`.
+        The file also declares the tag prefix in `tagPrefix`.
+      - `tags`: no file declares it.
+        It comes from the `version` input.
+        Without one, it is the version after the highest release tag,
+        moved further where `[Unreleased]` in CHANGELOG.md asks for it (a new feature asks for a minor).
+
+      Required, because a wrong guess would pass silently.
+    required: true
+  tag-prefix:
+    description: |
+      What a release tag has in front of the version: `v` for `v0.1.0`.
+      - Leave it out under `gradle.properties`: the file declares the prefix in `tagPrefix`.
+      - Give it under `tags`.
+      - `^none`: the tags have no prefix at all.
+
+      There is no default: under `gradle.properties` it would override the file's `tagPrefix`.
+      A wrong prefix finds no release tags, and every check then passes having compared nothing.
+      The exception is `version` under `tags` with no `version` input: it fails, finding no release to count from.
+
+      An empty value cannot mean "no prefix", because GitHub passes a missing input as an empty string too.
+      `^` cannot appear in a git tag name, so `^none` can never be a real prefix.
+    default: ''
+  checks:
+    description: |
+      Which checks to run, separated by spaces or newlines:
+      - `version`
+      - `changelog`
+      - `ancestry`
+
+      An unknown name fails the run, and so does an empty list.
+      A check that silently did not run would look the same as one that passed.
+    default: changelog ancestry
+  version:
+    description: |
+      The version to check, instead of the one `version-source` gives.
+      Only `version` reads it.
+      - Under `gradle.properties`: `0.2.0` or `0.2.0-SNAPSHOT`; the `-SNAPSHOT` at the end is dropped.
+      - Under `tags`: `0.2.0`.
+        Left empty, the version after the highest release is checked, as described under `version-source`.
+    default: ''
+  skip-unread-tags:
+    description: |
+      What `changelog` does with a release whose tag holds a line of CHANGELOG.md it does not read,
+      in the release's section or above it, or anywhere in a copy without that section:
+      - `false`, the default: it fails.
+        A tag cannot be edited, so it fails on every run.
+      - `true`: it names the release as not compared instead.
+        Where that line stands inside the release's own section, the tag holds the section,
+        so a tree without it still fails, as for any other release.
+
+      Empty is `false`, so a `workflow_dispatch` input passed on here is `false` on every other event.
+    default: 'false'
+
+outputs:
+  version:
+    description: |
+      The version that may be released, as `version` answered it.
+      It has no tag prefix and no `-SNAPSHOT`.
+      Empty unless `version` ran and passed.
+    value: ${{ steps.check.outputs.version }}
+  channel:
+    description: |
+      The distribution channel of that version:
+      - `default` for a final release, such as `0.2.0`.
+      - Otherwise the first identifier of the pre-release suffix: `beta` for `0.2.0-beta.1`.
+
+      Empty unless `version` ran and passed.
+    value: ${{ steps.check.outputs.channel }}
+
+runs:
+  using: composite
+  steps:
+    # The Python .python-version names, the one the tests run on, whatever python3 the runner carries.
+    # update-environment: false keeps it out of the calling job, whose steps go on with their own python3.
+    - id: python
+      uses: actions/setup-python@v7
+      with:
+        python-version-file: ${{ github.action_path }}/../.python-version
+        update-environment: false
+    # One step calling one script, rather than the steps written out here: the shell is then something a test
+    # can run against a repository of its own, which is not true of anything living inside action.yml.
+    - id: check
+      shell: bash
+      # Inputs reach the script as environment variables rather than through ${{ }} interpolated into it,
+      # so that a value carrying a quote or a newline is data here and not more script.
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        VERSION_SOURCE: ${{ inputs.version-source }}
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
+        CHECKS: ${{ inputs.checks }}
+        VERSION: ${{ inputs.version }}
+        SKIP_UNREAD_TAGS: ${{ inputs.skip-unread-tags }}
+      # The Python setup-python installs finds its libpython through LD_LIBRARY_PATH in a job that runs in a container,
+      # where the tool cache is mounted away from the path built into it. Set here, for this step alone.
+      run: |
+        export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        "$GITHUB_ACTION_PATH/check.sh"

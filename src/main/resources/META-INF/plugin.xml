@@ -1,0 +1,40 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>cz.loplex.ij-inspection-filter</id>
+    <name>Inspect Code with Filters</name>
+    <vendor email="lopin.git@loplex.cz" url="https://github.com/loplex/intellij-inspection-filter">loplex</vendor>
+
+    <description><![CDATA[
+        Filter what Inspect Code runs and reports in JetBrains IDEs: by severity, inspection group, changed lines
+        and more.<br>
+        Adds <b>Code | Inspect Code with Filters…</b>, which runs inspections like <b>Inspect Code…</b> but reports
+        only problems of the severities, groups and kinds of inspections chosen in its dialog - errors and warnings,
+        for instance, without the weak warnings and typos around them, everything but Proofreading, or only what the
+        editor never shows.<br>
+        Of their problems, it can also report only those on lines changed since the last commit, those with a quick
+        fix, or those whose message contains a given text.<br>
+        Inspections left out are not run at all, so a filtered run is also a shorter one.
+        ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <!-- Finding the lines changed since the last commit. -->
+    <depends>com.intellij.modules.vcs</depends>
+    <!-- What "Unused declaration" says of a class, method or field nothing uses; the inspection is Java's. -->
+    <depends optional="true" config-file="inspection-filter-java.xml">com.intellij.java</depends>
+
+    <resource-bundle>messages.InspectionFilterBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <codeInspection.InspectionExtension implementation="cz.loplex.inspectionfilter.ChangedLinesFinderFactory"/>
+    </extensions>
+
+    <actions>
+        <action id="cz.loplex.inspectionfilter.InspectCodeWithFilters"
+                class="cz.loplex.inspectionfilter.InspectCodeWithFiltersAction">
+            <!-- Next to Inspect Code wherever the platform itself puts it: the Code menu and the Project view. -->
+            <add-to-group group-id="InspectCodeGroup" anchor="after" relative-to-action="InspectCode"/>
+            <add-to-group group-id="InspectCodeActionInPopupMenus" anchor="after" relative-to-action="InspectCode"/>
+        </action>
+    </actions>
+</idea-plugin>

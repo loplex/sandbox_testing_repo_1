@@ -1,12 +1,25 @@
 name: ci
 
-# A stub: GitHub dispatches a workflow only once a file of its name is on the default branch,
-# and then runs the copy on the branch it is dispatched on. The test/* branches hold the real ones.
+# The plugin's CI: check-release, and intellij/check (intellij/README.md "intellij/check").
 on:
+  push:
+    branches: [test/release-0.3.0-intellij-20261008]
   workflow_dispatch:
 
 jobs:
-  stub:
+  check-release:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "dispatch this workflow on a test/* branch"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.release-ci/check-release
+        with:
+          version-source: gradle.properties
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.release-ci/intellij/check
+        with:
+          free-disk-space: 'true'
