@@ -50,6 +50,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # As in the 2026-10-05 probe (run 37243529772): git as root in the container refuses the runner's workspace.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: grep PRETTY_NAME /etc/os-release; ldd --version | head -1
       - uses: ./.release-ci/check-release
         with:
