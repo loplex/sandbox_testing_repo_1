@@ -1,5 +1,6 @@
 package cz.loplex.dogvision.desktop
 
+import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
@@ -45,6 +46,12 @@ interface Renderer : AutoCloseable {
     fun setView(view: View)
 
     fun setArea(area: Area)
+
+    /**
+     * Hands [onImages] the images of the view composed last, as many as the view has, left to right or top to bottom,
+     * read back from the GPU on the renderer's thread; null where nothing is composed yet.
+     */
+    fun readImages(onImages: (List<Image>?) -> Unit)
 }
 
 /**
@@ -81,6 +88,9 @@ class GlRenderer<I>(
     private var changed = false
     private var closed = false
 
+    /** Who asked for the images composed, since the renderer's thread last answered. */
+    private val imageRequests = mutableListOf<(List<Image>?) -> Unit>()
+
     private val thread = thread(name = "dog-vision-gl", isDaemon = true) { run() }
 
     override fun show(frame: Frame, live: Boolean, mirrored: Boolean) = lock.withLock {
@@ -106,6 +116,8 @@ class GlRenderer<I>(
     override fun setView(view: View) = update { this.view = view }
 
     override fun setArea(area: Area) = update { this.area = area }
+
+    override fun readImages(onImages: (List<Image>?) -> Unit) = update { imageRequests += onImages }
 
     private inline fun update(change: () -> Unit) = lock.withLock {
         change()
@@ -178,6 +190,7 @@ class GlRenderer<I>(
             val mirrored: Boolean
             val view: View?
             val area: Area?
+            val requests: List<(List<Image>?) -> Unit>
             lock.withLock {
                 while (!closed && !changed) {
                     // A read or a count under way is asked after, and a live frame may be long in coming.
@@ -204,6 +217,8 @@ class GlRenderer<I>(
                 }
                 view = this.view
                 area = this.area
+                requests = imageRequests.toList()
+                imageRequests.clear()
             }
             if (cleared) {
                 clears++
@@ -224,7 +239,10 @@ class GlRenderer<I>(
                 uploadedMirrored = mirrored
                 remirrored = true
             }
-            if (!hasFrame || view == null || area == null || area.width <= 0 || area.height <= 0) continue
+            if (!hasFrame || view == null || area == null || area.width <= 0 || area.height <= 0) {
+                requests.forEach { it(null) }
+                continue
+            }
             val counts = view.sideBySide && view.difference
             val recomposed = newFrame || remirrored || view != composed
             if (recomposed) {
@@ -235,6 +253,10 @@ class GlRenderer<I>(
                     share = passes.compose(view)
                 }
                 composed = view
+            }
+            if (requests.isNotEmpty()) {
+                val images = passes.readImages(view.images)
+                requests.forEach { it(images) }
             }
             var counted = false
             if (live && passes.counting) {
