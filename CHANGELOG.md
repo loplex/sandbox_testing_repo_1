@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - The greeting ends with a full stop.
+- The farewell ends with one too.
 
 ## [0.1.0] - 2026-10-08
 
