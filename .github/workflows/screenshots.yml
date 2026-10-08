@@ -1,0 +1,55 @@
+# Probe: the MSI of dog-vision 429d5bf5 (CI run 37777228866) installed on Windows Server 2022, and each window
+# started with a photo and photographed, to see whether the Swing window shows its menu bar on Windows.
+name: Windows screenshots
+on: push
+permissions:
+  actions: read
+  contents: read
+jobs:
+  shots:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: windows-msi
+          run-id: 37777228866
+          github-token: ${{ github.token }}
+          path: msi
+      - name: Install the MSI
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Recurse msi -Filter dog-vision-0.1.0.msi | Select-Object -First 1
+          $p = Start-Process msiexec -ArgumentList '/i', $msi.FullName, '/qn', '/l*v', "$PWD\install.log" -Wait -PassThru
+          "msiexec exit $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { exit 1 }
+          Get-ChildItem 'C:\Program Files\dog-vision'
+      - name: Start each window and photograph the screen
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory shots | Out-Null
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("$PWD\shots\$name.png")
+          }
+          $photo = (Resolve-Path test_photo.jpg).Path
+          foreach ($exe in 'dog-vision-swing', 'dog-vision-compose') {
+            $p = Start-Process "C:\Program Files\dog-vision\$exe.exe" -ArgumentList "`"$photo`"" -PassThru `
+              -RedirectStandardOutput "shots\$exe.out.txt" -RedirectStandardError "shots\$exe.err.txt"
+            Start-Sleep 45
+            Shot $exe
+            "$exe running: $(-not $p.HasExited)"
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            Start-Sleep 3
+          }
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: shots
+          path: |
+            shots/
+            install.log
