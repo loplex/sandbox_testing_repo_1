@@ -60,7 +60,7 @@ private fun videoWritten(video: Converted.Video, texts: Texts): String {
 
 /**
  * How far a conversion is, as "Converting: 42%" on [err], rewritten in place each time the share changes; only where
- * [err] is a [terminal], as the Python program shows it.
+ * [err] is a [terminal].
  */
 private class Progress(private val texts: Texts, private val err: PrintStream, private val terminal: Boolean) {
     private var shown = false

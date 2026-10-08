@@ -5,8 +5,8 @@ import cz.loplex.dogvision.packaging.windowsLauncher
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// The command line on the JVM, as the Python program has it: its options, and a photo or a video converted at full
-// size, as jvm-common converts them, which the windows use too. It needs no toolkit and no GPU.
+// The command line on the JVM: its options, and a photo or a video converted at full size, as jvm-common converts
+// them, which the windows use too. It needs no toolkit and no GPU.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kover)
