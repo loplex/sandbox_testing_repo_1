@@ -61,7 +61,7 @@ The root project declares the plugin, so these are on every module's build scrip
   Its `LiveSession` holds what a window shows, so that the Compose window and the Swing one only lay it out.
 - **`ffmpeg` finds ffmpeg and ffprobe and starts them**:
   on the PATH, where they were installed after a window started, or on Windows where a window downloaded them.\
-  Through them it probes a video, reads its frames and writes an .mp4, for a conversion.
+  Through them it probes a video, reads its frames and writes an .mp4, a conversion's or a window's recording.
 
 ### Which module uses which
 
