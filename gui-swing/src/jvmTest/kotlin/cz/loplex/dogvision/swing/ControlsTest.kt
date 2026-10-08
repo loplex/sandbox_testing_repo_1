@@ -1,9 +1,12 @@
 package cz.loplex.dogvision.swing
 
+import cz.loplex.dogvision.common.info
 import cz.loplex.dogvision.core.CameraOption
 import cz.loplex.dogvision.core.Facing
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Mirroring
+import cz.loplex.dogvision.core.Params
+import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.desktop.Area
 import cz.loplex.dogvision.desktop.Frame
@@ -11,12 +14,14 @@ import cz.loplex.dogvision.desktop.LiveSession
 import cz.loplex.dogvision.desktop.Renderer
 import cz.loplex.dogvision.desktop.Source
 import cz.loplex.dogvision.desktop.WindowArguments
+import cz.loplex.dogvision.texts.Texts
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JRadioButton
+import javax.swing.JTextArea
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -70,6 +75,16 @@ class ControlsTest {
         components.flatMap { listOf(it) + (it as? Container)?.descendants().orEmpty() }
 
     private inline fun <reified T : Component> Container.all(): List<T> = descendants().filterIsInstance<T>()
+
+    @Test
+    fun theModelsSectionFollowsTheParametersAndTheLanguage() {
+        fun model() = shown().all<JTextArea>().single { it.text.contains(" nm\n") }.text
+        assertEquals(info(Params(), Texts.of("en")), model())
+        session.changeView { it.copy(params = Params(Species.CAT)) }
+        assertEquals(info(Params(Species.CAT), Texts.of("en")), model())
+        session.setLanguage("cs")
+        assertEquals(info(Params(Species.CAT), Texts.of("cs")), model())
+    }
 
     @Test
     fun theCameraIsChosenFromOffAndTheCamerasEachNamed() {
