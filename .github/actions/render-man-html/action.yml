@@ -7,14 +7,16 @@ description: Install groff where the runner lacks it, and run render-man-html.sh
 runs:
   using: composite
   steps:
-    # Where the runner has groff, nothing is installed. The Ubuntu image does not, and the package
-    # index is refreshed first, for the reason the docs job in ci.yml gives. `sed` rather than `head`
-    # takes the first line, so that groff never writes into a closed pipe.
+    # What is asked is whether groff can write HTML, not whether there is a groff: the Ubuntu image
+    # carries groff-base, whose groff has no html device and fails the render. Where it can, nothing
+    # is installed. The package index is refreshed first, for the reason the docs job in ci.yml
+    # gives. `sed` rather than `head` takes the first line, so that groff never writes into a closed
+    # pipe.
     - name: Install groff
       shell: bash
       run: |
         set -euo pipefail
-        if command -v groff > /dev/null; then
+        if groff -Thtml < /dev/null > /dev/null 2>&1; then
             groff --version | sed -n 1p
             exit 0
         fi

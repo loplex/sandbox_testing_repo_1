@@ -127,8 +127,11 @@ fi
 # Only that the archive carries it is asserted here, on every platform, since every archive carries
 # it: git reads it from its own installation, which this script does not write to. The Windows job
 # in ci.yml copies it there and asks git for it.
+#
+# The title is matched without its hyphen: groff writes the page's `\-` as `-` where the system's
+# man.local maps it so, as Debian's does, and as `&minus;` where it does not.
 html=$home/share/doc/git-doc/git-timebraid.html
-if ! grep -q '<title>GIT-TIMEBRAID</title>' "$html" 2> /dev/null; then
+if ! grep -q 'TIMEBRAID</title>' "$html" 2> /dev/null; then
     echo "smoke: the archive carries no HTML page at share/doc/git-doc/;" \
         "render-man-html.sh has to run before the archive is packaged" >&2
     exit 1
