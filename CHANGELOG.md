@@ -12,6 +12,8 @@ and the release process that a user of the program does not see.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-09
+
 ### Upgrading from 0.1.0
 
 Twenty-nine changes alter what a command line written for 0.1.0 does:
@@ -683,5 +685,6 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
 
 First release.
 
-[Unreleased]: https://github.com/loplex/git-timebraid/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/loplex/git-timebraid/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/loplex/git-timebraid/releases/tag/v0.2.0
 [0.1.0]: https://github.com/loplex/git-timebraid/releases/tag/v0.1.0

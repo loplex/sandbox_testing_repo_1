@@ -56,11 +56,11 @@ you downloaded against it.
 
 ### Git for Windows reads the HTML page
 
-Git for Windows sets `help.format` to `html`, so `git timebraid --help` there looks for
-`git-timebraid.html`, and only in the one directory `git --html-path` prints, inside git's own
-installation. The archive carries the page at `share/doc/git-doc/git-timebraid.html`, and no place
-in an unpacked archive is found by itself: copy it into that directory, from Git Bash in the
-unpacked archive:
+Git for Windows shows help as HTML — `html` is its default `help.format` — so
+`git timebraid --help` there looks for `git-timebraid.html`, and only in the one directory
+`git --html-path` prints, inside git's own installation. The archive carries the page at
+`share/doc/git-doc/git-timebraid.html`, and no place in an unpacked archive is found by itself:
+copy it into that directory, from Git Bash in the unpacked archive:
 
 ```bash
 cp share/doc/git-doc/git-timebraid.html "$(git --html-path)/"

@@ -2,7 +2,7 @@
 #
 # Renders each manual page in src/main/man as HTML under target/man-html, for the archives to carry.
 #
-# Git for Windows sets `help.format = html`, so `git timebraid --help` there asks for
+# Git for Windows defaults `help.format` to `html`, so `git timebraid --help` there asks for
 # `git-timebraid.html` in `git --html-path` rather than for a manual page, and an archive carrying
 # only the roff gives it nothing to open. The archives carry the HTML beside the roff, at
 # share/doc/git-doc, the directory git's own pages sit in under its prefix; doc/install.md says where

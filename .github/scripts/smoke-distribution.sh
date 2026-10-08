@@ -123,7 +123,7 @@ else
     echo "smoke: no man on this platform, so the page ships unread here"
 fi
 
-# The same page as HTML, which git reads where `help.format` is `html`, as Git for Windows sets it.
+# The same page as HTML, which git reads where `help.format` is `html`, Git for Windows' default.
 # Only that the archive carries it is asserted here, on every platform, since every archive carries
 # it: git reads it from its own installation, which this script does not write to. The Windows job
 # in ci.yml copies it there and asks git for it.

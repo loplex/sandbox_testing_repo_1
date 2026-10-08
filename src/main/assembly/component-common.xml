@@ -53,8 +53,8 @@
             <lineEnding>unix</lineEnding>
         </fileSet>
         <!--
-            The same page as HTML, which is what git reads where `help.format` is `html`, as Git
-            for Windows sets it. Git looks for it in one directory only, the HTML path of its own
+            The same page as HTML, which is what git reads where `help.format` is `html`, Git for
+            Windows' default. Git looks for it in one directory only, the HTML path of its own
             installation, so no place in an unpacked archive is found by itself: install.md says
             where to copy it.
             share/doc/git-doc is where git's own pages sit under its prefix.
