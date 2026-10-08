@@ -179,6 +179,11 @@ buttons above them, and the controls on the right](images/web.png)
 - **The browser needs WebGL 2**; without it the page says so.
 - **Its wording is English or Czech**, as chosen at the end of its panel, which the browser
   remembers, or else the browser's language where there are strings for it.
+- **The ⋮ button at the end of the buttons drops a menu of everything down**: *File* holds what the
+  buttons do, and *Camera*, *Species*, *Simulation*, *Acuity*, *View* and *Language* the panel's
+  sections, each slider as fixed values; *Camera* only where the browser offers one.
+- **A menu chosen shows its entries in the list's place**, under a row back up, as the app's menu
+  does; an entry chosen, a click elsewhere or Escape closes it.
 
 ### A photo or a video
 
