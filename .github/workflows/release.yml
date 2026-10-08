@@ -1,0 +1,12 @@
+name: release
+
+# A stub: GitHub dispatches a workflow only once a file of its name is on the default branch,
+# and then runs the copy on the branch it is dispatched on. The test/* branches hold the real ones.
+on:
+  workflow_dispatch:
+
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "dispatch this workflow on a test/* branch"
