@@ -1,0 +1,44 @@
+name: probe-unread
+
+# skip-unread-tags, and close-changelog refusing an entry that says nothing, on release-ci 873650c.
+# The tag unread-0.0.1 holds a block quote in its own section; this tree has it as a paragraph.
+on:
+  push:
+    branches: [test/release-0.3.0-unread-20261008]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: strict
+        continue-on-error: true
+        uses: ./.release-ci/check-release
+        with:
+          version-source: tags
+          tag-prefix: unread-
+      - id: lenient
+        continue-on-error: true
+        uses: ./.release-ci/check-release
+        with:
+          version-source: tags
+          tag-prefix: unread-
+          skip-unread-tags: 'true'
+      - id: cut
+        continue-on-error: true
+        uses: ./.release-ci/release-flow/prepare
+        with:
+          version-source: tags
+          tag-prefix: unread-
+          skip-unread-tags: 'true'
+      - name: expected outcomes
+        env:
+          STRICT: ${{ steps.strict.outcome }}
+          LENIENT: ${{ steps.lenient.outcome }}
+          CUT: ${{ steps.cut.outcome }}
+        run: |
+          printf 'strict=%s lenient=%s cut=%s\n' "$STRICT" "$LENIENT" "$CUT"
+          git status --short; git branch --list; git log --oneline -2
+          [ "$STRICT" = failure ] && [ "$LENIENT" = success ] && [ "$CUT" = failure ]

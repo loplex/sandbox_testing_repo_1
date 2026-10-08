@@ -1,0 +1,31 @@
+name: release-publish
+
+# Carries a published release of this repository back onto the default branch by fast-forward.
+# It uses the same action this repository offers everyone else.
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: release-publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  merge-back:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      # Asking for the test workflow by hand is a write to Actions, answered 403 without this.
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./release-flow/merge-back
+        with:
+          version-source: tags
+          tag-prefix: v
+          tag: ${{ github.event.release.tag_name }}
+          default-branch: ${{ github.event.repository.default_branch }}
+          check-workflow: test.yml

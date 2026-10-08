@@ -1,0 +1,102 @@
+name: prepare
+description: |
+  Cuts the release commit onto a branch of its own.
+
+  1. Runs the checks `changelog`, `ancestry` and `version`.
+     If any of them fails, nothing is written.
+  2. Closes `[Unreleased]` in CHANGELOG.md into a section for the version being released.
+     An `[Unreleased]` with nothing to release is refused, and nothing is written either.
+  3. Writes that version into the file where `version-source` declares one.
+  4. Commits the result onto the branch `release/<version>` and leaves the workspace on it.
+
+  Nothing is built, pushed or drafted.
+  The build runs from this commit next, and a build that fails should leave nothing behind on the remote.
+  release-flow/draft pushes the branch and drafts the release once the build has succeeded.
+
+  Runs after a checkout of the default branch with `fetch-depth: 0`.
+  The calling job has to make sure of that: nothing here checks which branch was checked out.
+  Needs no permissions of its own, because it writes nothing outside the workspace.
+  release-flow/draft, in the same job, needs `contents: write`.
+  Installs the Python it runs on with actions/setup-python, leaving the job's own python3 as it was.
+
+inputs:
+  version-source:
+    description: |
+      Where the version of the next release comes from:
+      - `gradle.properties`: the file declares it in `version`.
+      - `tags`: no file declares it.
+
+      check-release's action describes both in full.
+    required: true
+  tag-prefix:
+    description: |
+      What a release tag has in front of the version: `v` for `v0.1.0`.
+      - Leave it out under `gradle.properties`: the file declares it.
+      - `^none`: the tags have no prefix at all.
+    default: ''
+  version:
+    description: |
+      The version to release, instead of the one `version-source` gives.
+      This is what a dispatch input passes on.
+      - Under `gradle.properties`: `0.2.0` or `0.2.0-SNAPSHOT`; the `-SNAPSHOT` at the end is dropped.
+      - Under `tags`: `0.2.0`.
+        Left empty, the version after the highest release is released,
+        or a later one where `[Unreleased]` asks for more.
+
+      The `version` output has no `-SNAPSHOT` under either source.
+    default: ''
+  repository-url:
+    description: |
+      The repository's URL, to write the changelog's version links with.
+      The usual value is `github.server_url` and `github.repository` joined by a slash.
+      - Given: the link of each version is written afresh, comparing it with the release before it.
+        A final release is compared with the final release before it.
+        Any other link definition in the changelog stays as it is.
+      - Left empty: the changelog's link definitions are left alone.
+    default: ''
+  skip-unread-tags:
+    description: |
+      `true` names as not compared a release whose tag holds a line of CHANGELOG.md the `changelog` check
+      does not read, instead of failing.
+      check-release's action describes it in full.
+    default: 'false'
+
+outputs:
+  version:
+    description: |
+      The version being released, without the tag prefix and without `-SNAPSHOT`.
+    value: ${{ steps.prepare.outputs.version }}
+  tag:
+    description: |
+      The name the release tag will have once the draft is published.
+    value: ${{ steps.prepare.outputs.tag }}
+  branch:
+    description: |
+      The branch that holds the release commit.
+      The workspace is left on it.
+    value: ${{ steps.prepare.outputs.branch }}
+
+runs:
+  using: composite
+  steps:
+    # The Python .python-version names, the one the tests run on, whatever python3 the runner carries.
+    # update-environment: false keeps it out of the calling job, whose steps go on with their own python3.
+    - id: python
+      uses: actions/setup-python@v7
+      with:
+        python-version-file: ${{ github.action_path }}/../../.python-version
+        update-environment: false
+    - id: prepare
+      shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        VERSION_SOURCE: ${{ inputs.version-source }}
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
+        VERSION: ${{ inputs.version }}
+        REPOSITORY_URL: ${{ inputs.repository-url }}
+        SKIP_UNREAD_TAGS: ${{ inputs.skip-unread-tags }}
+      # The Python setup-python installs finds its libpython through LD_LIBRARY_PATH in a job that runs in a container,
+      # where the tool cache is mounted away from the path built into it. Set here, for this step alone.
+      run: |
+        export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        "$GITHUB_ACTION_PATH/prepare.sh"
