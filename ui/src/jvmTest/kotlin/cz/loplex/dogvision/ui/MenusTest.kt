@@ -6,6 +6,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -33,7 +36,13 @@ class MenusTest {
             "View",
             listOf(
                 MenuEntry.Check("Side by side", true) { done += "side by side $it" },
-                MenuEntry.Submenu("Compared with", listOf(MenuEntry.Choice("cat", false) { done += "cat" })),
+                MenuEntry.Submenu(
+                    "Compared with",
+                    listOf(
+                        MenuEntry.Choice("dog", true) { done += "dog" },
+                        MenuEntry.Choice("cat", false) { done += "cat" },
+                    ),
+                ),
             ),
         ),
     )
@@ -56,6 +65,17 @@ class MenusTest {
         onNodeWithText("cat").performClick()
         assertEquals(listOf("cat"), done)
         onNodeWithText("cat").assertDoesNotExist()
+    }
+
+    @Test
+    fun aCheckOrAChoiceTellsAccessibilityServicesWhetherItIsChosen() = runComposeUiTest {
+        show()
+        onNodeWithContentDescription("Menu").performClick()
+        onNodeWithText("View").performClick()
+        onNodeWithText("Side by side").assertIsOn()
+        onNodeWithText("Compared with").performClick()
+        onNodeWithText("dog").assertIsSelected()
+        onNodeWithText("cat").assertIsNotSelected()
     }
 
     @Test

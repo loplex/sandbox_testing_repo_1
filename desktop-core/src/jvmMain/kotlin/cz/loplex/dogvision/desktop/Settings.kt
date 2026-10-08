@@ -13,8 +13,8 @@ import java.nio.file.StandardCopyOption
 
 /**
  * What the windows keep from one run to the next, in [settingsFile]: [outputDir], where snapshots and recordings go,
- * null for the folder the window started in, and [convertToOutputDir], whether a converted file goes there too, in
- * place of next to its original.
+ * null for [picturesFolder], and [convertToOutputDir], whether a converted file goes there too, in place of next to
+ * its original.
  */
 data class Settings(val outputDir: File? = null, val convertToOutputDir: Boolean = false)
 
@@ -30,10 +30,14 @@ fun settingsFile(
     val base = when {
         osName.startsWith("Windows") -> environment["APPDATA"]?.let(::File) ?: File(home, "AppData/Roaming")
         osName.startsWith("Mac") -> File(home, "Library/Application Support")
-        else -> environment["XDG_CONFIG_HOME"]?.takeIf { it.isNotEmpty() }?.let(::File) ?: File(home, ".config")
+        else -> configHome(environment, home)
     }
     return File(File(base, "dog-vision"), "settings.json")
 }
+
+/** Where a program keeps its settings outside Windows and macOS: $XDG_CONFIG_HOME, else ~/.config. */
+internal fun configHome(environment: Map<String, String>, home: String): File =
+    environment["XDG_CONFIG_HOME"]?.takeIf { it.isNotEmpty() }?.let(::File) ?: File(home, ".config")
 
 /**
  * The settings [file] holds, and the defaults for what it does not: a file that is missing, cannot be read or is no

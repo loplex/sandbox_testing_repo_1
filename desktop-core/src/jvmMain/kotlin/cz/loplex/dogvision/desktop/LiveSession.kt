@@ -47,7 +47,9 @@ import kotlin.concurrent.thread
  * The renderer is made by [makeRenderer] once, the feed of each source by [feed], the cameras listed by [cameraLister]
  * through [inBackground], ffmpeg downloaded by [ffmpegDownloader] and installed through winget by [ffmpegInstaller],
  * which [canInstallFfmpeg] says whether to offer where it is missing, and [wingetFound] whether to offer winget as
- * well; the tests give their own of each, and a [post] that runs what it is given there and then.
+ * well, the output folder, where none is named or chosen, by [defaultOutputDir], and whether ffmpeg, which a
+ * recording needs, can be run by [ffmpegFound]; the tests give their own of each, and a [post] that runs what it is
+ * given there and then.
  */
 @Suppress("LongParameterList", "TooManyFunctions")
 class LiveSession<I>(
@@ -69,6 +71,8 @@ class LiveSession<I>(
     private val openRecording: (File, Int, Int) -> RecordingSink = ::ffmpegRecording,
     private val nanoTime: () -> Long = System::nanoTime,
     private val everySecond: (() -> Unit) -> AutoCloseable = ::everySecond,
+    defaultOutputDir: () -> File = { picturesFolder() },
+    private val ffmpegFound: () -> Boolean = ::ffmpegRuns,
 ) : PanelActions,
     AutoCloseable {
     /**
@@ -95,7 +99,7 @@ class LiveSession<I>(
         /** Whether the panel of controls is shown, or the images have the whole window, as F9 toggles it. */
         val panelShown: Boolean = true,
         /** Where snapshots and recordings go. */
-        val outputDir: File = File("").absoluteFile,
+        val outputDir: File,
         /** What the window said it did last, worded when it is shown, in the language chosen then. */
         val status: ((Texts) -> String)? = null,
         /** Whether the view is being recorded, which locks what would change the size of its images. */
@@ -149,7 +153,7 @@ class LiveSession<I>(
             textsIn(""),
             canInstallFfmpeg = canInstallFfmpeg,
             wingetFound = wingetFound,
-            outputDir = (arguments.outputDir ?: settings.outputDir ?: File("")).absoluteFile,
+            outputDir = (arguments.outputDir ?: settings.outputDir ?: defaultOutputDir()).absoluteFile,
             convertToOutputDir = settings.convertToOutputDir,
         ),
     )
@@ -375,11 +379,36 @@ class LiveSession<I>(
     private var recorder: Recorder? = null
     private var ticking: AutoCloseable? = null
 
+    /** Whether ffmpeg is being looked for, before a recording starts. */
+    private var findingFfmpeg = false
+
     /**
      * Starts recording the view into the output folder, named as a snapshot is but for its .mp4, or stops the recording
-     * under way, which is then finished in the background, as the recording status says.
+     * under way, which is then finished in the background, as the recording status says. A recording starts once
+     * ffmpeg is found, in the background; where it cannot be run, nothing is recorded, and the window says so in place
+     * of the images, and offers it as where a video cannot be shown without it.
      */
-    fun toggleRecording() = if (recorder == null) startRecording() else stopRecording()
+    fun toggleRecording() = if (recorder == null) findFfmpegAndRecord() else stopRecording()
+
+    private fun findFfmpegAndRecord() {
+        if (findingFfmpeg) return
+        findingFfmpeg = true
+        inBackground {
+            val found = ffmpegFound()
+            post {
+                findingFfmpeg = false
+                when {
+                    closed || recorder != null -> Unit
+
+                    found -> startRecording()
+
+                    else -> change {
+                        copy(sourceFailure = Failure(ffmpegMissing = true) { it.get(Str.FFMPEG_MISSING, "ffmpeg") })
+                    }
+                }
+            }
+        }
+    }
 
     private fun startRecording() {
         val state = mutableState.value

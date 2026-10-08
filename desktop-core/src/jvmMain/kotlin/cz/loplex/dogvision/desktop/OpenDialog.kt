@@ -1,10 +1,14 @@
 package cz.loplex.dogvision.desktop
 
+import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.Texts
 import java.awt.EventQueue
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.event.KeyEvent
 import java.io.File
 import javax.swing.JFileChooser
+import javax.swing.UIManager
 import kotlin.concurrent.thread
 
 /**
@@ -18,8 +22,8 @@ import kotlin.concurrent.thread
  * its dialog comes up on top. tinyfiledialogs picks its dialog the same way.
  *
  * [command] is what asks for a file, if anything does, [run] runs it and says what was picked, and [fallback] shows
- * AWT's dialog, or Swing's for a folder, which AWT's cannot pick on Linux and Windows; the tests give their own of
- * each, and a [post] that runs what it is given there and then.
+ * AWT's dialog, or Swing's for a folder, which AWT's cannot pick on Linux and Windows, worded in the texts it is given;
+ * the tests give their own of each, and a [post] that runs what it is given there and then.
  */
 class OpenDialog(
     folder: Boolean = false,
@@ -27,8 +31,8 @@ class OpenDialog(
         systemCommand(title, shown, folder)
     },
     private val run: (List<String>) -> String? = ::runDialog,
-    private val fallback: (parent: Frame?, title: String, shown: File?) -> File? =
-        if (folder) ::swingFolderDialog else ::awtDialog,
+    private val fallback: (parent: Frame?, title: String, shown: File?, texts: Texts) -> File? =
+        if (folder) ::swingFolderDialog else { parent, title, shown, _ -> awtDialog(parent, title, shown) },
     private val post: (() -> Unit) -> Unit = { EventQueue.invokeLater(it) },
 ) {
     /** Whether a program's dialog is open, which a key or a button pressed meanwhile does not open again. */
@@ -37,13 +41,13 @@ class OpenDialog(
     /**
      * Shows the dialog over [parent], titled [title], in the folder of the file [shown], if one is, and tells
      * [onPicked] the file picked, if one is; a program's dialog is waited for on a thread of its own, and [onPicked]
-     * told on the event thread, as it is called.
+     * told on the event thread, as it is called. Swing's dialog is worded in [texts].
      */
-    fun show(parent: Frame?, title: String, shown: File?, onPicked: (File) -> Unit) {
+    fun show(parent: Frame?, title: String, shown: File?, texts: Texts, onPicked: (File) -> Unit) {
         if (open) return
         val command = command(title, shown)
         if (command == null) {
-            fallback(parent, title, shown)?.let(onPicked)
+            fallback(parent, title, shown, texts)?.let(onPicked)
             return
         }
         open = true
@@ -53,7 +57,7 @@ class OpenDialog(
                 open = false
                 picked.fold(
                     onSuccess = { path -> path?.let { onPicked(File(it)) } },
-                    onFailure = { fallback(parent, title, shown)?.let(onPicked) },
+                    onFailure = { fallback(parent, title, shown, texts)?.let(onPicked) },
                 )
             }
         }
@@ -113,14 +117,23 @@ internal fun runDialog(command: List<String>): String? {
     return printed.takeIf { process.waitFor() == 0 && it.isNotEmpty() }
 }
 
-/** Swing's dialog for a folder over [parent], titled [title], in the folder [shown], if any, and the one picked. */
-private fun swingFolderDialog(parent: Frame?, title: String, shown: File?): File? {
-    val chooser = JFileChooser(shown).apply {
+/**
+ * Swing's dialog for a folder over [parent], titled [title], in the folder [shown], if any, worded in [texts], and the
+ * one picked.
+ */
+private fun swingFolderDialog(parent: Frame?, title: String, shown: File?, texts: Texts): File? {
+    val chooser = folderChooser(title, shown, texts)
+    val picked = chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION
+    return chooser.selectedFile.takeIf { picked }
+}
+
+/** Swing's chooser of a folder, titled [title], in the folder [shown], if any, worded in [texts]. */
+internal fun folderChooser(title: String, shown: File?, texts: Texts): JFileChooser {
+    for ((key, value) in fileChooserWords(texts)) UIManager.put(key, value)
+    return JFileChooser(shown).apply {
         dialogTitle = title
         fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
     }
-    val picked = chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION
-    return chooser.selectedFile.takeIf { picked }
 }
 
 /** AWT's dialog over [parent], titled [title], in the folder of [shown], if any, and the file picked, if one is. */
@@ -130,3 +143,73 @@ private fun awtDialog(parent: Frame?, title: String, shown: File?): File? {
     dialog.isVisible = true
     return dialog.files.firstOrNull()
 }
+
+/**
+ * UIManager's keys that word Swing's file chooser, each with its words in [texts], which a chooser made afterwards
+ * shows: the JDK words it in English and a few other languages, Czech not among them. They are all a chooser of a
+ * folder shows, its menu, the columns of its details and its errors among them, and a label's text and the key of the
+ * letter an & marks in it, which focuses its field with Alt.
+ */
+internal fun fileChooserWords(texts: Texts): Map<String, Any> {
+    val labels = LABELS.flatMap { (key, str) ->
+        val marked = texts.get(str)
+        val letter = marked.indexOf('&') + 1
+        listOf(
+            "FileChooser.${key}Text" to marked.removeRange(letter - 1, letter),
+            "FileChooser.${key}Mnemonic" to KeyEvent.getExtendedKeyCodeForChar(marked[letter].code),
+        )
+    }
+    return (labels + WORDS.map { (key, str) -> "FileChooser.$key" to texts.get(str) }).toMap()
+}
+
+/** The labels of the chooser's fields, each with a letter marked by an &. */
+private val LABELS = listOf(
+    "lookInLabel" to Str.FILE_CHOOSER_LOOK_IN,
+    "fileNameLabel" to Str.FILE_CHOOSER_FILE_NAME,
+    "folderNameLabel" to Str.FILE_CHOOSER_FOLDER_NAME,
+    "filesOfTypeLabel" to Str.FILE_CHOOSER_FILES_OF_TYPE,
+)
+
+/** The rest of what the chooser says, by the key it is under after "FileChooser.". */
+private val WORDS = listOf(
+    "acceptAllFileFilterText" to Str.FILE_CHOOSER_ALL_FILES,
+    "openButtonText" to Str.FILE_CHOOSER_OPEN,
+    "openButtonToolTipText" to Str.FILE_CHOOSER_OPEN_FILE_TIP,
+    "directoryOpenButtonText" to Str.FILE_CHOOSER_OPEN,
+    "directoryOpenButtonToolTipText" to Str.FILE_CHOOSER_OPEN_FOLDER_TIP,
+    "cancelButtonText" to Str.FILE_CHOOSER_CANCEL,
+    "cancelButtonToolTipText" to Str.FILE_CHOOSER_CANCEL_TIP,
+    "upFolderToolTipText" to Str.FILE_CHOOSER_UP_TIP,
+    "upFolderAccessibleName" to Str.FILE_CHOOSER_UP,
+    "homeFolderToolTipText" to Str.FILE_CHOOSER_HOME,
+    "homeFolderAccessibleName" to Str.FILE_CHOOSER_HOME,
+    "newFolderToolTipText" to Str.FILE_CHOOSER_NEW_FOLDER_TIP,
+    "newFolderAccessibleName" to Str.FILE_CHOOSER_NEW_FOLDER,
+    "newFolderActionLabelText" to Str.FILE_CHOOSER_NEW_FOLDER,
+    "other.newFolder" to Str.FILE_CHOOSER_NEW_FOLDER,
+    "other.newFolder.subsequent" to Str.FILE_CHOOSER_NEW_FOLDER_NEXT,
+    "win32.newFolder" to Str.FILE_CHOOSER_NEW_FOLDER,
+    "win32.newFolder.subsequent" to Str.FILE_CHOOSER_NEW_FOLDER_NEXT,
+    "listViewButtonToolTipText" to Str.FILE_CHOOSER_LIST,
+    "listViewButtonAccessibleName" to Str.FILE_CHOOSER_LIST,
+    "listViewActionLabelText" to Str.FILE_CHOOSER_LIST,
+    "detailsViewButtonToolTipText" to Str.FILE_CHOOSER_DETAILS,
+    "detailsViewButtonAccessibleName" to Str.FILE_CHOOSER_DETAILS,
+    "detailsViewActionLabelText" to Str.FILE_CHOOSER_DETAILS,
+    "viewMenuLabelText" to Str.FILE_CHOOSER_VIEW,
+    "refreshActionLabelText" to Str.FILE_CHOOSER_REFRESH,
+    "filesListAccessibleName" to Str.FILE_CHOOSER_FILES_LIST,
+    "filesDetailsAccessibleName" to Str.FILE_CHOOSER_FILES_DETAILS,
+    "fileNameHeaderText" to Str.FILE_CHOOSER_NAME_COLUMN,
+    "fileSizeHeaderText" to Str.FILE_CHOOSER_SIZE_COLUMN,
+    "fileTypeHeaderText" to Str.FILE_CHOOSER_TYPE_COLUMN,
+    "fileDateHeaderText" to Str.FILE_CHOOSER_MODIFIED_COLUMN,
+    "fileAttrHeaderText" to Str.FILE_CHOOSER_ATTRIBUTES_COLUMN,
+    "directoryDescriptionText" to Str.FILE_CHOOSER_FOLDER_TYPE,
+    "newFolderErrorText" to Str.FILE_CHOOSER_NEW_FOLDER_ERROR,
+    "newFolderParentDoesntExistTitleText" to Str.FILE_CHOOSER_NO_PARENT_TITLE,
+    "newFolderParentDoesntExistText" to Str.FILE_CHOOSER_NO_PARENT,
+    "renameErrorTitleText" to Str.FILE_CHOOSER_RENAME_ERROR_TITLE,
+    "renameErrorText" to Str.FILE_CHOOSER_RENAME_ERROR,
+    "renameErrorFileExistsText" to Str.FILE_CHOOSER_RENAME_EXISTS,
+)

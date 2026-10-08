@@ -17,6 +17,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import cz.loplex.dogvision.texts.Menu
 import cz.loplex.dogvision.texts.MenuEntry
 import cz.loplex.dogvision.texts.Str
@@ -81,6 +87,11 @@ private fun Entry(entry: MenuEntry, onClose: () -> Unit, onOpen: () -> Unit) {
 
         is MenuEntry.Check -> DropdownMenuItem(
             text = { Text(entry.label) },
+            // The check box takes no clicks, so it says nothing to accessibility services: the row says it.
+            modifier = Modifier.semantics {
+                role = Role.Checkbox
+                toggleableState = ToggleableState(entry.checked)
+            },
             leadingIcon = { Checkbox(entry.checked, onCheckedChange = null, enabled = entry.enabled) },
             enabled = entry.enabled,
             onClick = {
@@ -91,6 +102,10 @@ private fun Entry(entry: MenuEntry, onClose: () -> Unit, onOpen: () -> Unit) {
 
         is MenuEntry.Choice -> DropdownMenuItem(
             text = { Text(entry.label) },
+            modifier = Modifier.semantics {
+                role = Role.RadioButton
+                selected = entry.selected
+            },
             leadingIcon = { RadioButton(entry.selected, onClick = null, enabled = entry.enabled) },
             enabled = entry.enabled,
             onClick = {

@@ -1,8 +1,10 @@
 package cz.loplex.dogvision.desktop
 
 import cz.loplex.dogvision.core.Image
+import cz.loplex.dogvision.ffmpeg.FfmpegMissing
 import cz.loplex.dogvision.ffmpeg.VideoWriter
 import cz.loplex.dogvision.ffmpeg.bestEncoder
+import cz.loplex.dogvision.ffmpeg.runProgram
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.ArrayBlockingQueue
@@ -28,6 +30,16 @@ interface RecordingSink {
     /** Stops writing and removes what was written. */
     fun abort()
 }
+
+/** Whether ffmpeg can be run, as a recording needs it: `ffmpeg -version` is, from where the feeds run it. */
+fun ffmpegRuns(): Boolean = try {
+    runProgram.run(listOf("ffmpeg", "-version"), VERSION_SECONDS)
+    true
+} catch (_: FfmpegMissing) {
+    false
+}
+
+private const val VERSION_SECONDS = 10L
 
 /**
  * An .mp4 at [output] of [width] x [height], silent, at [RECORDING_FPS], by the best encoder ffmpeg has here; an

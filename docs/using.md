@@ -341,8 +341,14 @@ on the right](images/window.png)
   It is named after the species and the time, as `dog-cat-20261008-090507.png`, or
   `dog-horse-vs-cat-20261008-090507.png` where a horse is shown beside a cat.
 - **Snapshots and recordings go to the output folder**: the one `--output-dir` names, or else the
-  one *File* → *Output folder…* chose last, kept for the next run, or else the folder the window was
-  started in; a folder chosen in the window goes before `--output-dir` from then on.
+  one *File* → *Output folder…* chose last, kept for the next run, or else the user's pictures; a
+  folder chosen in the window goes before `--output-dir` from then on.
+- **The user's pictures are where the system keeps them**: the Pictures folder Windows knows, moved
+  or not, on Windows, and on Linux the one `XDG_PICTURES_DIR` names in `user-dirs.dirs`, as the
+  file managers show it, such as `~/Obrázky`; the home where it names none.
+- **On Windows the output folder is picked in Java's dialog**, as it is on Linux where neither
+  kdialog nor zenity is installed; it is worded in the window's language, which Java itself has no
+  Czech for.
 - **Ctrl+E or *File* → *Convert file* converts the file shown at full size**, with the view as the
   window shows it, as `dog-vision-cli` converts a file: next to it, as `photo.dog.png` or
   `clip.cat.mp4`, or into the output folder where *File* → *Converted files into the output folder*
@@ -357,7 +363,8 @@ on the right](images/window.png)
 - **Ctrl+R or *File* → *Record video* records the view** into an .mp4 in the output folder, named as
   a snapshot is, until the same again stops it or the window closes: its images as a snapshot has
   them, 30 frames a second, each shown for as long as the window showed it, and no sound.
-  It needs ffmpeg, as a video does.
+  It needs ffmpeg, as a video does: where ffmpeg cannot run, nothing is recorded, and the window
+  says so in place of the images, as it does for a video.
 - **While recording, what would change the video's size is locked**: another file, the camera, side
   by side and the map of differences.
 - **The status bar says how long the recording runs**, then where it went, written by which
@@ -431,6 +438,7 @@ The sections below hold for both windows.
 - **Where winget is on the `PATH`**, the window offers to install it through winget as well, as
   Gyan's build (`winget install --id Gyan.FFmpeg`) for this user alone, which winget keeps up to
   date and the MSI leaves.
-- **It shows the video or the camera once ffmpeg is found**, without starting again.
+- **It shows the video or the camera once ffmpeg is found**, without starting again, or the photo
+  Ctrl+R could not record; Ctrl+R then records.
 - **Where winget turns out to be missing** after all, the window names ffmpeg's download page as a
   link, which opens in the browser when it is clicked.

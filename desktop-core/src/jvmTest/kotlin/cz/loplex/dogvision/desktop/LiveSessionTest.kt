@@ -92,6 +92,9 @@ class LiveSessionTest {
 
     private val settings get() = File(directory, "config/dog-vision/settings.json")
 
+    /** The user's pictures, where snapshots and recordings go while no folder is named or chosen. */
+    private val pictures get() = File(directory, "Pictures")
+
     /** The monotonic clock a recording is timed by, and what ticks its status every second. */
     private val nanos = AtomicLong()
     private var tick: (() -> Unit)? = null
@@ -156,6 +159,7 @@ class LiveSessionTest {
         downloader: ((Int) -> Unit) -> FfmpegInstall = { FfmpegInstall.Found },
         canInstallFfmpeg: Boolean = true,
         wingetFound: Boolean = true,
+        ffmpegFound: () -> Boolean = { true },
     ) = LiveSession<Unit>(
         arguments,
         { _, _ -> renderer },
@@ -176,6 +180,8 @@ class LiveSessionTest {
             tick = ticks
             AutoCloseable { tick = null }
         },
+        defaultOutputDir = { pictures },
+        ffmpegFound = ffmpegFound,
     )
 
     @Test
@@ -584,8 +590,8 @@ class LiveSessionTest {
     }
 
     @Test
-    fun theOutputFolderIsTheCommandLinesThenTheSettingsThenTheWorkingFolder() {
-        assertEquals(File("").absoluteFile, session().state.value.outputDir)
+    fun theOutputFolderIsTheCommandLinesThenTheSettingsThenTheUsersPictures() {
+        assertEquals(pictures, session().state.value.outputDir)
         writeSettings(settings, Settings(File(directory, "kept")))
         assertEquals(File(directory, "kept"), session().state.value.outputDir)
         val named = File(directory, "named")
@@ -686,6 +692,29 @@ class LiveSessionTest {
             "Recording failed: No frame was shown while recording",
             session.state.value.recordingStatus?.invoke(Texts.of("en")),
         )
+    }
+
+    @Test
+    fun withoutFfmpegNothingIsRecordedAndFfmpegIsOffered() {
+        var found = false
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory), ffmpegFound = { found })
+        renderer.composed = listOf(Image(1, 1, intArrayOf(5)))
+        session.toggleRecording()
+        assertFalse(session.state.value.recording)
+        assertNull(session.state.value.recordingStatus)
+        assertNull(renderer.recorder)
+        assertNull(tick)
+        val texts = Texts.of("en")
+        assertEquals(texts.get(Str.FFMPEG_MISSING, "ffmpeg"), session.state.value.failure?.words(texts))
+        assertTrue(session.state.value.offersFfmpeg)
+        found = true
+        session.downloadFfmpeg()
+        awaitInstalled(session)
+        assertNull(session.state.value.failure)
+        assertEquals(listOf("start a.jpg", "close a.jpg", "start a.jpg"), log.filter { it.contains("a.jpg") })
+        session.toggleRecording()
+        assertTrue(session.state.value.recording)
+        session.toggleRecording()
     }
 
     @Test

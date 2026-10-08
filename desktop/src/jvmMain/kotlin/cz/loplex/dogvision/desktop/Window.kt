@@ -147,12 +147,12 @@ private class Dialogs {
      * [shown], if one is.
      */
     fun open(texts: Texts, shown: Source, onPicked: (File) -> Unit) {
-        openDialog.show(parent, texts.get(Str.OPEN_MEDIA), (shown as? Source.Media)?.file, onPicked)
+        openDialog.show(parent, texts.get(Str.OPEN_MEDIA), (shown as? Source.Media)?.file, texts, onPicked)
     }
 
     /** Tells [onPicked] a folder picked in the system's dialog, which starts in the folder [shown]. */
     fun chooseFolder(texts: Texts, shown: File, onPicked: (File) -> Unit) {
-        folderDialog.show(parent, texts.get(Str.OUTPUT_FOLDER_TITLE), shown, onPicked)
+        folderDialog.show(parent, texts.get(Str.OUTPUT_FOLDER_TITLE), shown, texts, onPicked)
     }
 }
 

@@ -113,6 +113,7 @@ private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
                         frame,
                         state.texts.get(Str.OUTPUT_FOLDER_TITLE),
                         state.outputDir,
+                        state.texts,
                         session::setOutputDir,
                     )
                 },
@@ -193,7 +194,7 @@ private class MenuBarOf(private val frame: JFrame) {
 private fun openFromDialog(frame: JFrame, dialog: OpenDialog, session: LiveSession<*>) {
     val state = session.state.value
     val shown = (state.source as? Source.Media)?.file
-    dialog.show(frame, state.texts.get(Str.OPEN_MEDIA), shown, session::openFile)
+    dialog.show(frame, state.texts.get(Str.OPEN_MEDIA), shown, state.texts, session::openFile)
 }
 
 /**
