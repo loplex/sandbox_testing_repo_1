@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The distribution archive. Layout:
+
+        git-timebraid-<version>/
+            bin/git-timebraid        launcher, resolves lib/ relative to itself
+            bin/git-timebraid.bat
+            lib/git-timebraid.jar    the shaded jar
+            share/man/man1/git-timebraid.1
+            share/doc/git-doc/git-timebraid.html
+            doc/                     what README.md links to
+            README.md CHANGELOG.md LICENSE NOTICE
+
+    Only the jar is repackaged here; the assembly plugin never merges class paths (that is shade's
+    job, see pom.xml), so its habit of overwriting same-named resources cannot bite.
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>distribution</id>
+
+    <formats>
+        <format>tar.gz</format>
+        <format>zip</format>
+    </formats>
+
+    <includeBaseDirectory>true</includeBaseDirectory>
+
+    <files>
+        <file>
+            <source>${project.build.directory}/${project.build.finalName}.jar</source>
+            <outputDirectory>lib</outputDirectory>
+        </file>
+    </files>
+
+    <componentDescriptors>
+        <componentDescriptor>src/main/assembly/component-common.xml</componentDescriptor>
+    </componentDescriptors>
+</assembly>

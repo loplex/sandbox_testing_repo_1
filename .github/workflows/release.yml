@@ -1,0 +1,278 @@
+name: Release
+
+# Tagging is the trigger, and the tag is the single source of truth for the version. A branch's pom
+# carries the version being worked towards and keeps its `-SNAPSHOT` suffix; the tag names the
+# version to cut, and every job that packages an archive drops that suffix in its own checkout
+# before building. The pom still has to agree on which version is meant, so a tag can shed the
+# suffix but cannot invent a version nobody was working towards.
+#
+# Being strict about it is the point: the version is baked into the jar manifest and reported by
+# `git-timebraid --version`, so a version that disagreed with the tag would ship an archive whose
+# name and whose output tell different stories.
+#
+# To cut a release, with the pom on 1.2.3-SNAPSHOT:
+#
+# 1. In CHANGELOG.md, head the `[Unreleased]` entry `## [1.2.3] - <today's date>` and open an empty
+#    `## [Unreleased]` above it; at the foot, point `[Unreleased]:` at `compare/v1.2.3...HEAD` and
+#    add a `[1.2.3]:` link to the tag's release, as `[0.1.0]:` has. Commit that on the branch.
+# 2. Tag that commit and push the tag:
+#
+#        git tag -a v1.2.3 -m 'git-timebraid 1.2.3'
+#        git push origin v1.2.3
+#
+# What that leaves is a draft. Publishing it is also what opens the next version: post-release.yml
+# raises the pom to 1.2.4-SNAPSHOT on every branch the tag sits on, so the tag after this one has
+# something to agree with. Nothing moves before then, which is what leaves a deleted draft's version
+# free to be cut again.
+#
+# What comes out is a *draft* release holding one portable archive, one archive per platform, the
+# standalone jar, and a SHA256SUMS file. Nothing is published to anyone until a human opens that
+# draft and presses the button.
+#
+# The same workflow runs from the Actions tab against any branch, and that run is the rehearsal for
+# all of the above. It builds and smoke-tests every archive and stops there: no tag names a
+# version, so the pom's snapshot stands and the release job is skipped. The archives land on the
+# run's own page instead, which lets the version decision wait until they are known to be good --
+# a tag, once pushed, has to be deleted to be taken back.
+on:
+  push:
+    tags: ["v*"]
+    branches: ["probe/git-timebraid"]
+  workflow_dispatch:
+
+# The draft release and its assets; nothing else.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # The release is built on 21 throughout, so jlink's compression is spelled the way 21 spells it.
+  # CI covers the JDK 17 spelling on every push; here one JDK keeps the platform archives
+  # comparable to each other.
+  JAVA_VERSION: "21"
+
+  # The tag being released, and empty on a manual run -- which is what makes that run a dry one.
+  # The version script reads an empty tag as "leave the pom's snapshot alone", and the release job
+  # tests the same condition to decide whether there is anything to draft.
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+
+jobs:
+  # A job of its own, which both archive jobs wait for, because the three ways this can be wrong --
+  # no changelog section for the tag (the entry still headed `[Unreleased]`, say), a heading not
+  # yet dated, or no link for it at the foot of the file -- are each a hand's omission on the
+  # branch, and finding them after every leg has packaged its archive costs the whole run. A
+  # manual run has no tag and so nothing to look up; it is the tag that has to carry an entry. The
+  # job runs either way and only the step is skipped, since a job that is skipped takes every job
+  # needing it down with it.
+  changelog:
+    name: changelog section
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the changelog has a dated section for this tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: .github/scripts/changelog-section.py "$RELEASE_TAG" > /dev/null
+
+  portable:
+    name: portable archive
+    needs: changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      # The check and the rewrite live in one script so that every job packaging an archive can
+      # make the identical one; this job is merely the one that reports the version onwards.
+      - name: Settle the version to build
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(.github/scripts/set-release-version.sh "$RELEASE_TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/render-man-html
+
+      # The tag gets its own test run rather than trusting the branch build: a tag can be moved,
+      # and what is released has to be what was tested.
+      - name: mvn verify
+        run: mvn -B -ntp verify
+
+      - name: Smoke-test the portable archive
+        shell: bash
+        run: .github/scripts/smoke-distribution.sh target/git-timebraid-${{ steps.version.outputs.version }}.tar.gz
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: portable
+          path: |
+            target/git-timebraid-*.tar.gz
+            target/git-timebraid-*.zip
+            target/git-timebraid.jar
+          if-no-files-found: error
+
+  bundled:
+    name: ${{ matrix.label }} archive
+    needs: changelog
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # One leg per platform a jlink image can be built for. The two macOS entries are not a
+        # typo: macos-latest is Apple silicon and macos-15-intel is x86_64, and an image built on
+        # one does not run on the other.
+        #
+        # That Intel leg has an end date. It is the last x86_64 image Actions will offer, retiring
+        # in August 2027, after which a macOS x86_64 archive needs a runner from somewhere else or
+        # stops being published. A retired label is not an error either: it queues until the job is
+        # cancelled a day later, so a leg that waits for a runner while its siblings finish in a
+        # minute has usually been retired out from under it.
+        #
+        # ubuntu-24.04-arm is free for public repositories and billed for private ones -- if this
+        # repository ever goes private, that leg is the one to drop.
+        #
+        # The Windows image is the exception to building on the platform: it is linked on Linux,
+        # from the jmods of the Windows JDK of the same version (`cross_os` and `cross_arch`, which
+        # spell the platform the way both the archive's name and the Adoptium API do), and run on
+        # Windows by the job after this one.
+        include:
+          - { os: ubuntu-latest,    label: linux-x64 }
+          - { os: ubuntu-24.04-arm, label: linux-aarch64 }
+          - { os: macos-15-intel,   label: macos-x64 }
+          - { os: macos-latest,     label: macos-aarch64 }
+          - { os: ubuntu-latest,    label: windows-x64, cross_os: windows, cross_arch: x64 }
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      # This checkout is its own, and the archive below takes its name from the pom version, so
+      # the suffix has to come off here too rather than only where the version is read out.
+      - name: Settle the version to build
+        shell: bash
+        run: .github/scripts/set-release-version.sh "$RELEASE_TAG"
+
+      - uses: ./.github/actions/render-man-html
+
+      # A jlink image is built for one platform, which is why this job exists once per platform
+      # rather than once. The tests ran in the portable job; this is the archive itself. A cross leg
+      # fetches the other platform's jmods first; the substitution is assigned before it is used,
+      # since a failing one inside an argument would leave the build to run without them.
+      - name: Build the bundled-runtime archive
+        shell: bash
+        env:
+          CROSS_OS: ${{ matrix.cross_os }}
+          CROSS_ARCH: ${{ matrix.cross_arch }}
+        run: |
+          set -euo pipefail
+          cross=()
+          if [ -n "$CROSS_OS" ]; then
+              jmods=$(.github/scripts/fetch-jmods.sh "$CROSS_OS" "$CROSS_ARCH" "$RUNNER_TEMP/jdk")
+              cross=("-Djlink.jmods=$jmods" "-Ddist.os=$CROSS_OS" "-Ddist.arch=$CROSS_ARCH")
+          fi
+          mvn -B -ntp -DskipTests -Pbundled-runtime "${cross[@]}" package
+
+      # A cross-linked image does not run where it was built; the job below runs it.
+      - name: Merge two repositories with the unpacked archive
+        if: ${{ !matrix.cross_os }}
+        shell: bash
+        run: .github/scripts/smoke-distribution.sh
+
+      # The portable archive is built alongside and would arrive once per leg; the platform one is
+      # the only thing this job has to contribute. Naming the platform rather than globbing for
+      # it also checks the matrix against the pom: `if-no-files-found: error` fires if the six
+      # os/arch profiles ever name a runner something other than what this matrix calls it.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundled-${{ matrix.label }}
+          path: |
+            target/git-timebraid-*-${{ matrix.label }}.tar.gz
+            target/git-timebraid-*-${{ matrix.label }}.zip
+          if-no-files-found: error
+
+  # The Windows archive was linked on Linux, so this is the first time it meets Windows: the same
+  # smoke test the other legs ran where they built, on the archive the release will upload.
+  windows-runs:
+    name: windows-x64 archive runs
+    needs: bundled
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundled-windows-x64
+          path: target
+
+      - name: Merge two repositories with the unpacked archive
+        shell: bash
+        run: .github/scripts/smoke-distribution.sh
+
+  release:
+    name: draft release
+    needs: [portable, bundled, windows-runs]
+    # Where a manual run stops, having built and smoke-tested every archive without putting
+    # anything where a person could mistake it for a release.
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # v8 stopped unzipping unconditionally: it reads the Content-Type and leaves a
+      # non-zipped download alone. The upload side archives by default, so everything the
+      # jobs above stored arrives zipped and is unpacked here as it always was -- what the
+      # step below globs for are the archives themselves, not a nest of zips.
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checksums
+        shell: bash
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+          ls -la
+          sha256sum git-timebraid-* git-timebraid.jar > SHA256SUMS
+          cat SHA256SUMS
+
+      # `gh` is preinstalled on the runners, so the upload needs no third-party action -- one less
+      # thing holding a token. The notes are a file in the repository rather than a heredoc here,
+      # so they can be read and edited without picking them out of a YAML string.
+      # The body is the static install text plus the changelog's own section for this tag, so the
+      # entry is written once and read where it is asked for. Relative links in it are rewritten
+      # against the tag by the script: they have to be relative in the repository, where
+      # check-links.py resolves them, and absolute on a page that is not inside the tree.
+      - name: Create the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.portable.outputs.version }}
+          BLOB: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          cat .github/release-notes.md > "$body"
+          printf '\n' >> "$body"
+          .github/scripts/changelog-section.py "$GITHUB_REF_NAME" "$BLOB" >> "$body"
+          gh release create "$GITHUB_REF_NAME" \
+              --draft \
+              --title "git-timebraid $VERSION" \
+              --notes-file "$body" \
+              artifacts/*

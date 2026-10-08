@@ -1,0 +1,403 @@
+package cz.loplex.timebraid.git
+
+import org.eclipse.jgit.internal.storage.file.ObjectDirectory
+import org.eclipse.jgit.lib.CommitBuilder
+import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.lib.NullProgressMonitor
+import org.eclipse.jgit.lib.ProgressMonitor
+import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.lib.ObjectInserter
+import org.eclipse.jgit.lib.PersonIdent
+import org.eclipse.jgit.lib.RefUpdate
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.lib.RepositoryCache
+import org.eclipse.jgit.lib.TagBuilder
+import org.eclipse.jgit.lib.TreeFormatter
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder
+import org.eclipse.jgit.transport.RefSpec
+import org.eclipse.jgit.transport.TagOpt
+import org.eclipse.jgit.transport.Transport
+import org.eclipse.jgit.transport.URIish
+import org.eclipse.jgit.util.FS
+import java.io.IOException
+import java.net.URISyntaxException
+import java.nio.file.Files
+import java.nio.file.Path
+
+/**
+ * The output repository, opened for writing.
+ *
+ * The inputs' own objects arrive by [fetchFrom]; everything the braid invents on top of them —
+ * the rewritten commits, the new trees, the tag objects — is written through a single
+ * [ObjectInserter], and where the storage backend allows it that inserter is a *pack* inserter,
+ * because one pack file is the difference between a repository that opens instantly and a directory
+ * holding tens of thousands of loose files.
+ *
+ * Objects only become visible to readers — including this repository's own ref updates — after
+ * [flushObjects]. Refs are therefore written in a second pass, once every commit exists.
+ *
+ * @param log receives the `git` command each *bounded* operation here is the in-process equivalent
+ *   of — the transfer, each ref written or dropped, and `HEAD` — wired to `--verbose`. What
+ *   it deliberately leaves out is the per-object writing: [writeCommit] and the trees under it run
+ *   once per commit rather than once per run, and no line they could print would be a command
+ *   anyone could run. A `git commit-tree` naming them would quote ids that live in an
+ *   [ObjectInserter] no reader can see until [flushObjects], and re-running it reproduces the id
+ *   only if author, committer, both dates and the message match to the byte. The plan behind those
+ *   writes is available as text, one line per commit, through `--plan-out`.
+ */
+class TargetRepository private constructor(
+    /** Where the repository was created, for diagnostics. */
+    val location: Path,
+    private val repository: Repository,
+    private val log: (String) -> Unit = {},
+) : AutoCloseable {
+
+    private val inserter: ObjectInserter =
+        (repository.objectDatabase as? ObjectDirectory)?.newPackInserter()
+            ?: repository.newObjectInserter()
+
+    /** Builds the braid's trees into this repository, deduplicating identical ones. */
+    fun treeAssembler(dissolveSubmodules: Boolean = false): TreeAssembler =
+        TreeAssembler(inserter, dissolveSubmodules)
+
+    /**
+     * Fetches everything reachable from [refs] in [source] into this repository, parking the refs
+     * themselves under [FETCH_NAMESPACE].
+     *
+     * This is how the output gets the inputs' objects — everything [refs] reach, in one transfer
+     * per input.
+     * The trees and blobs come across because the braid's new root trees point straight at them; the
+     * commits come across because a fetch cannot leave them out, and because moving their bytes is
+     * the only way an original sha survives, which is what `--keep-remotes` points its
+     * `refs/remotes/<repo>/` refs at.
+     *
+     * A fetch rather than an object-by-object copy for two reasons that were measured on a
+     * three-repository history of 14 387 commits and 139 MB of inputs, a corpus outside this
+     * tree: it is roughly 2.5x faster than walking the inputs and feeding every tree and
+     * blob to an [ObjectInserter], and the sending side deltifies what it sends, where the
+     * inserter can only store each object whole — 97 MB against 221 MB for the same content.
+     *
+     * [refs] narrows the transfer to the refs the graph was read from, so `-b` keeps out history
+     * this run never meant to include; a ref pointing at an object that is not there is a broken
+     * repository, and so is a repository holding history nobody asked for. The one addition is a
+     * `--notes` run's notes refs, whose own history comes along and stays unreferenced; see
+     * [SourceInputs.noteRefs] for why they are fetched at all.
+     *
+     * @return how many refs were fetched.
+     */
+    fun fetchFrom(
+        source: SourceRepository,
+        refs: List<String>,
+        /** Where JGit reports the transfer; the default discards it, as this did for its whole life. */
+        monitor: ProgressMonitor = NullProgressMonitor.INSTANCE,
+        /** What tells this input's parked refs from another's: unique among the inputs fetched. */
+        key: String = source.name,
+    ): Int {
+        if (refs.isEmpty()) return 0
+        val specs = refs.map { RefSpec("+$it:" + fetchedName(key, it)) }
+        // The absolute path rather than the one the caller gave, because `-C` has already moved the
+        // working directory by the time the rest of the line is read: a relative source would be
+        // resolved against the output and the command would not run. Not normalized: a `..` past a
+        // symlink is the filesystem's, and dropping it as text would fetch from a directory other
+        // than the one the input was read from. Every refspec, too, rather than a count of them —
+        // which refs were asked for is the whole question when a commit is missing from the
+        // output, and eliding them says no more than the phase heading already did.
+        val from = source.location.toAbsolutePath()
+        log("git -C $location fetch --no-tags $from ${specs.joinToString(" ")}")
+        try {
+            // java.io.File spells a path as the single-slash `file:/…` URI that URIish parses back
+            // into a plain local path on both platforms, escaping included — a Windows drive letter
+            // survives it where `Path.toUri()`'s `file:///C:/…` is read as a host named C.
+            val uri = URIish(from.toFile().toURI().toString())
+            Transport.open(repository, uri).use { transport ->
+                // Every ref that matters is named in `specs`. Auto-following would add whatever tags
+                // the input has beyond them, which is the widening the refspec exists to prevent.
+                transport.tagOpt = TagOpt.NO_TAGS
+                transport.fetch(monitor, specs)
+            }
+        } catch (e: IOException) {
+            // JGit's TransportException and NotSupportedException are both IOExceptions, so this is
+            // the whole of what a fetch can fail with — bar an unparseable location, which Kotlin
+            // would otherwise let past unnoticed and the CLI would report as a stack trace.
+            throw fetchFailed(source, e)
+        } catch (e: URISyntaxException) {
+            throw fetchFailed(source, e)
+        }
+        return refs.size
+    }
+
+    private fun fetchFailed(source: SourceRepository, cause: Exception) = IllegalStateException(
+        "could not fetch '${source.name}' from ${source.location} into $location: ${cause.message}",
+        cause,
+    )
+
+    /**
+     * Deletes the refs [fetchFrom] parked and returns how many.
+     *
+     * A fetch with no destination would bring the objects as well. The refs are parked because a
+     * fetch tells the sending side which commits it already has by the refs it holds, and the refs
+     * an earlier input parked are what lets the next input's fetch leave out the history the two
+     * share: a clone of a repository braided beside a fork of it one commit ahead took 1.1 MB with
+     * them and 2.2 MB without, the shared history sent twice. The refs the output keeps are the
+     * braid's own, written by `BraidWriter`.
+     * Deleting the parked refs leaves the inputs' original commits unreferenced in the pack —
+     * 3 MB of the 97 on the corpus [fetchFrom] was measured on, which `git gc --prune=now` reclaims
+     * and whose tips `git fsck` reports as `dangling commit` until it does — but for those a
+     * `--keep-remotes` mirror under `refs/remotes/` still reaches.
+     * Each annotated tag's original object is left unreferenced either way, and reported as
+     * `dangling tag`: the writer tags the braided commit afresh.
+     */
+    fun dropFetchRefs(): Int {
+        val fetched = repository.refDatabase.getRefsByPrefix(FETCH_NAMESPACE)
+        for (ref in fetched) {
+            log("git -C $location update-ref -d ${ref.name}")
+            val update = repository.updateRef(ref.name).apply { isForceUpdate = true }
+            val result = update.delete()
+            check(result in ACCEPTED) { "could not delete ${ref.name} in $location: $result" }
+        }
+        return fetched.size
+    }
+
+    /**
+     * Writes [text] as a blob and returns its id.
+     *
+     * The output's content is otherwise the inputs' own objects, brought over by [fetchFrom], so
+     * this exists for the one file the braid has to invent: the root `.gitmodules` of
+     * [SubmoduleWiring]. Git stores a blob as bytes and this one is text, so the encoding is
+     * settled here rather than at the call site — UTF-8, which is what git itself assumes of a
+     * `.gitmodules`.
+     */
+    fun writeBlob(text: String): ObjectId =
+        inserter.insert(Constants.OBJ_BLOB, text.toByteArray(Charsets.UTF_8))
+
+    /**
+     * Writes a tree with exactly [entries] and returns its id.
+     *
+     * Sorted here rather than by the caller: [TreeFormatter] writes entries in the order it is given
+     * them, and a tree in any other order is one `git fsck` rejects. [TreeAssembler] builds the
+     * braid's own trees and does its own sorting; this is for the flat trees nothing else assembles
+     * — a notes tree, keyed by sha.
+     */
+    fun writeTree(entries: List<TreeEntry>): ObjectId {
+        val sorted = entries.sortedWith(TreeAssembler.GIT_TREE_ORDER)
+        val formatter = TreeFormatter(sorted.size)
+        for (entry in sorted) formatter.append(entry.name, entry.mode, entry.id)
+        return inserter.insert(formatter)
+    }
+
+    /** Writes a commit object and returns its id. */
+    fun writeCommit(
+        tree: ObjectId,
+        parents: List<ObjectId>,
+        author: PersonIdent,
+        committer: PersonIdent,
+        message: String,
+    ): ObjectId {
+        val builder = CommitBuilder().apply {
+            // JGit pairs getTreeId(): ObjectId with setTreeId(AnyObjectId), so Kotlin sees a
+            // read-only property plus a setter method: the property-access syntax the inspection
+            // suggests does not compile.
+            @Suppress("UsePropertyAccessSyntax")
+            setTreeId(tree)
+            setParentIds(parents)
+            this.author = author
+            this.committer = committer
+            setMessage(message)
+        }
+        return inserter.insert(builder)
+    }
+
+    /**
+     * Writes an annotated tag object pointing at [target] and returns its id. [name] is the tag's
+     * final (prefixed) name, so the name inside the object and the name of the ref agree.
+     */
+    fun writeAnnotatedTag(
+        name: String,
+        target: ObjectId,
+        tagger: PersonIdent?,
+        message: String,
+    ): ObjectId {
+        val builder = TagBuilder().apply {
+            setObjectId(target, Constants.OBJ_COMMIT)
+            tag = name
+            setTagger(tagger)
+            setMessage(message)
+        }
+        return inserter.insert(builder)
+    }
+
+    /** Makes every object written so far visible to readers. Must precede any ref update. */
+    fun flushObjects() = inserter.flush()
+
+    /** Points [refName] (a full name such as `refs/heads/main`) at [target]. */
+    fun point(refName: String, target: ObjectId) {
+        require(isRefName(refName)) { "'$refName' is not a valid ref name" }
+        log("git -C $location update-ref $refName ${target.name}")
+        val update = repository.updateRef(refName).apply {
+            // getNewObjectId(): ObjectId against setNewObjectId(AnyObjectId) — same asymmetry as
+            // above: assigning through the property does not compile.
+            @Suppress("UsePropertyAccessSyntax")
+            setNewObjectId(target)
+            isForceUpdate = true
+        }
+        val result = update.update()
+        check(result in ACCEPTED) { "could not write $refName in $location: $result" }
+    }
+
+    /** Points `HEAD` at `refs/heads/[branch]`, whether or not that branch exists yet. */
+    fun setHead(branch: String) {
+        val target = Constants.R_HEADS + branch
+        require(isRefName(target)) { "'$branch' is not a valid branch name" }
+        log("git -C $location symbolic-ref ${Constants.HEAD} $target")
+        val result = repository.updateRef(Constants.HEAD, true).link(target)
+        check(result in ACCEPTED) { "could not point HEAD at $target in $location: $result" }
+    }
+
+    override fun close() {
+        inserter.close()
+        repository.close()
+    }
+
+    companion object {
+
+        /**
+         * Where [fetchFrom] parks the refs it fetches, laid out as `<key>/<the input's own ref>`, the
+         * key being the input's position among the inputs, which no two share where a name may be.
+         *
+         * Its own corner of the ref space rather than `refs/remotes/`, because these refs are not
+         * the output's: they exist for the length of the transfer and [dropFetchRefs] removes every
+         * one of them. Keeping the input's own `heads/…` and `tags/…` split is what stops a branch
+         * and a tag of the same name from colliding on the way in.
+         */
+        const val FETCH_NAMESPACE = "refs/timebraid-fetch/"
+
+        /** Where the input's [ref] (a full name) lands while the fetch is running, under [key]. */
+        private fun fetchedName(key: String, ref: String): String =
+            FETCH_NAMESPACE + key + "/" + ref.removePrefix(Constants.R_REFS)
+
+        /**
+         * Whether git accepts [refName] as the full name of a ref, and this platform can hold it.
+         *
+         * JGit's [Repository.isValidRefName] applies git's rules but one: it refuses `.lock` only at
+         * the end of the whole name, where git refuses it at the end of every component
+         * (git-check-ref-format(1)). A ref JGit writes past that is one git does not see:
+         * `git tag` lists no `refs/tags/a.lock/v1`, and `git check-ref-format` rejects the name.
+         *
+         * It adds the platform's own rules, since a loose ref is a file: on Windows a component
+         * other than the last ending in `.`, one named like a device with or without an extension
+         * (`con`, `aux.x`, `com1`), or one holding a `"`, `<`, `>` or `|` is refused, though git's
+         * own rules take it.
+         */
+        fun isRefName(refName: String): Boolean =
+            Repository.isValidRefName(refName) && refName.split('/').none { it.endsWith(".lock") }
+
+        private val ACCEPTED = setOf(
+            RefUpdate.Result.NEW,
+            RefUpdate.Result.FORCED,
+            RefUpdate.Result.NO_CHANGE,
+            RefUpdate.Result.FAST_FORWARD,
+        )
+
+        /**
+         * Creates (or reopens, with [force]) a repository at [location], bare by default.
+         *
+         * Without [force] the location must not exist, or must be an empty directory: overwriting
+         * refs in a repository somebody else is using is not something to do by accident. Nothing is
+         * ever deleted here — [force] only permits writing *into* what is already there, so a
+         * location that exists and is not a directory is refused with or without it.
+         *
+         * When [bare] is `false`, [location] becomes the working tree and its `.git` the git
+         * directory; the working tree is left empty here — the caller checks the mainline out through
+         * the git CLI once every object has been flushed.
+         */
+        fun create(
+            location: Path,
+            initialBranch: String,
+            force: Boolean = false,
+            bare: Boolean = true,
+            log: (String) -> Unit = {},
+        ): TargetRepository {
+            val gitDir = gitDirOf(location, bare)
+            val existingRepository = RepositoryCache.FileKey.isGitRepository(gitDir, FS.DETECTED)
+            // Asked again, though the command line asked first: the directory can fill between the
+            // two, and a caller other than the command line has asked nothing.
+            refusal(location, force, bare, creatable = false)?.let { throw IllegalArgumentException(it) }
+
+            val builder = FileRepositoryBuilder().setGitDir(gitDir)
+            if (!bare) builder.setWorkTree(location.toFile())
+            val repository = builder.build()
+            if (!existingRepository) {
+                try {
+                    repository.create(bare)
+                } catch (e: IOException) {
+                    // JGit's message names the path it failed on, made absolute: the git directory (the
+                    // location itself when bare) or something inside it. The location as given is the one
+                    // the user can act on.
+                    repository.close()
+                    throw IllegalArgumentException(
+                        "cannot create the output at '$location': ${e.message}",
+                        e,
+                    )
+                }
+                configureForRewriting(repository)
+            }
+            val target = TargetRepository(location, repository, log)
+            target.setHead(initialBranch)
+            return target
+        }
+
+        /**
+         * Why [location] cannot become the output, or `null` when nothing here says it cannot —
+         * asked without creating anything, so that the command line asks it before the inputs are
+         * read, and a dry run with it. The rules are [create]'s.
+         *
+         * @param creatable whether a location that does not exist is asked whether it can be
+         *   created: whether its nearest existing ancestor is a directory this process may write
+         *   into. [create] leaves that to the creation itself, whose failure names the directory.
+         */
+        fun refusal(location: Path, force: Boolean, bare: Boolean, creatable: Boolean = true): String? {
+            // An empty path is the working directory to `Path` and nothing at all to `File`, so the
+            // questions below would be asked of the working directory's parent.
+            if (location.toString().isEmpty()) return "an empty location names no directory for the output"
+            val file = location.toFile()
+            if (file.exists()) {
+                if (!file.isDirectory) return "$location exists and is not a directory"
+                val existingRepository = RepositoryCache.FileKey.isGitRepository(gitDirOf(location, bare), FS.DETECTED)
+                val occupied = existingRepository || (file.list()?.isNotEmpty() ?: false)
+                return if (occupied && !force) {
+                    "$location already exists and is not empty; pass --force to write into it"
+                } else {
+                    null
+                }
+            }
+            if (!creatable) return null
+            var parent = location.toAbsolutePath().parent
+            while (parent != null && !Files.exists(parent)) parent = parent.parent
+            return when {
+                parent == null -> null
+                !Files.isDirectory(parent) -> "cannot create the output at '$location': $parent is not a directory"
+                !Files.isWritable(parent) -> "cannot create the output at '$location': $parent is not writable"
+                else -> null
+            }
+        }
+
+        /** The git directory a [bare] or non-bare output at [location] has. */
+        private fun gitDirOf(location: Path, bare: Boolean) =
+            if (bare) location.toFile() else location.resolve(Constants.DOT_GIT).toFile()
+
+        /**
+         * Pins line-ending handling off in the output's own config.
+         *
+         * Blobs are copied byte for byte from the inputs, so any translation on the way to a working
+         * tree would silently disagree with what the original repositories contain. This matters
+         * directly for a `--no-bare` output and travels with a bare one to whoever later adds a
+         * working tree.
+         */
+        private fun configureForRewriting(repository: Repository) {
+            val config = repository.config
+            config.setBoolean("core", null, "autocrlf", false)
+            config.setString("core", null, "eol", "lf")
+            config.save()
+        }
+    }
+}
