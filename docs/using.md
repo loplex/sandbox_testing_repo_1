@@ -321,8 +321,8 @@ on the right](images/window.png)
   A command line it cannot read is said the same way.
 - **A photo is scaled down to 1280 pixels** for the view, as the app's is.
 - **Open a photo or a video opens another one** from the system's dialog, which starts in the folder
-  of the file shown; the o key opens the dialog too, as it opens the desktop program's, and a file
-  dropped anywhere on the window opens as well.
+  of the file shown; Ctrl+O opens the dialog too, and a file dropped anywhere on the window opens
+  as well.
 - **On Linux the dialog is kdialog's on KDE and zenity's elsewhere**, whichever of the two is
   installed, and Java's own where neither is: Java's comes up behind the window on KDE from its
   second opening on.
@@ -330,11 +330,22 @@ on the right](images/window.png)
   panel's [*Camera*](#the-camera-and-its-mirroring) picks another, or *Off*.
 - **The cameras are listed again as the panel's list drops down**, so that one plugged in since
   shows; on Windows, where ffmpeg lists them, they come a moment after it opens.
-- **F9 or the arrow at the images' edge hides the controls**, and the images take their room, as F9
-  does in the desktop program's window; the same again shows them.
-- **q or Escape closes it**, as it closes the desktop program's window, but for while a list is
-  dropped down, which then takes the key.
-- **It has no menus, no settings, no snapshots and no recording yet.**
+- **F9 or the arrow at the images' edge hides the controls**, and the images take their room; the
+  same again shows them.
+- **Ctrl+Q closes it**, but for while a list is dropped down, which then takes the key.
+- **Escape closes a list dropped down or a menu open, and not the window.**
+- **A menu bar holds what the panel holds**: *File* holds the window's commands, opening a photo or
+  a video, the camera and quitting among them, and *Camera*, *Species*, *Simulation*, *Acuity*,
+  *View* and *Language* hold the panel's controls.
+- **A slider is a menu of fixed values**: 0, 25, 50, 75 and 100 % for the adaptation and the
+  strength, and 10°, 30°, 60°, 90° and 120° for the angle the image spans; the panel's slider still
+  sets any.
+- **Ctrl+M turns side by side on or off, Ctrl+D the map of differences, and Ctrl+0 resets**, as
+  Ctrl+0 resets a zoom; the menus show each key beside its entry, and a key does nothing while its
+  entry is disabled.
+- **The keys follow the desktop's conventions**: Ctrl+O to open, Ctrl+Q to quit, and F9 for the
+  controls at the side, as KDE's programs show and hide their side panel.
+- **It has no settings, no snapshots and no recording yet.**
 
 ### The same window in Swing: `dog-vision-swing`
 
