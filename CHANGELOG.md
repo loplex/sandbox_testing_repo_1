@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The greeting ends in a full stop.
+
+### Removed
+
+[//]: # (still nothing removed)
+
 ## [0.1.0-beta.1] - 2026-10-08
 
 ### Added
