@@ -56,8 +56,8 @@ sealed interface Converted {
 
 /**
  * The photo or the video [file] converted at full size to [view], into [convertedFile]'s file in [outputDir] or next
- * to it, as the Python program converts: a photo by core, a video frame by frame, each as a photo is, the scene's mean
- * taken again for each, into an .mp4 of the best encoder ffmpeg has here, with the original's sound.
+ * to it: a photo by core, a video frame by frame, each as a photo is, the scene's mean taken again for each, into an
+ * .mp4 of the best encoder ffmpeg has here, with the original's sound.
  *
  * [run] converts on the thread that calls it; [cancel], from any thread, stops it and removes the unfinished file.
  */

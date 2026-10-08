@@ -133,8 +133,8 @@ class VideoTest {
     }
 
     /**
-     * Each frame one colour, so that 4:2:0's halved colour does not blur an edge: within 2 of 255, as the Python
-     * program's test holds it, an odd size padded to an even one. libx265 3.5 crashes on some videos much smaller.
+     * Each frame one colour, so that 4:2:0's halved colour does not blur an edge: within 2 of 255, an odd size padded
+     * to an even one. libx265 3.5 crashes on some videos much smaller.
      */
     @Test
     fun framesWrittenComeBackInTheirColoursWithTheSound() {

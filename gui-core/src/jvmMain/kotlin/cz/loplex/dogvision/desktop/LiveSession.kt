@@ -37,9 +37,9 @@ import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
 /**
- * What a desktop window shows and does, in no toolkit, as the Python program's `LiveSession` holds it: the source, the
- * cameras and their mirroring, the view, the language, what failed, and the pictures [renderer] draws; each window only
- * lays it out, so that the Compose window and the Swing one cannot drift apart.
+ * What a desktop window shows and does, in no toolkit: the source, the cameras and their mirroring, the view, the
+ * language, what failed, and the pictures [renderer] draws; each window only lays it out, so that the Compose window
+ * and the Swing one cannot drift apart.
  *
  * Its methods are called on the AWT event thread, and its flows change only there, through [post]: Compose Desktop
  * composes on that thread, and Swing collects on it. It starts on what [arguments] ask for, as the window does.
@@ -236,7 +236,7 @@ class LiveSession<I>(
     /** Words the window in [language], a language tag, or in the system's language for "". */
     override fun setLanguage(language: String) = change { copy(language = language, texts = textsIn(language)) }
 
-    /** Hides the panel of controls if it is shown, and shows it if not, as the Python window's F9 does. */
+    /** Hides the panel of controls if it is shown, and shows it if not, as F9 does. */
     fun togglePanel() = change { copy(panelShown = !panelShown) }
 
     /**
