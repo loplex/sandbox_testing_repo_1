@@ -1,7 +1,8 @@
 package cz.loplex.dogvision.desktop
 
-import cz.loplex.dogvision.cli.ViewOptions
+import cz.loplex.dogvision.common.ViewOptions
 import cz.loplex.dogvision.core.CameraOption
+import cz.loplex.dogvision.core.ClockTime
 import cz.loplex.dogvision.core.Facing
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Mirroring
@@ -9,15 +10,23 @@ import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
+import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.ffmpeg.FfmpegInstall
 import cz.loplex.dogvision.ffmpeg.FfmpegPrograms
+import cz.loplex.dogvision.texts.MenuEntry
+import cz.loplex.dogvision.texts.MenuKey
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
+import cz.loplex.dogvision.texts.press
+import org.junit.jupiter.api.io.TempDir
+import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.ByteBuffer
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -60,8 +69,52 @@ class LiveSessionTest {
 
         override fun setArea(area: Area) = Unit
 
+        /** What the renderer has composed, which it hands over when asked; null while nothing is. */
+        var composed: List<Image>? = null
+
+        override fun readImages(onImages: (List<Image>?) -> Unit) = onImages(composed)
+
+        /** Who records the images, handed them at once, as the renderer does. */
+        var recorder: ((List<Image>) -> Unit)? = null
+
+        override fun record(onImages: ((List<Image>) -> Unit)?) {
+            recorder = onImages
+            composed?.let { onImages?.invoke(it) }
+        }
+
         override fun close() {
             log += "renderer closed"
+        }
+    }
+
+    @TempDir
+    lateinit var directory: File
+
+    private val settings get() = File(directory, "config/dog-vision/settings.json")
+
+    /** The monotonic clock a recording is timed by, and what ticks its status every second. */
+    private val nanos = AtomicLong()
+    private var tick: (() -> Unit)? = null
+
+    /** The frames each recording wrote, by its file, and whether it was finished. */
+    private val recorded: MutableMap<String, MutableList<Int>> = Collections.synchronizedMap(mutableMapOf())
+    private val finished: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    private val recordingSink = { output: File, _: Int, _: Int ->
+        val frames = recorded.getOrPut(output.name) { Collections.synchronizedList(mutableListOf()) }
+        object : RecordingSink {
+            override val format = "H.264"
+            override val encoder = "libx264"
+
+            override fun write(pixels: IntArray) {
+                frames += pixels[0]
+            }
+
+            override fun close() {
+                finished += output.name
+            }
+
+            override fun abort() = Unit
         }
     }
 
@@ -115,6 +168,14 @@ class LiveSessionTest {
         wingetFound = wingetFound,
         post = { it() },
         systemLanguages = { listOf("en") },
+        settingsFile = settings,
+        clock = { ClockTime(2026, 10, 8, 9, 5, 7) },
+        openRecording = recordingSink,
+        nanoTime = nanos::get,
+        everySecond = { ticks ->
+            tick = ticks
+            AutoCloseable { tick = null }
+        },
     )
 
     @Test
@@ -473,7 +534,211 @@ class LiveSessionTest {
         assertEquals(Mirroring.MIRROR, session.state.value.camera.mirroring)
     }
 
+    @Test
+    fun theWindowsMenusOpenQuitAndHoldThePanelAndItsToggle() {
+        val session = session()
+        var opened = 0
+        var quit = 0
+        fun menus() = session.menus(session.state.value, open = { opened++ }, chooseOutputDir = {}, quit = { quit++ })
+        assertEquals(
+            listOf("File", "Camera", "Species", "Simulation", "Acuity", "View", "Language"),
+            menus().map { it.label },
+        )
+        assertTrue(menus().press(MenuKey.OPEN))
+        assertTrue(menus().press(MenuKey.QUIT))
+        assertEquals(1 to 1, opened to quit)
+        assertTrue(menus().press(MenuKey.CONTROLS))
+        assertFalse(session.state.value.panelShown)
+        assertTrue(menus().press(MenuKey.SIDE_BY_SIDE))
+        assertFalse(session.state.value.view.sideBySide)
+        val camera = menus().first().entries.filterIsInstance<MenuEntry.Action>().single { it.label == "Camera" }
+        camera.onSelect()
+        assertTrue(session.state.value.source is Source.Camera)
+        session.setLanguage("cs")
+        assertEquals("Soubor", menus().first().label)
+    }
+
+    @Test
+    fun aSnapshotIsTheViewsImagesSideBySideNamedAfterTheSpeciesAndTheTime() {
+        val folder = File(directory, "shots")
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = folder))
+        val left = Image(2, 1, intArrayOf(rgb(200, 10, 255), rgb(0, 128, 64)))
+        val right = Image(2, 1, intArrayOf(rgb(1, 2, 3), rgb(250, 251, 252)))
+        renderer.composed = listOf(left, right)
+        assertTrue(session.menus(session.state.value, {}, {}, {}).press(MenuKey.SNAPSHOT))
+        val file = File(folder, "dog-dog-20261008-090507.png")
+        val written = ImageIO.read(file)
+        assertEquals(4 to 1, written.width to written.height)
+        val expected = (left.pixels.toList() + right.pixels.toList()).map { it or 0xFF000000.toInt() }
+        assertEquals(expected, written.getRGB(0, 0, 4, 1, null, 0, 4).toList())
+        val status = checkNotNull(session.state.value.status)(Texts.of("en"))
+        assertEquals("Saved ${file.name} to $folder", status)
+    }
+
+    @Test
+    fun beforeAnythingIsComposedThereIsNothingToSave() {
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory))
+        session.saveSnapshot()
+        assertEquals("Nothing to save yet", session.state.value.status?.invoke(Texts.of("en")))
+        assertEquals(emptyList(), directory.listFiles { file -> file.extension == "png" }?.toList())
+    }
+
+    @Test
+    fun theOutputFolderIsTheCommandLinesThenTheSettingsThenTheWorkingFolder() {
+        assertEquals(File("").absoluteFile, session().state.value.outputDir)
+        writeSettings(settings, Settings(File(directory, "kept")))
+        assertEquals(File(directory, "kept"), session().state.value.outputDir)
+        val named = File(directory, "named")
+        assertEquals(named, session(WindowArguments(outputDir = named)).state.value.outputDir)
+    }
+
+    @Test
+    fun aFolderChosenIsKeptForTheNextRun() {
+        val session = session(WindowArguments(outputDir = File(directory, "named")))
+        val chosen = File(directory, "chosen")
+        session.setOutputDir(chosen)
+        assertEquals(chosen, session.state.value.outputDir)
+        assertEquals(Settings(chosen), readSettings(settings))
+        assertEquals("Snapshots and recordings go to $chosen", session.state.value.status?.invoke(Texts.of("en")))
+        assertEquals(chosen, session().state.value.outputDir)
+    }
+
+    @Test
+    fun settingsThatCannotBeSavedAreSaidAndTheFolderIsStillUsed() {
+        File(directory, "config").writeText("a file where the folder should be")
+        val session = session()
+        val chosen = File(directory, "chosen")
+        session.setOutputDir(chosen)
+        assertEquals(chosen, session.state.value.outputDir)
+        val status = session.state.value.status?.invoke(Texts.of("en")).orEmpty()
+        assertTrue(status.startsWith("Cannot save the settings: "), status)
+    }
+
+    @Test
+    fun theStatusBarNamesTheFileOrTheCamera() {
+        val texts = Texts.of("en")
+        assertEquals("a.jpg", session().state.value.sourceName(texts))
+        val camera = session(WindowArguments())
+        assertEquals("Integrated Camera", camera.state.value.sourceName(texts))
+    }
+
+    @Test
+    fun aRecordingIsTimedAndSavedAndSaysHow() {
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory))
+        renderer.composed = listOf(Image(2, 1, intArrayOf(1, 2)), Image(2, 1, intArrayOf(3, 4)))
+        val texts = Texts.of("en")
+        assertTrue(session.menus(session.state.value, {}, {}, {}).press(MenuKey.RECORD))
+        assertTrue(session.state.value.recording)
+        val name = "dog-dog-20261008-090507.mp4"
+        assertEquals("Recording $name: 0:00", session.state.value.recordingStatus?.invoke(texts))
+        Thread.sleep(SETTLE_MILLIS)
+        nanos.set(65 * SECOND)
+        checkNotNull(tick)()
+        assertEquals("Recording $name: 1:05", session.state.value.recordingStatus?.invoke(texts))
+        session.toggleRecording()
+        assertFalse(session.state.value.recording)
+        assertEquals(listOf(name), finished.toList())
+        assertEquals(65 * RECORDING_FPS, recorded.getValue(name).size)
+        assertEquals(setOf(1), recorded.getValue(name).toSet())
+        assertEquals(
+            "Saved $name to $directory: H.264 (libx264)",
+            session.state.value.recordingStatus?.invoke(texts),
+        )
+        assertNull(renderer.recorder)
+        assertNull(tick)
+    }
+
+    @Test
+    fun whileRecordingNothingChangesTheVideosSize() {
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory))
+        renderer.composed = listOf(Image(1, 1, intArrayOf(1)), Image(1, 1, intArrayOf(2)))
+        session.toggleRecording()
+        log.clear()
+        session.openFile(File("b.jpg"))
+        session.openCamera()
+        session.chooseCamera(cameras.first())
+        session.changeView { it.copy(sideBySide = false) }
+        session.changeView { it.copy(difference = true) }
+        assertEquals(emptyList(), log.toList())
+        assertTrue(session.state.value.view.sideBySide)
+        assertFalse(session.state.value.view.difference)
+        session.changeView { it.copy(params = it.params.copy(species = Species.CAT)) }
+        assertEquals(Species.CAT, session.state.value.view.params.species)
+        val menus = session.menus(session.state.value, {}, {}, {})
+        assertFalse(menus.press(MenuKey.OPEN))
+        assertFalse(menus.press(MenuKey.SIDE_BY_SIDE))
+        session.toggleRecording()
+        session.openFile(File("b.jpg"))
+        assertEquals(
+            listOf("close a.jpg", "start b.jpg"),
+            log.filter {
+                it.startsWith("close") || it.startsWith("start")
+            },
+        )
+    }
+
+    @Test
+    fun aRecordingWithoutAFrameSaysItFailed() {
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory))
+        session.toggleRecording()
+        session.toggleRecording()
+        assertEquals(
+            "Recording failed: No frame was shown while recording",
+            session.state.value.recordingStatus?.invoke(Texts.of("en")),
+        )
+    }
+
+    @Test
+    fun closingTheWindowFinishesTheRecording() {
+        val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory))
+        renderer.composed = listOf(Image(1, 1, intArrayOf(5)))
+        session.toggleRecording()
+        Thread.sleep(SETTLE_MILLIS)
+        session.close()
+        assertEquals(listOf("dog-dog-20261008-090507.mp4"), finished.toList())
+    }
+
+    @Test
+    fun theFileShownIsConvertedNextToItOrIntoTheOutputFolder() {
+        val photo = File(directory, "photo.png")
+        val pixels = BufferedImage(4, 2, BufferedImage.TYPE_INT_RGB)
+        ImageIO.write(pixels, "png", photo)
+        val out = File(directory, "out")
+        val session = session(WindowArguments(file = photo, outputDir = out))
+        val texts = Texts.of("en")
+        assertTrue(session.menus(session.state.value, {}, {}, {}).press(MenuKey.CONVERT))
+        val beside = File(directory, "photo.dog.png")
+        assertTrue(beside.isFile)
+        assertFalse(session.state.value.converting)
+        assertEquals("Wrote $beside", session.state.value.conversionStatus?.invoke(texts))
+        session.setConvertToOutputDir(true)
+        assertTrue(readSettings(settings).convertToOutputDir)
+        session.convertSource()
+        assertTrue(File(out, "photo.dog.png").isFile)
+        assertTrue(session().state.value.convertToOutputDir)
+    }
+
+    @Test
+    fun aFileThatCannotBeConvertedSaysWhy() {
+        val text = File(directory, "notes.txt").apply { writeText("no photo") }
+        val session = session(WindowArguments(file = text))
+        session.convertSource()
+        val status = session.state.value.conversionStatus?.invoke(Texts.of("en")).orEmpty()
+        assertTrue(status.startsWith("Cannot ") && "notes.txt" in status, status)
+        assertFalse(File(directory, "notes.dog.png").exists())
+    }
+
+    @Test
+    fun theCameraIsNotConverted() {
+        val session = session(WindowArguments())
+        assertFalse(session.menus(session.state.value, {}, {}, {}).press(MenuKey.CONVERT))
+        session.convertSource()
+        assertNull(session.state.value.conversionStatus)
+    }
+
     private companion object {
         const val WAIT_SECONDS = 10L
+        const val SECOND = 1_000_000_000L
+        const val SETTLE_MILLIS = 200L
     }
 }

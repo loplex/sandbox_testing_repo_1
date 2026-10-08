@@ -1,9 +1,9 @@
 package cz.loplex.dogvision.desktop
 
-import cz.loplex.dogvision.cli.UsageException
-import cz.loplex.dogvision.cli.ViewOptions
-import cz.loplex.dogvision.cli.readCommandLine
-import cz.loplex.dogvision.cli.usage
+import cz.loplex.dogvision.common.UsageException
+import cz.loplex.dogvision.common.ViewOptions
+import cz.loplex.dogvision.common.readCommandLine
+import cz.loplex.dogvision.common.usage
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.texts.Str
 import cz.loplex.dogvision.texts.Texts
@@ -23,9 +23,11 @@ data class WindowArguments(
     val view: ViewOptions = ViewOptions(),
     /** How the window draws on Windows; null for ANGLE, and WGL where ANGLE cannot start. */
     val windowsGl: WindowsGl? = null,
+    /** Where snapshots and recordings go, in place of the folder the settings keep, until another is chosen. */
+    val outputDir: File? = null,
     val help: Boolean = false,
 ) {
-    /** The view the window starts with: side by side, as the Python window starts. */
+    /** The view the window starts with: side by side. */
     val windowView: View
         get() = View(view.params, sideBySide = true, compare = view.compare, difference = view.difference)
 }
@@ -46,6 +48,7 @@ fun parseWindowArguments(args: List<String>): WindowArguments =
             "-h", "--help" -> option.flag().let { copy(help = true) }
             "--camera" -> copy(camera = camera(option.name, option.value()))
             "--gl" -> copy(windowsGl = windowsGl(option.name, option.value()))
+            "--output-dir" -> copy(outputDir = File(option.value()))
             else -> view.read(option)?.let { copy(view = it) }
         }
     }
@@ -59,6 +62,7 @@ fun windowUsage(texts: Texts, command: String): String = usage(
     ViewOptions.usage(texts) + listOf(
         "--camera N" to texts.get(Str.USAGE_OPTION_CAMERA, WindowArguments().camera),
         "--gl API" to texts.get(Str.USAGE_OPTION_GL),
+        "--output-dir DIR" to texts.get(Str.USAGE_OPTION_WINDOW_OUTPUT_DIR),
         "-h, --help" to texts.get(Str.USAGE_OPTION_HELP),
     ),
 )

@@ -24,6 +24,7 @@ Building the programs is [Building it](building.md)'s.
 | [`app`](../app)                   | the Android app                            | Android             |
 | [`web`](../web)                   | the web page                               | JavaScript          |
 | [`cli`](../cli)                   | the command line                           | the JVM             |
+| [`jvm-common`](../jvm-common)     | what the command line and windows share    | the JVM             |
 | [`desktop-core`](../desktop-core) | what the desktop windows share             | the JVM             |
 | [`ffmpeg`](../ffmpeg)             | ffmpeg and ffprobe, found and run          | the JVM             |
 | [`desktop`](../desktop)           | the desktop window, in Compose             | the JVM             |
@@ -45,8 +46,8 @@ It holds:
 
 The root project declares the plugin, so these are on every module's build script classpath.
 
-- **`core` has no platform in it**: it holds what the desktop program's `dog_vision.core` holds,
-  less video and the window's session.
+- **`core` has no platform in it**: the species, the model and the image pipeline, with no video
+  and no window's session.
   The one part written for each platform is how a fact's number is rounded, in
   [`Facts.jvm.kt`](../core/src/jvmMain/kotlin/cz/loplex/dogvision/core/Facts.jvm.kt) and
   [`Facts.js.kt`](../core/src/jsMain/kotlin/cz/loplex/dogvision/core/Facts.js.kt), since JavaScript
@@ -63,24 +64,34 @@ The root project declares the plugin, so these are on every module's build scrip
 - **`ui`'s Compose Multiplatform 1.12 is Jetpack Compose 1.12**, and its Material 3 1.9 is androidx
   Material 3 1.4, the versions of the app's Compose BOM, so that the app runs one of each.
 - **The command line and the windows take options of their own**, and share the view's:
-  [`cli`'s `ViewOptions`](../cli/src/jvmMain/kotlin/cz/loplex/dogvision/cli/Arguments.kt) reads them
-  for both, and
+  [`jvm-common`'s `ViewOptions`](../jvm-common/src/jvmMain/kotlin/cz/loplex/dogvision/common/Options.kt)
+  reads them for both, and
   [`desktop-core`'s `runWindow`](../desktop-core/src/jvmMain/kotlin/cz/loplex/dogvision/desktop/WindowArguments.kt)
   answers a window's `--help` and a command line it cannot read, and opens the window on the rest.
 - **`desktop-core` has no toolkit in it**, neither Compose nor skiko: the GL contexts, the passes'
   renderer, ffmpeg's feeds, and the pixels read back handed to a function that makes the window's
   image of them.
-  Its `LiveSession` holds what a window shows, as the Python program's does, so that the Compose
+  Its `LiveSession` holds what a window shows, so that the Compose
   window and the Swing one only lay it out.
 - **`ffmpeg` finds ffmpeg and ffprobe and starts them**:
   on the PATH, where they were installed after a window started, or on Windows where a window
   downloaded them.
-  Through them it probes a video, reads its frames and writes an .mp4, for the command line.
+  Through them it probes a video, reads its frames and writes an .mp4, for a conversion.
 
 ### Which module uses which
 
-The modules stand in four layers, and a module's code uses only those below it or beside it in its
-own.
+The modules stand in six layers, each a band of the graphs, and a module's code uses only modules
+in the layers below its own:
+
+1. the foundations: `core`, the model, and `ffmpeg`, which uses no other module;
+2. what is built on the model: `gl`, `texts` and, for tests, `testing`;
+3. what the command line and the windows share: `jvm-common`;
+4. what the app and the windows are built on: `ui` and `desktop-core`;
+5. the programs;
+6. the packages: `packaging`, which takes the programs.
+
+A module may reach past a layer, as `app` reaches `core`.
+
 An arrow points from a module to one it uses:
 
 - **a thick arrow is `api`**: whatever uses the module gets the one it points at too;
@@ -95,39 +106,41 @@ What each module uses, less `texts` and the tests:
 ```mermaid
 graph TD
     subgraph programs [the programs]
-        app
+        cli
         desktop
+        app
         swing
         web
     end
-    subgraph shared [what the programs share]
-        ui
+    subgraph frames [what the app and the windows are built on]
         desktop-core
-        cli
-        ffmpeg
+        ui
     end
-    subgraph base [built on core]
-        testing
+    subgraph jvm [what the command line and the windows share]
+        jvm-common
+    end
+    subgraph services [built on the model]
         gl
     end
-    subgraph model [the model]
+    subgraph foundations [the foundations]
+        ffmpeg
         core
     end
-    cli ==> core
-    app --> gl
     gl --> core
-    desktop-core --> gl
-    swing --> desktop-core
-    desktop --> desktop-core
-    testing ==> core
-    desktop-core ==> cli
-    desktop-core ==> ffmpeg
-    cli --> ffmpeg
     desktop --> ui
-    web --> gl
-    app --> core
+    app --> gl
     web --> core
+    desktop --> desktop-core
+    desktop-core ==> ffmpeg
+    jvm-common ==> core
     app --> ui
+    swing --> desktop-core
+    desktop-core ==> jvm-common
+    desktop-core --> gl
+    web --> gl
+    cli --> jvm-common
+    jvm-common ==> ffmpeg
+    app --> core
     classDef program font-weight:bold
     class app,desktop,swing,web,cli program
 ```
@@ -137,29 +150,30 @@ What uses `texts`:
 ```mermaid
 graph TD
     subgraph programs [the programs]
-        web
         app
+        web
     end
-    subgraph shared [what the programs share]
+    subgraph frames [what the app and the windows are built on]
         ui
-        cli
-        ffmpeg
     end
-    subgraph base [built on core]
+    subgraph jvm [what the command line and the windows share]
+        jvm-common
+    end
+    subgraph services [built on the model]
         texts
     end
-    subgraph model [the model]
+    subgraph foundations [the foundations]
         core
     end
     app --> texts
     web --> texts
-    cli ==> texts
     ui ==> texts
-    ffmpeg --> texts
+    jvm-common ==> texts
     texts ==> core
-    programs ~~~ shared
+    programs ~~~ frames
+    frames ~~~ jvm
     classDef program font-weight:bold
-    class app,web,cli program
+    class app,web program
 ```
 
 What uses `testing`, in tests alone:
@@ -170,13 +184,13 @@ graph TD
         app
         web
     end
-    subgraph shared [what the programs share]
+    subgraph frames [what the app and the windows are built on]
         desktop-core
     end
-    subgraph base [built on core]
+    subgraph services [built on the model]
         testing
     end
-    subgraph model [the model]
+    subgraph foundations [the foundations]
         core
     end
     app -.-> testing
@@ -184,7 +198,7 @@ graph TD
     desktop-core -.-> testing
     testing ==> core
     core -.-> testing
-    programs ~~~ shared
+    programs ~~~ frames
     classDef program font-weight:bold
     class app,web program
 ```
@@ -212,13 +226,15 @@ graph TD
 
 - **`texts` has a graph of its own, as with it in the first one lines have to cross**, however the
   modules are placed:
-  `app`, `web`, and `cli` with `desktop-core`, are three that each reach the same three, `core`,
-  `gl` and `texts`, and no drawing on a plane joins three to three without a crossing.
-  Without `texts` the first graph could be drawn with none, but its layers still cost it one.
-- **`cli` is a program, in bold, and stands among what the programs share**, as `desktop-core`
-  uses it: the window's `main` is `cli`'s.
-- **`desktop` and `swing` reach `core` and `texts` through `desktop-core`**, which passes on `cli`
-  and, through it, the two `cli` uses.
+  `app`, `web`, and `jvm-common` with `desktop-core`, are three that each reach the same three,
+  `core`, `gl` and `texts`, and no drawing on a plane joins three to three without a crossing.
+  Without `texts` the first graph could be drawn with none.
+- **`jvm-common` holds what the command line and the windows share**: the view's options, which
+  each reads from its command line, a photo read as it is meant to be seen, and a photo or a
+  video converted at full size.
+- **`desktop`, `swing` and `cli` reach `core` and `texts` through what they share**: the windows
+  through `desktop-core`, which passes on `jvm-common`, and `cli` through `jvm-common`, which
+  passes on the two.
 - **`ui` passes on `texts`**, as its `text` and `InfoButton` take an entry of `texts`' `Str`.
 - **`packaging` has no code of its own**: it takes from the module that has them the JARs a Linux
   package installs, through `jvmRuntimeOf`, as a module takes a library's, each launcher of a
@@ -229,6 +245,7 @@ graph TD
   its code does not use `testing`.
 - **`./gradlew checkModuleGraph` holds the four graphs together to the modules' build files**, and
   runs in `check`: every arrow declared is drawn in one of them, and none is drawn that is not.
+  It holds the layers too: an arrow but a dotted one points into a band below its own.
 
 ### The view is rendered on the GPU, and a photo at full size on the CPU
 
@@ -253,11 +270,12 @@ The test classes' comments say what each of them holds.
 
 | Task                                        | Tests                                                |
 |---------------------------------------------|------------------------------------------------------|
-| `./gradlew :core:jvmTest`                   | the model, against the desktop program's values      |
+| `./gradlew :core:jvmTest`                   | the model, against the reference values              |
 | `./gradlew :core:allTests`                  | the same, and the JVM and Node.js agreeing           |
-| `./gradlew :texts:allTests`                 | every language having every string, and plurals      |
+| `./gradlew :texts:allTests`                 | every language's strings, plurals, system languages  |
 | `./gradlew :ui:jvmTest`                     | the shared controls, in Compose's test scene         |
-| `./gradlew :cli:jvmTest`                    | the options, EXIF, photo and video, the figures      |
+| `./gradlew :jvm-common:jvmTest`             | EXIF, photos read, converted files, progress, cancel |
+| `./gradlew :cli:jvmTest`                    | the options, photo and video, the figures            |
 | `./gradlew :desktop-core:jvmTest`           | the window's passes, GL contexts, ffmpeg, session    |
 | `./gradlew :ffmpeg:jvmTest`                 | finding ffmpeg, its download, video read and written |
 | `./gradlew :swing:jvmTest`                  | the Swing window's image, theme and a dropped file   |
@@ -269,8 +287,8 @@ The test classes' comments say what each of them holds.
   page's and the window's alike, through [`testing`](../testing)'s reference pattern.
 - **`:desktop-core:jvmTest` draws on this machine's GPU**, through EGL on Linux and through
   ANGLE and WGL on Windows, and runs the machine's `ffmpeg`.
-- **`:cli:jvmTest` and `:ffmpeg:jvmTest` run the machine's `ffmpeg` too**, to make the videos they
-  convert, read and write.
+- **`:cli:jvmTest`, `:jvm-common:jvmTest` and `:ffmpeg:jvmTest` run the machine's `ffmpeg` too**,
+  to make the videos they convert, read and write.
 - **`:web:jsTest` runs in headless Chrome, which renders WebGL 2 in software**, with SwiftShader, as
   [`karma.config.d/webgl.js`](../web/karma.config.d/webgl.js) tells it to.
   `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead,
@@ -327,9 +345,9 @@ in [`.editorconfig`](../.editorconfig):
 
 ### The JVM tests' coverage is measured, not required
 
-- **`./gradlew koverHtmlReport` writes which lines and branches the JVM tests reach**, as the Python
-  program's `pytest --cov` lists them, for `cli`, `core`, `desktop`, `desktop-core`, `ffmpeg`, `gl`,
-  `swing`, `texts` and `ui`, in one report: `build/reports/kover/html/index.html`.
+- **`./gradlew koverHtmlReport` writes which lines and branches the JVM tests reach**, for `cli`,
+  `core`, `desktop`, `desktop-core`, `ffmpeg`, `gl`, `jvm-common`, `swing`, `texts` and `ui`, in one
+  report: `build/reports/kover/html/index.html`.
 - **Nothing fails on coverage**: the report is there to find what no test reaches.
 - **The web page's and the app's tests are not measured**: they run in a browser and on a device,
   which [Kover](https://github.com/Kotlin/kotlinx-kover) does not reach.
@@ -417,8 +435,12 @@ where Direct3D 11 is switched off, and the command line.
   one of them turned as a phone held upright records, and one too small for Qualcomm's hardware
   decoder.
   With the same ffmpeg, it writes the same bytes each time it runs.
-- **[`tools/reference_values.py`](../tools/reference_values.py) writes the reference values** in
-  [`core/src/jvmTest/resources`](../core/src/jvmTest/resources) from a checkout of the desktop
-  program: its matrices, RNL factors and neutral points, images it renders from a test pattern, and
-  the facts of every species.
+- **[`tools/reference/reference_values.py`](../tools/reference/reference_values.py) writes the
+  reference values** in [`core/src/jvmTest/resources`](../core/src/jvmTest/resources): the model's
+  matrices, RNL factors and neutral points, images it renders from a test pattern, and the facts of
+  every species.
+  It computes them with the model of [dog-vision-python](https://github.com/loplex/dog-vision-python),
+  which this project was ported from: the modules it needs are copied unchanged into
+  [`tools/reference/dog_vision`](../tools/reference/dog_vision), and its `pyproject.toml` pins the
+  numpy and OpenCV that write the values as they are.
   Its docstring says how to run it; the tests fail when `core` stops matching them.

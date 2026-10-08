@@ -55,6 +55,7 @@ include(
     ":desktop-core",
     ":ffmpeg",
     ":gl",
+    ":jvm-common",
     ":swing",
     ":testing",
     ":texts",

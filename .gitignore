@@ -5,6 +5,9 @@ build/
 .kotlin/
 # What tools/fetch_msi_tools_on_linux.sh downloads
 /tools/cache/
+# What uv run makes of tools/reference: its environment, and Python's bytecode
+/tools/reference/.venv/
+__pycache__/
 # Path to the local Android SDK, written by the IDE for each machine
 local.properties
 # Android: built packages and profiler captures

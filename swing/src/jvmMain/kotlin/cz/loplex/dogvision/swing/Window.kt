@@ -8,8 +8,13 @@ import cz.loplex.dogvision.desktop.LiveSession
 import cz.loplex.dogvision.desktop.OpenDialog
 import cz.loplex.dogvision.desktop.Source
 import cz.loplex.dogvision.desktop.WindowArguments
+import cz.loplex.dogvision.desktop.menus
 import cz.loplex.dogvision.desktop.windowIcon
+import cz.loplex.dogvision.texts.Menu
+import cz.loplex.dogvision.texts.MenuKey
 import cz.loplex.dogvision.texts.Str
+import cz.loplex.dogvision.texts.press
+import cz.loplex.dogvision.texts.shownOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,17 +40,16 @@ import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import javax.swing.TransferHandler
 
 /**
  * Opens the Swing window on what [arguments] ask for, as the Compose window does: the file given, a photo or else a
- * video, or the camera --camera names; returns once the window is closed. Another file is opened from the
- * system's dialog, from the o key as in the Python program's window, or dropped onto the window; F9 or the button at
- * the images' edge hides the controls, as the Python window's F9 does; q or Escape closes it. What it shows is a
- * [LiveSession]'s, which the window only lays out.
+ * video, or the camera --camera names; returns once the window is closed. Its menus and keys are the Compose
+ * window's, and a file dropped onto the window opens too. What it shows is a [LiveSession]'s, which the window only
+ * lays out.
  */
 @Suppress("SameReturnValue")
 fun showWindow(arguments: WindowArguments): Int {
@@ -64,6 +68,9 @@ private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
     val preview = Preview(session)
     val controls = Controls(session)
     val dialog = OpenDialog()
+    val folderDialog = OpenDialog(folder = true)
+    val statusBar = StatusBar()
+    val menuBar = MenuBarOf(frame)
     val open = JButton().apply { addActionListener { openFromDialog(frame, dialog, session) } }
     val camera = JButton().apply { addActionListener { session.openCamera() } }
     val column = JPanel(BorderLayout()).apply {
@@ -93,9 +100,25 @@ private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
     frame.iconImage = windowIcon()
     frame.contentPane.add(preview, BorderLayout.CENTER)
     frame.contentPane.add(east, BorderLayout.EAST)
+    frame.contentPane.add(statusBar, BorderLayout.SOUTH)
 
     @Suppress("MagicNumber")
     fun show(state: LiveSession.State) {
+        menuBar.show(
+            session.menus(
+                state,
+                open = { openFromDialog(frame, dialog, session) },
+                chooseOutputDir = {
+                    folderDialog.show(
+                        frame,
+                        state.texts.get(Str.OUTPUT_FOLDER_TITLE),
+                        state.outputDir,
+                        session::setOutputDir,
+                    )
+                },
+                quit = frame::dispose,
+            ),
+        )
         frame.title = state.texts.get(Str.APP_NAME)
         open.text = state.texts.get(Str.OPEN_MEDIA)
         camera.text = state.texts.get(Str.SHOW_CAMERA)
@@ -107,6 +130,7 @@ private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
             column.isVisible = state.panelShown
             east.revalidate()
         }
+        statusBar.show(state)
         controls.show(state)
         preview.show(state)
     }
@@ -115,13 +139,7 @@ private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
     scope.launch { session.state.collect(::show) }
     scope.launch { session.picture.collect { preview.picture = it } }
 
-    keys(
-        frame.rootPane,
-        "O" to { openFromDialog(frame, dialog, session) },
-        "F9" to session::togglePanel,
-        "Q" to frame::dispose,
-        "ESCAPE" to frame::dispose,
-    )
+    keys(frame.rootPane) { menuBar.menus }
     frame.transferHandler = FileDrop(session::openFile)
     frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
     frame.addWindowListener(
@@ -138,6 +156,39 @@ private fun openWindow(arguments: WindowArguments, onClosed: () -> Unit) {
     frame.isVisible = true
 }
 
+/** What is shown, and what the window said it did last, under the images and the controls. */
+private class StatusBar :
+    JPanel(FlowLayout(FlowLayout.LEFT, UIScale.scale(STATUS_GAP), UIScale.scale(STATUS_PADDING))) {
+    private val source = JLabel().also(::add)
+    private val conversion = JLabel().also(::add)
+    private val recording = JLabel().also(::add)
+    private val status = JLabel().also(::add)
+
+    fun show(state: LiveSession.State) {
+        source.text = state.sourceName(state.texts)
+        conversion.text = state.conversionStatus?.invoke(state.texts).orEmpty()
+        recording.text = state.recordingStatus?.invoke(state.texts).orEmpty()
+        status.text = state.status?.invoke(state.texts).orEmpty()
+    }
+}
+
+/** The menu bar of [frame], built again only when what its menus show changes, which would close a menu open. */
+private class MenuBarOf(private val frame: JFrame) {
+    /** The menus shown last, which the window's keys press. */
+    var menus = emptyList<Menu>()
+        private set
+    private var shown: List<Any>? = null
+
+    fun show(menus: List<Menu>) {
+        this.menus = menus
+        val now = shownOf(menus)
+        if (now == shown) return
+        shown = now
+        frame.jMenuBar = menuBar(menus)
+        frame.rootPane.revalidate()
+    }
+}
+
 /** Opens the photo or the video picked in [dialog], which starts in the folder of the file shown, if any. */
 private fun openFromDialog(frame: JFrame, dialog: OpenDialog, session: LiveSession<*>) {
     val state = session.state.value
@@ -146,18 +197,19 @@ private fun openFromDialog(frame: JFrame, dialog: OpenDialog, session: LiveSessi
 }
 
 /**
- * Runs each action when its key is pressed anywhere in the window [root] is of, as the Compose window's onKeyEvent,
- * but for while a list is dropped down, which then takes the key.
+ * Presses the [menus] with their keys anywhere in the window [root] is of, as the Compose window's onKeyEvent, but for
+ * while a list is dropped down, which then takes the key. A menu's key is taken here even then, so that the menu bar's
+ * accelerator, which Swing would give it next, does not act on it.
  */
-private fun keys(root: JComponent, vararg actions: Pair<String, () -> Unit>) {
-    for ((key, action) in actions) {
-        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key), key)
+private fun keys(root: JComponent, menus: () -> List<Menu>) {
+    for (key in MenuKey.entries) {
+        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(key.keyStroke, key.name)
         root.actionMap.put(
-            key,
+            key.name,
             object : AbstractAction() {
-                override fun actionPerformed(event: ActionEvent) = action()
-
-                override fun isEnabled() = !listDroppedDown()
+                override fun actionPerformed(event: ActionEvent) {
+                    if (!listDroppedDown()) menus().press(key)
+                }
             },
         )
     }
@@ -198,3 +250,7 @@ internal fun swingImage(pixels: ByteArray, width: Int, height: Int): BufferedIma
 private const val WIDTH = 1280
 private const val HEIGHT = 800
 private const val COLUMN_WIDTH = 380
+
+/** The status bar's gap between its parts, and above and below them. */
+private const val STATUS_GAP = 24
+private const val STATUS_PADDING = 4

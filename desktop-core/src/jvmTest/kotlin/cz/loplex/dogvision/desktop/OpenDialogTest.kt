@@ -25,7 +25,7 @@ class OpenDialogTest {
     fun eitherStandsInForTheOtherAndNeitherLeavesItToAwt() {
         assertEquals("zenity", dialogCommand("Open", null, "KDE", setOf("zenity")::contains)?.first())
         assertEquals("kdialog", dialogCommand("Open", null, "GNOME", setOf("kdialog")::contains)?.first())
-        assertNull(dialogCommand("Open", null, "KDE") { false })
+        assertNull(dialogCommand("Open", null, "KDE", onPath = { false }))
     }
 
     @Test
@@ -43,6 +43,19 @@ class OpenDialogTest {
         assertEquals(
             listOf("zenity", "--file-selection", "--title=Open"),
             dialogCommand("Open", null, "", both::contains),
+        )
+    }
+
+    @Test
+    fun aFolderIsPickedInTheFolderShown() {
+        val shown = File("/home/someone/shots")
+        assertEquals(
+            listOf("kdialog", "--title", "Folder", "--getexistingdirectory", shown.absolutePath),
+            dialogCommand("Folder", shown, "KDE", both::contains, folder = true),
+        )
+        assertEquals(
+            listOf("zenity", "--file-selection", "--directory", "--title=Folder", "--filename=${shown.absolutePath}/"),
+            dialogCommand("Folder", shown, "GNOME", both::contains, folder = true),
         )
     }
 

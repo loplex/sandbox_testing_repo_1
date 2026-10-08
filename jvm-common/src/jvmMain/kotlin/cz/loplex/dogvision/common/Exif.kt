@@ -1,12 +1,12 @@
 // The markers, offsets and tags of JPEG's and TIFF's formats, as EXIF lays them out.
 @file:Suppress("MagicNumber")
 
-package cz.loplex.dogvision.cli
+package cz.loplex.dogvision.common
 
 /**
  * The EXIF orientation a JPEG's APP1 segment gives, 1 to 8 as TIFF numbers them, or 1, upright, where [bytes] are no
- * JPEG, have no EXIF or give none. The JDK's ImageIO reads no EXIF, while OpenCV, which the Python program reads
- * photos with, turns them as it says; this is the one tag that needs.
+ * JPEG, have no EXIF or give none. The JDK's ImageIO reads no EXIF, while image viewers and OpenCV's imread turn a
+ * photo as it says; this is the one tag that needs.
  */
 @Suppress("ReturnCount")
 fun exifOrientation(bytes: ByteArray): Int {

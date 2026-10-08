@@ -3,7 +3,7 @@
 What each program shows and how it is driven. Building them is [Building it](building.md)'s.
 
 - [The Android app](#the-android-app) — the controls, the camera and its mirroring, a photo or a
-  video, saving at full size, recording, the language, and how it differs from the desktop program.
+  video, saving at full size, recording and the language.
 - [The web page](#the-web-page) — what a browser needs for the camera, snapshots and recording.
 - [The command line](#the-command-line) — converting a photo or a video, `--species` and the other
   options, and [ffmpeg for a video](#a-video-needs-ffmpeg).
@@ -51,6 +51,12 @@ The web page and the desktop window show the same ones.
 | *Language*                    | the app's language; *As the system* follows the phone    |
 
 What each control does to the picture, and from which measurements, is [The model](model.md)'s.
+
+- **The ⋮ button beside the others opens a menu of everything**: *File* holds what the buttons do,
+  and *Camera*, *Species*, *Simulation*, *Acuity*, *View* and *Language* the controls' sections,
+  each a slider as fixed values, 0, 25, 50, 75 and 100 %, or 10°, 30°, 60°, 90° and 120°.
+- **A menu chosen shows its entries in the list's place**, under a row back up, as do the lists in
+  it, *Compared with* or *Adaptation to scene [%]*; an entry chosen closes the menu.
 
 The controls, which camera is shown or that it is off, and the photo or video shown instead (a video
 from its start) stay as they were when Android ends the app in the background to free memory.
@@ -102,7 +108,8 @@ Images go to *Pictures/Dog Vision* and videos to *Movies/Dog Vision*, where the 
   It is called `dog-<species>-<time>.png`, or `dog-<left>-vs-<species>-<time>.png` when another
   species is compared.
 - **The corners button saves the photo or the video at its full size**, as the view shows it now,
-  with the same name ending in `-full.png` or `-full.mp4`.
+  with the same name ending in `-full.png` or `-full.mp4`, as the system photo picker does not tell
+  an app a file's name.
   A message says how far it has got, and the cross that replaces the button meanwhile cancels it.
 - **The conversion goes on in the background**, the app left or swiped away from the recent apps:
   a notification shows how far it has got, with a button that cancels it, and then where it was
@@ -124,7 +131,7 @@ Before Android 10, saving asks for the storage permission.
 - **The ring button records the view as shown**, every change included, until the square button
   stops it.
 - **The video has 30 frames a second, without sound**, each frame repeated for as long as it was
-  shown, as the desktop program records.
+  shown.
 - **It is called `dog-<species>-<time>.mp4`** and goes to *Movies/Dog Vision*.
 - **While it records, whatever would change the video's size is locked**: the source and the
   camera, *Side by side*, *Map of differences*, and the screen's orientation.
@@ -132,27 +139,10 @@ Before Android 10, saving asks for the storage permission.
 
 ### Language
 
-- **The app speaks English and Czech**, with the desktop program's Czech texts.
+- **The app speaks English and Czech.**
 - **It starts in the phone's language**, and in English when the phone's is neither.
 - **The *Language* choice at the end of the controls overrides it**, and so does the per-app
   language setting of Android 13 and later; Android remembers the choice.
-
-### How it differs from the desktop program
-
-- **Files go to the gallery**, not to an output folder chosen in the app.
-- **The cameras are named by where they face**, not by the system's names, and none is picked by
-  its number.
-- **A photo or a video converted at full size is named like a snapshot**, not `<name>.dog.png` or
-  `<name>.dog.mp4` after the original: the system photo picker does not tell an app a file's name.
-- **Videos are written by the phone's encoders**, not ffmpeg's, so a video too large for them is
-  scaled down, where the desktop program writes any size.
-- **Recording locks the screen's orientation**, since turning the phone would change the video's
-  size.
-- **The second image's choice is called *Compared with***, not *Left image*: on a tall screen it is
-  the top one.
-- **Tooltips are info buttons**, since a touch screen has no pointer to rest.
-- **There is no command line**, so *Reset* returns to the app's defaults, and `--info` has no
-  counterpart.
 
 ## The web page
 
@@ -173,6 +163,11 @@ buttons above them, and the controls on the right](images/web.png)
 - **The browser needs WebGL 2**; without it the page says so.
 - **Its wording is English or Czech**, as chosen at the end of its panel, which the browser
   remembers, or else the browser's language where there are strings for it.
+- **The ⋮ button at the end of the buttons drops a menu of everything down**: *File* holds what the
+  buttons do, and *Camera*, *Species*, *Simulation*, *Acuity*, *View* and *Language* the panel's
+  sections, each slider as fixed values; *Camera* only where the browser offers one.
+- **A menu chosen shows its entries in the list's place**, under a row back up, as the app's menu
+  does; an entry chosen, a click elsewhere or Escape closes it.
 
 ### A photo or a video
 
@@ -251,25 +246,23 @@ dog-vision-cli --species cat clip.mp4                           # a video, throu
   `PATH`; [Building it](building.md#the-command-lines-zip-for-windows) says how it is made.
 - **Anywhere else, the JAR runs on a Java 17 or newer**: `./gradlew :cli:uberJar` builds it, with
   everything it needs.
-- **It converts a photo at full size**, as the desktop program's `dog-vision photo.jpg` does: it
-  writes a PNG next to the photo, or into `--output-dir`, and says what share of the pixels differ
-  when `--difference` asks for the map.
-- **It converts a video at full size, frame by frame**, as the desktop program's
-  `dog-vision clip.mp4` does: each frame as a photo is, the scene's mean taken again for each, into
-  an .mp4 with the original's sound; on a terminal it shows how far it is.
+- **It converts a photo at full size**: it writes a PNG next to the photo, or into `--output-dir`,
+  and says what share of the pixels differ when `--difference` asks for the map.
+- **It converts a video at full size, frame by frame**: each frame as a photo is, the scene's mean
+  taken again for each, into an .mp4 with the original's sound; on a terminal it shows how far it
+  is.
 - **The PNG or the .mp4 is named after the file and the species it shows**: `photo.dog.png`,
   `photo.cat.png` with `--species cat`, `photo.horse-vs-cat.png` with `--compare horse` too, and
   `clip.dog.mp4` for a video.
-- **It takes the desktop program's options** for the view: `--species`, `--compare`,
+- **It takes options for the view**: `--species`, `--compare`,
   `--difference`, `--adaptation`, `--strength`, `--chroma-scale`, `--acuity` and `--fov`; `--help`
   lists them. The window is not in it.
-- **`--info` prints the model derived for `--species`**, as the desktop program's does: the cone
+- **`--info` prints the model derived for `--species`**: the cone
   and simulation matrices, the checks they pass, and the species' facts.
-- **A photo is turned as its EXIF orientation says**, as OpenCV turns it for the desktop program.
+- **A photo is turned as its EXIF orientation says.**
 - **It speaks the system's language**, English or Czech, as gettext reads it: the list in
   `LANGUAGE`, such as `cs:en`, where it is set, or else `LC_ALL`, `LC_MESSAGES` or `LANG`, and on
-  Windows the system's own; so do the windows. The desktop program's command line speaks
-  English only.
+  Windows the system's own; so do the windows.
 
 ### A video needs ffmpeg
 
@@ -277,16 +270,15 @@ dog-vision-cli --species cat clip.mp4                           # a video, throu
   downloaded them.
   The deb and the rpm recommend ffmpeg, which apt, dnf and zypper install with them unless told not
   to.
-  Without them a video cannot be converted: the desktop program falls back to OpenCV, without the
-  sound, and the JVM has no decoder to fall back on.
+  Without them a video cannot be converted, as the JVM has no decoder to fall back on.
 - **The .mp4 is written by the best encoder ffmpeg has here**: H.265 (`libx265`, or a GPU's), else
-  H.264, else MPEG-4, each tried on a frame first, as the desktop program chooses.
+  H.264, else MPEG-4, each tried on a frame first.
 - **It is tagged BT.709**, the matrix its frames are encoded with, so that a player shows the
   colours as they were.
 - **The sound is copied** where an .mp4 holds its codec as it is, and re-encoded to AAC where not.
 - **A video of a varying frame rate is read at its average rate**, frames repeated or dropped so
-  that the sound stays in step; the desktop program writes every frame at the rate OpenCV reports.
-- **An HDR video is not tone-mapped**, as the desktop program's is not; the app tone-maps one.
+  that the sound stays in step.
+- **An HDR video is not tone-mapped**; the app tone-maps one.
 
 ## The desktop window
 
@@ -296,8 +288,7 @@ dog-vision-compose photo.jpg                # a photo, or a video played over an
 dog-vision-compose --species cat --camera 1 # the cat's view of the second camera
 ```
 
-It is a first version, for Linux and Windows on x86-64, of a window to replace the desktop
-program's.
+It runs on Linux and Windows on x86-64.
 
 ![The Compose window: the apples as they are and as a dog sees them side by side, and the controls
 on the right](images/window.png)
@@ -313,15 +304,15 @@ on the right](images/window.png)
 - **Its launcher takes the Java in `JAVA_HOME`**, else the one on the `PATH`, else the newest in
   `/usr/lib/jvm` or `/usr/lib64/jvm`, whichever is first 17 or newer and not headless.
 - **It takes options of its own**: the command line's for the view it starts with and goes back to,
-  `--camera` and `--gl`, but not `--output-dir`, as it saves nothing yet.
+  `--camera`, `--gl`, and `--output-dir` for where snapshots and recordings go.
   It converts no file: given one, it shows it.
 - **`--help` lists them**, on the terminal on Linux, and on Windows, where the window has no
   console, in a window of its own, whose text can be selected and copied.
   A command line it cannot read is said the same way.
 - **A photo is scaled down to 1280 pixels** for the view, as the app's is.
 - **Open a photo or a video opens another one** from the system's dialog, which starts in the folder
-  of the file shown; the o key opens the dialog too, as it opens the desktop program's, and a file
-  dropped anywhere on the window opens as well.
+  of the file shown; Ctrl+O opens the dialog too, and a file dropped anywhere on the window opens
+  as well.
 - **On Linux the dialog is kdialog's on KDE and zenity's elsewhere**, whichever of the two is
   installed, and Java's own where neither is: Java's comes up behind the window on KDE from its
   second opening on.
@@ -329,11 +320,48 @@ on the right](images/window.png)
   panel's [*Camera*](#the-camera-and-its-mirroring) picks another, or *Off*.
 - **The cameras are listed again as the panel's list drops down**, so that one plugged in since
   shows; on Windows, where ffmpeg lists them, they come a moment after it opens.
-- **F9 or the arrow at the images' edge hides the controls**, and the images take their room, as F9
-  does in the desktop program's window; the same again shows them.
-- **q or Escape closes it**, as it closes the desktop program's window, but for while a list is
-  dropped down, which then takes the key.
-- **It has no menus, no settings, no snapshots and no recording yet.**
+- **F9 or the arrow at the images' edge hides the controls**, and the images take their room; the
+  same again shows them.
+- **Ctrl+Q closes it**, but for while a list is dropped down, which then takes the key.
+- **Escape closes a list dropped down or a menu open, and not the window.**
+- **A menu bar holds what the panel holds**: *File* opens a photo or a video, shows the camera and
+  quits, and *Camera*, *Species*, *Simulation*, *Acuity*, *View* and *Language* are the panel's
+  sections.
+- **A slider is a menu of fixed values**: 0, 25, 50, 75 and 100 % for the adaptation and the
+  strength, and 10°, 30°, 60°, 90° and 120° for the angle the image spans; the panel's slider still
+  sets any.
+- **Ctrl+M turns side by side on or off, Ctrl+D the map of differences, and Ctrl+0 resets**, as
+  Ctrl+0 resets a zoom; the menus show each key beside its entry, and a key does nothing while its
+  entry is disabled.
+- **The keys follow the desktop's conventions**: Ctrl+O to open, Ctrl+Q to quit, and F9 for the
+  controls at the side, as KDE's programs show and hide their side panel.
+- **Ctrl+S or *File* → *Save snapshot* saves the view as a PNG**: its images, side by side or one
+  above another as the window shows them, without the captions, at the size they are composed at:
+  the photo's, the video's or the camera's, scaled down to 1280 pixels on its longest side.
+  It is named after the species and the time, as `dog-cat-20261008-090507.png`, or
+  `dog-horse-vs-cat-20261008-090507.png` where a horse is shown beside a cat.
+- **Snapshots and recordings go to the output folder**: the one `--output-dir` names, or else the
+  one *File* → *Output folder…* chose last, kept for the next run, or else the folder the window was
+  started in; a folder chosen in the window goes before `--output-dir` from then on.
+- **Ctrl+E or *File* → *Convert file* converts the file shown at full size**, with the view as the
+  window shows it, as `dog-vision-cli` converts a file: next to it, as `photo.dog.png` or
+  `clip.cat.mp4`, or into the output folder where *File* → *Converted files into the output folder*
+  is checked.
+  *File* → *Cancel the conversion* stops it and removes the unfinished file, and so does closing the
+  window; a video needs ffmpeg.
+- **The folder chosen, and where a converted file goes, are kept in `settings.json`**: in
+  `$XDG_CONFIG_HOME/dog-vision`, or `~/.config/dog-vision` where that is not set, on Linux, and in
+  `%APPDATA%\dog-vision` on Windows.
+- **The status bar under the images says what is shown**, the file's name or the camera's, how far a
+  conversion is, and what the window did last: where a snapshot went, or why it could not be saved.
+- **Ctrl+R or *File* → *Record video* records the view** into an .mp4 in the output folder, named as
+  a snapshot is, until the same again stops it or the window closes: its images as a snapshot has
+  them, 30 frames a second, each shown for as long as the window showed it, and no sound.
+  It needs ffmpeg, as a video does.
+- **While recording, what would change the video's size is locked**: another file, the camera, side
+  by side and the map of differences.
+- **The status bar says how long the recording runs**, then where it went, written by which
+  encoder, or why it failed.
 
 ### The same window in Swing: `dog-vision-swing`
 

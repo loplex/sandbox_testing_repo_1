@@ -10,8 +10,8 @@ import kotlin.concurrent.thread
 data class Encoder(val name: String, val format: String, val options: List<String>?)
 
 /**
- * ffmpeg's encoders, best first, as the Python program has them: H.265 before H.264, software before hardware, as the
- * software encoders give the better picture for the size.
+ * ffmpeg's encoders, best first: H.265 before H.264, software before hardware, as the software encoders give the
+ * better picture for the size.
  */
 val ENCODERS = listOf(
     Encoder("libx265", "H.265", listOf("-crf", "24", "-preset", "medium", "-x265-params", "log-level=error")),
@@ -87,5 +87,5 @@ fun bestEncoder(width: Int, height: Int, runs: Runs = runProgram): Encoder? {
 
 private const val LIST_SECONDS = 30L
 
-/** How long one frame may take to encode before its encoder is passed over, as the Python program waits. */
+/** How long one frame may take to encode before its encoder is passed over. */
 private const val PROBE_SECONDS = 30L

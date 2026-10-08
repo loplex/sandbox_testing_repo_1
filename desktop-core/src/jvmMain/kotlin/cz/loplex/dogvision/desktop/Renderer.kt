@@ -1,5 +1,6 @@
 package cz.loplex.dogvision.desktop
 
+import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.ScreenLayout
 import cz.loplex.dogvision.core.View
 import cz.loplex.dogvision.core.layOut
@@ -45,6 +46,18 @@ interface Renderer : AutoCloseable {
     fun setView(view: View)
 
     fun setArea(area: Area)
+
+    /**
+     * Hands [onImages] the images of the view composed last, as many as the view has, left to right or top to bottom,
+     * read back from the GPU on the renderer's thread; null where nothing is composed yet.
+     */
+    fun readImages(onImages: (List<Image>?) -> Unit)
+
+    /**
+     * Hands [onImages] the images of the view, as [readImages] reads them, at once and each time the view is composed
+     * anew, on the renderer's thread, until it is set to null: what a recording records.
+     */
+    fun record(onImages: ((List<Image>) -> Unit)?)
 }
 
 /**
@@ -81,6 +94,13 @@ class GlRenderer<I>(
     private var changed = false
     private var closed = false
 
+    /** Who asked for the images composed, since the renderer's thread last answered. */
+    private val imageRequests = mutableListOf<(List<Image>?) -> Unit>()
+
+    /** Who records the images composed, and whether they are to be handed over before the view is composed again. */
+    private var recording: ((List<Image>) -> Unit)? = null
+    private var recordNow = false
+
     private val thread = thread(name = "dog-vision-gl", isDaemon = true) { run() }
 
     override fun show(frame: Frame, live: Boolean, mirrored: Boolean) = lock.withLock {
@@ -106,6 +126,13 @@ class GlRenderer<I>(
     override fun setView(view: View) = update { this.view = view }
 
     override fun setArea(area: Area) = update { this.area = area }
+
+    override fun readImages(onImages: (List<Image>?) -> Unit) = update { imageRequests += onImages }
+
+    override fun record(onImages: ((List<Image>) -> Unit)?) = update {
+        recording = onImages
+        recordNow = onImages != null
+    }
 
     private inline fun update(change: () -> Unit) = lock.withLock {
         change()
@@ -160,6 +187,8 @@ class GlRenderer<I>(
         var drawnArea: Area? = null
         // The areas being read back, in the order Passes hands them over.
         val drawing = ArrayDeque<Drawn>()
+        // Whether a recording that started is still to be handed the images before the view is composed again.
+        var recordFirst = false
 
         fun handOver(pixels: ByteArray) {
             val drawn = drawing.removeFirst()
@@ -178,6 +207,8 @@ class GlRenderer<I>(
             val mirrored: Boolean
             val view: View?
             val area: Area?
+            val requests: List<(List<Image>?) -> Unit>
+            val recorder: ((List<Image>) -> Unit)?
             lock.withLock {
                 while (!closed && !changed) {
                     // A read or a count under way is asked after, and a live frame may be long in coming.
@@ -204,6 +235,11 @@ class GlRenderer<I>(
                 }
                 view = this.view
                 area = this.area
+                requests = imageRequests.toList()
+                imageRequests.clear()
+                recorder = recording
+                if (recordNow) recordFirst = true
+                recordNow = false
             }
             if (cleared) {
                 clears++
@@ -224,7 +260,10 @@ class GlRenderer<I>(
                 uploadedMirrored = mirrored
                 remirrored = true
             }
-            if (!hasFrame || view == null || area == null || area.width <= 0 || area.height <= 0) continue
+            if (!hasFrame || view == null || area == null || area.width <= 0 || area.height <= 0) {
+                requests.forEach { it(null) }
+                continue
+            }
             val counts = view.sideBySide && view.difference
             val recomposed = newFrame || remirrored || view != composed
             if (recomposed) {
@@ -235,6 +274,13 @@ class GlRenderer<I>(
                     share = passes.compose(view)
                 }
                 composed = view
+            }
+            val recorded = recorder != null && (recomposed || recordFirst)
+            if (requests.isNotEmpty() || recorded) {
+                val images = passes.readImages(view.images)
+                requests.forEach { it(images) }
+                if (recorded) checkNotNull(recorder)(images)
+                recordFirst = false
             }
             var counted = false
             if (live && passes.counting) {

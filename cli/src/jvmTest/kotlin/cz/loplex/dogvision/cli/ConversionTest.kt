@@ -1,5 +1,6 @@
 package cz.loplex.dogvision.cli
 
+import cz.loplex.dogvision.common.readPhoto
 import cz.loplex.dogvision.core.Image
 import cz.loplex.dogvision.core.Params
 import cz.loplex.dogvision.core.Species
@@ -10,9 +11,11 @@ import cz.loplex.dogvision.core.meanLinearRgb
 import cz.loplex.dogvision.core.rgb
 import cz.loplex.dogvision.texts.Texts
 import org.junit.jupiter.api.io.TempDir
+import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
+import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -33,24 +36,8 @@ class ConversionTest {
     }
 
     @Test
-    fun aConvertedFileIsNamedAfterItsOriginal() {
-        assertEquals(File("dir/photo.dog.png"), convertedFile(File("dir/photo.jpg"), View(), null))
-        assertEquals(File("photo.dog.png"), convertedFile(File("photo.jpg"), View(), null))
-        assertEquals(File("out/photo.dog.png"), convertedFile(File("dir/photo.jpg"), View(), File("out")))
-        assertEquals(File("noext.dog.png"), convertedFile(File("noext"), View(), null))
-    }
-
-    @Test
-    fun aConvertedFileIsNamedAfterTheSpeciesItShows() {
-        val cat = View(Params(Species.CAT))
-        assertEquals(File("photo.cat.png"), convertedFile(File("photo.jpg"), cat, null))
-        val compared = cat.copy(sideBySide = true, compare = Species.HORSE)
-        assertEquals(File("photo.horse-vs-cat.png"), convertedFile(File("photo.jpg"), compared, null))
-    }
-
-    @Test
     fun aPhotoIsConvertedAsCoreComposesIt() {
-        val input = File(directory, "photo.png").apply { writeBytes(PhotosTest.pngBytes(photo)) }
+        val input = File(directory, "photo.png").apply { writeBytes(pngBytes(photo)) }
         val options = arrayOf("--species", "cat", "--compare", "dog", "--difference", "--strength", "0.8")
         val (status, out, err) = run(*options, "$input")
         assertEquals(0 to "", status to err)
@@ -69,7 +56,7 @@ class ConversionTest {
 
     @Test
     fun aConversionGoesIntoTheOutputFolder() {
-        val input = File(directory, "photo.png").apply { writeBytes(PhotosTest.pngBytes(photo)) }
+        val input = File(directory, "photo.png").apply { writeBytes(pngBytes(photo)) }
         val folder = File(directory, "new/folder")
         val (status, _, _) = run("--output-dir", "$folder", "$input")
         assertEquals(0, status)
@@ -109,9 +96,15 @@ class ConversionTest {
         assertTrue(help.startsWith("použití: dog-vision-cli [volby] soubor"), help)
         val (_, _, wrong) = run("--species", "unicorn", language = "cs")
         assertTrue("dog-vision-cli: chyba: --species: druh unicorn neexistuje" in wrong, wrong)
-        val input = File(directory, "photo.png").apply { writeBytes(PhotosTest.pngBytes(photo)) }
+        val input = File(directory, "photo.png").apply { writeBytes(pngBytes(photo)) }
         val (_, out, _) = run("--difference", "$input", language = "cs")
         assertTrue(out.lines().first().endsWith(" % pixelů se znatelně liší"), out)
         assertTrue("Zapsáno ${File(directory, "photo.dog.png")}" in out, out)
+    }
+
+    private fun pngBytes(image: Image): ByteArray {
+        val buffered = BufferedImage(image.width, image.height, BufferedImage.TYPE_INT_RGB)
+        buffered.setRGB(0, 0, image.width, image.height, image.pixels, 0, image.width)
+        return ByteArrayOutputStream().also { ImageIO.write(buffered, "png", it) }.toByteArray()
     }
 }

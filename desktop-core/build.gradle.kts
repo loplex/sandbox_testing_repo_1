@@ -19,7 +19,7 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            api(project(":cli"))
+            api(project(":jvm-common"))
             api(project(":ffmpeg"))
             implementation(project(":gl"))
             implementation(libs.lwjgl.asProvider())
@@ -28,6 +28,7 @@ kotlin {
             implementation(libs.lwjgl.opengl)
             implementation(libs.lwjgl.opengles)
             api(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
         }
         jvmTest.dependencies {
             implementation(project(":testing"))
