@@ -253,11 +253,11 @@ class ImagingTest {
     )
 
     /**
-     * The desktop dog-vision renders the same pattern alike, to one step of 8 bits where the two
-     * round a float differently: images.tsv holds its results, written by tools/reference_values.py.
+     * The reference model renders the same pattern alike, to one step of 8 bits where the two round a
+     * float differently: images.tsv holds its results, written by tools/reference/reference_values.py.
      */
     @TestFactory
-    fun `every image the desktop dog-vision rendered is matched`(): List<DynamicTest> {
+    fun `every reference image is matched`(): List<DynamicTest> {
         val lines = javaClass.getResourceAsStream("/images.tsv")!!.bufferedReader().readLines()
         assertEquals(cases.keys, lines.map { it.substringBefore("\t") }.toSet())
         return lines.map { line ->

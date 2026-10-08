@@ -5,8 +5,8 @@ import org.junit.jupiter.api.TestFactory
 import kotlin.test.assertEquals
 
 /**
- * The model gives what the desktop dog-vision gives, to rounding: reference.tsv holds its values,
- * printed by tools/reference_values.py.
+ * The model gives the reference values, to rounding: reference.tsv holds them, printed by
+ * tools/reference/reference_values.py.
  */
 class ReferenceTest {
     private class Reference(val kind: String, val species: Species, val scale: ChromaScale?, val values: DoubleArray)

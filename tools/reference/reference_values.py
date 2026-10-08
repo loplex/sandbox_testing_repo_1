@@ -1,8 +1,10 @@
-"""Write what the desktop dog-vision computes, as the reference core's tests compare against.
+"""Write the reference values core's tests compare against, as the Python model here computes them.
 
-The desktop dog-vision is https://github.com/loplex/dog-vision-python. From a checkout of it, run
+dog_vision/core holds five modules of https://github.com/loplex/dog-vision-python, which this project
+was ported from, copied unchanged from its commit 306ebb9: model, species, imaging, facts and i18n,
+which facts reads its wording from. From the repository's root, run
 
-    uv run --project <checkout> python tools/reference_values.py core/src/jvmTest/resources
+    uv run --project tools/reference python tools/reference/reference_values.py core/src/jvmTest/resources
 
 It writes three files there, each line tab-separated:
 
