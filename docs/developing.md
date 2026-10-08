@@ -372,8 +372,8 @@ in [`.editorconfig`](../.editorconfig):
   checks: a task that reads another's output while Gradle plans the build fails only where that
   output is not built yet.
 - **On Windows Server 2022, `./gradlew :gui-core:jvmTest :ffmpeg:jvmTest`**: the GL tests over
-  ANGLE on WARP and over WGL on Mesa's llvmpipe, which the job puts beside `java.exe`, as Windows's
-  own OpenGL is 1.1, and ffmpeg's, for how a program is started on Windows.
+  ANGLE on WARP and over WGL on Mesa's llvmpipe, which the job installs as the system's OpenGL
+  driver, as Windows's own OpenGL is 1.1, and ffmpeg's, for how a program is started on Windows.
 - **On Windows Server 2022, the MSI**, built by `package_msi_on_windows.ps1` in two versions and
   tried by `test_msi_on_windows.ps1`; the MSIs are the run's artifacts.
 - **On Windows Server 2022, the command line's zip**, built by `package_cli_zip_on_windows.ps1` and
