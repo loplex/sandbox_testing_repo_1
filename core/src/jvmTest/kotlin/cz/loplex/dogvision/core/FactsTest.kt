@@ -9,7 +9,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The desktop dog-vision's English wording, which its tests check the facts in. */
+/** The English wording of the reference facts, which the tests check the facts in. */
 object EnglishTexts : FactTexts {
     override val decimalSeparator = '.'
 
@@ -184,9 +184,9 @@ class FactsTest {
         "Acuity" to FactLabel.ACUITY,
     )
 
-    /** The desktop dog-vision's facts, in English: facts.tsv, written by tools/reference_values.py. */
+    /** The reference facts, in English: facts.tsv, as the model of dog-vision-python gives them. */
     @TestFactory
-    fun `every species has the facts the desktop dog-vision gives`(): List<DynamicTest> {
+    fun `every species has its reference facts`(): List<DynamicTest> {
         val rows = javaClass.getResourceAsStream("/facts.tsv")!!.bufferedReader().readLines().map { it.split("\t") }
         val expected = rows.groupBy({ it[0] }) { Fact(englishLabels.getValue(it[1]), it.drop(2)) }
         assertEquals(Species.entries.map { it.id }, expected.keys.toList())
