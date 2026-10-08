@@ -1,12 +1,52 @@
 name: release
-
-# A stub: GitHub dispatches a workflow only once a file of its name is on the default branch,
-# and then runs the copy on the branch it is dispatched on. The test/* branches hold the real ones.
+# Copied from release-ci's release-flow/README.md "The release job", with the action called from the copy under .release-ci/, and a zip as the build.
+# .github/workflows/release.yml
 on:
   workflow_dispatch:
-
+    inputs:
+      version:
+        description: >-
+          The version to release, 0.2.0 or 0.2.0-SNAPSHOT; left empty, the one
+          gradle.properties declares
+        default: ''
+      skip-unread-tags:
+        description: >-
+          Pass over a release whose tag holds a CHANGELOG.md line the checks do
+          not read
+        type: boolean
+        default: false
+# One at a time: two runs would race for the same release branch and the same draft.
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  stub:
+  release:
+    # A dispatch can be started on any branch, and would cut the release from that one.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    # For pushing the branch and drafting the release after the build; prepare itself takes none.
+    permissions:
+      contents: write
     steps:
-      - run: echo "dispatch this workflow on a test/* branch"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.release-ci/release-flow/prepare
+        id: cut
+        with:
+          version-source: gradle.properties
+          version: ${{ inputs.version }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+          skip-unread-tags: ${{ inputs.skip-unread-tags }}
+      # Build from the commit now checked out, then:
+      - env:
+          VERSION: ${{ steps.cut.outputs.version }}
+        run: |
+          mkdir -p build/distributions
+          zip -j "build/distributions/demo-$VERSION.zip" gradle.properties CHANGELOG.md
+      - uses: ./.release-ci/release-flow/draft
+        with:
+          version: ${{ steps.cut.outputs.version }}
+          tag: ${{ steps.cut.outputs.tag }}
+          branch: ${{ steps.cut.outputs.branch }}
+          files: build/distributions/*.zip

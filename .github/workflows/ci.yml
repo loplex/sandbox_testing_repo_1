@@ -1,12 +1,21 @@
 name: ci
-
-# A stub: GitHub dispatches a workflow only once a file of its name is on the default branch,
-# and then runs the copy on the branch it is dispatched on. The test/* branches hold the real ones.
+# Copied from release-ci's check-release/README.md, with the action called from the copy under .release-ci/, and master for main.
 on:
+  push:
+    branches: [master]
+  pull_request:
+  # release-flow/merge-back starts this workflow by hand, as its check-workflow, once a release has landed.
   workflow_dispatch:
 
 jobs:
-  stub:
+  release-rules:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "dispatch this workflow on a test/* branch"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.release-ci/check-release
+        id: release
+        with:
+          version-source: gradle.properties
+          checks: version changelog ancestry

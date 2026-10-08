@@ -1,0 +1,27 @@
+name: release-publish
+# Copied from release-ci's release-flow/README.md "release-flow/merge-back", with the action called from the copy under .release-ci/.
+# .github/workflows/release-publish.yml
+on:
+  release:
+    types: [published]
+# One run per release at a time: two runs for one release would race to land it.
+concurrency:
+  group: merge-back-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+jobs:
+  merge-back:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.release-ci/release-flow/merge-back
+        with:
+          version-source: gradle.properties
+          tag: ${{ github.event.release.tag_name }}
+          default-branch: ${{ github.event.repository.default_branch }}
+          check-workflow: ci.yml

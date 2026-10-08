@@ -1,0 +1,51 @@
+name: release
+
+# Cuts a release of this repository through release-flow, as any other repository would, with one difference:
+# it takes the actions by path, unpinned, because they already sit in this repository.
+#
+# The repository declares its version nowhere, so the version is asked for here.
+# Left empty, it is the version after the highest release, or a later one where [Unreleased] asks for more.
+# The first release has to be named outright.
+#
+# There is nothing to build, so the draft follows the cut directly.
+# Publishing the draft is the decision to release, and release-publish.yml carries the release back.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          The version to release. Left empty, the version after the highest release, or a later one where
+          [Unreleased] asks for more.
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+# One at a time: two runs would race for the same release branch and the same draft.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Dispatched on any other branch, it would cut the release from that branch,
+    # and release-publish.yml would carry it onto the default branch.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./release-flow/prepare
+        id: cut
+        with:
+          version-source: tags
+          tag-prefix: v
+          version: ${{ inputs.version }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+      - uses: ./release-flow/draft
+        with:
+          version: ${{ steps.cut.outputs.version }}
+          tag: ${{ steps.cut.outputs.tag }}
+          branch: ${{ steps.cut.outputs.branch }}
