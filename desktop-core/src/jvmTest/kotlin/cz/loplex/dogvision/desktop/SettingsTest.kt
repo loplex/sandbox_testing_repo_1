@@ -60,7 +60,7 @@ class SettingsTest {
         writeSettings(file, Settings(File("/shots"), convertToOutputDir = true))
         val json = Json.parseToJsonElement(file.readText()) as JsonObject
         assertEquals(JsonPrimitive("dark"), json["theme"])
-        assertEquals(JsonPrimitive("/shots"), json["output_dir"])
+        assertEquals(JsonPrimitive(File("/shots").path), json["output_dir"])
         assertEquals(Settings(File("/shots"), convertToOutputDir = true), readSettings(file))
         assertEquals(listOf(file.name), directory.list()?.toList())
     }

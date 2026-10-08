@@ -47,11 +47,9 @@ Each artifact lands here:
 | command line   | the deb, the rpm             | `packaging/build/distributions`              |
 | JVM programs   | the shared deb, rpm          | `packaging/build/distributions`              |
 | Compose window | the JARs, Linux's, Windows's | `desktop/build/compose/jars`                 |
-| Compose window | the deb, the rpm             | `packaging/build/distributions`              |
-| Compose window | the tar.gz                   | `desktop/build/compose/binaries/main/tar`    |
+| Compose window | the deb, the rpm, the tar.gz | `packaging/build/distributions`              |
 | Swing window   | the JARs, Linux's, Windows's | `swing/build/jars`                           |
-| Swing window   | the deb, the rpm             | `packaging/build/distributions`              |
-| Swing window   | the tar.gz                   | `swing/build/packages/tar`                   |
+| Swing window   | the deb, the rpm, the tar.gz | `packaging/build/distributions`              |
 
 `./gradlew checkArtifactFolders` holds the folders to the tasks, and runs in `check`: every file a
 task of `packageAll` declares, but its work files, lies in one of them, and each of them holds one.
@@ -177,8 +175,9 @@ pwsh tools/package_cli_zip_on_windows.ps1
                                  # dog-vision-swing-0.1.0-1.x86_64.rpm, dog-vision-cli-0.1.0-1.noarch.rpm,
                                  # dog-vision-common-0.1.0-1.noarch.rpm, dog-vision-web-0.1.0-1.noarch.rpm,
                                  # dog-vision-web-sourcemap-0.1.0-1.noarch.rpm, dog-vision-0.1.0-1.x86_64.rpm
-./gradlew :desktop:packageTarGz  # desktop/build/compose/binaries/main/tar/dog-vision-compose-0.1.0-linux-x64.tar.gz
-./gradlew :swing:packageTarGz    # swing/build/packages/tar/dog-vision-swing-0.1.0-linux-x64.tar.gz
+./gradlew :packaging:packageTarGz
+                                 # packaging/build/distributions: dog-vision-compose-0.1.0-linux-x64.tar.gz,
+                                 # dog-vision-swing-0.1.0-linux-x64.tar.gz
 tools/fetch_msi_tools_on_linux.sh
                                  # once: what the MSI is built with, into tools/cache
 tools/make_wine_prefix_on_linux.sh
@@ -209,9 +208,10 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   Its jlink links the MSI's runtime as well, from Temurin's jmods for Windows, which Gradle
   downloads too, of the release `temurin-windows-jmods` in
   [`libs.versions.toml`](../gradle/libs.versions.toml) gives.
-  The Compose window's tar.gz comes from Compose's own jpackage task, the Swing window's from
+  Both tar.gzs come from
   [`AppImage`](../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/AppImage.kt) in
-  `build-logic`, as Compose's plugin is not applied to it.
+  `build-logic`, which `packaging` runs for each window, as it takes both the window and the
+  command line, whose launcher each tar.gz holds beside the window's.
   The deb and the rpm take none, as they run on the system's Java.
 - **The tar.gz needs nothing more**, and neither do the JARs.
 - **The version, 0.1.0 in the names above, is `appVersion` in
