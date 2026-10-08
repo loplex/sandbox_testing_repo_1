@@ -51,12 +51,13 @@ interface FactTexts {
 }
 
 /**
- * A number as Python's format(value, "g") gives it with [digits] significant digits: 420.7, 429, 3.66.
- * As Python does, it rounds the double's exact value, and a tie to the even digit.
+ * A number with [digits] significant digits, as printf's %g gives it: 420.7, 429, 3.66.
+ * As printf does, it rounds the double's exact value, and a tie to the even digit; unlike %g, it writes no exponent and
+ * no negative zero.
  */
 expect fun formatSignificant(value: Double, digits: Int, decimalSeparator: Char): String
 
-/** A number with [decimals] digits after the point, as Python's format(value, ".2f"), rounded as formatSignificant. */
+/** A number with [decimals] digits after the point, as printf's %f of that precision, rounded as formatSignificant. */
 expect fun formatFixed(value: Double, decimals: Int, decimalSeparator: Char): String
 
 /** A share, or a range of shares when the two differ in whole percent. */

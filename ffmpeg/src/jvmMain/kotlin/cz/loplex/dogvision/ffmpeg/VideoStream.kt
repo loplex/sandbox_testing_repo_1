@@ -12,7 +12,7 @@ import kotlin.math.roundToLong
  */
 data class VideoStream(val width: Int, val height: Int, val rate: String, val frames: Long, val audio: String) {
     companion object {
-        /** The rate a video is read at where its file gives none, as the Python program takes it. */
+        /** The rate a video is read at where its file gives none. */
         const val DEFAULT_RATE = "30"
 
         /**

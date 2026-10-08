@@ -27,7 +27,7 @@ data class WindowArguments(
     val outputDir: File? = null,
     val help: Boolean = false,
 ) {
-    /** The view the window starts with: side by side, as the Python window starts. */
+    /** The view the window starts with: side by side. */
     val windowView: View
         get() = View(view.params, sideBySide = true, compare = view.compare, difference = view.difference)
 }

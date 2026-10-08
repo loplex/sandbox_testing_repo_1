@@ -4,7 +4,7 @@ import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The system's languages are read as gettext and the desktop program read them: LANGUAGE first, as a list. */
+/** The system's languages are read as gettext reads them: LANGUAGE first, as a list. */
 class SystemLanguagesTest {
     private val czech = Locale.forLanguageTag("cs-CZ")
 

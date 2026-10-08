@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** --info prints what the desktop program's prints: the model, the checks it passes, and the species' facts. */
+/** --info prints the model, the checks it passes, and the species' facts. */
 class InfoTest {
     private val english = Texts.of("en")
 
