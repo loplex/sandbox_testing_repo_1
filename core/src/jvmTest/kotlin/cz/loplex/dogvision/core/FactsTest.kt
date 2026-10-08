@@ -81,7 +81,7 @@ class FactsTest {
     }
 
     @Test
-    fun `numbers are rounded as Python formats them`() {
+    fun `numbers are rounded as printf formats them`() {
         assertEquals("420.7", formatSignificant(420.7, 6, '.'))
         assertEquals("429", formatSignificant(429.0, 6, '.'))
         assertEquals("548.9", formatSignificant(HumanCones.L - 10, 6, '.'))

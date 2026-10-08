@@ -16,11 +16,10 @@ import kotlin.math.abs
 import kotlin.math.atan2
 
 /**
- * What --info prints for [params], worded by [texts], as the desktop program's --info prints it: the species' cone
- * matrix, a dichromat's confusion direction, the simulation matrix at full strength, and the checks they pass: grey
- * kept grey, the cones excited as by the input, a dichromat's neutral point, and the "rnl" scale matching the
- * animal's discrimination and, for a trichromat, keeping blue's hue. Then the species' facts, and the published values
- * to compare with.
+ * What --info prints for [params], worded by [texts]: the species' cone matrix, a dichromat's confusion direction, the
+ * simulation matrix at full strength, and the checks they pass: grey kept grey, the cones excited as by the input, a
+ * dichromat's neutral point, and the "rnl" scale matching the animal's discrimination and, for a trichromat, keeping
+ * blue's hue. Then the species' facts, and the published values to compare with.
  */
 fun info(params: Params, texts: Texts): String {
     val species = params.species

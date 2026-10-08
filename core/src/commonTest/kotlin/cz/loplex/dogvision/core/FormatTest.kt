@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 
 /**
  * The numbers of the facts, written alike on every platform: rounded from the double's exact value, a tie to the even
- * digit, as Python rounds them, but written out without an exponent and without a negative zero.
+ * digit, as printf rounds them, but written out without an exponent and without a negative zero.
  */
 class FormatTest {
     @Test

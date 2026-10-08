@@ -121,7 +121,7 @@ suspend fun convertVideo(
     )
 }
 
-/** The name a video's format goes by, as the desktop dog-vision names it. */
+/** The name a video's format goes by. */
 internal fun formatName(mimeType: String?): String = when (mimeType) {
     MediaFormat.MIMETYPE_VIDEO_HEVC -> "H.265"
     MediaFormat.MIMETYPE_VIDEO_AVC -> "H.264"

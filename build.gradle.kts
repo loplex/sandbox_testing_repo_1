@@ -11,10 +11,9 @@ plugins {
     id("cz.loplex.dogvision.packaging") apply false
 }
 
-// Which lines and branches the JVM tests reach, as the Python program's `pytest --cov` lists them: Kover measures the
-// modules that apply it, and `./gradlew koverHtmlReport` here writes all of them in one report, in
-// build/reports/kover/html. Nothing fails on coverage. The web page's tests run in a browser, and the app's on a
-// device, where Kover measures nothing.
+// Which lines and branches the JVM tests reach: Kover measures the modules that apply it, and
+// `./gradlew koverHtmlReport` here writes all of them in one report, in build/reports/kover/html. Nothing fails on
+// coverage. The web page's tests run in a browser, and the app's on a device, where Kover measures nothing.
 dependencies {
     val measured =
         listOf(
