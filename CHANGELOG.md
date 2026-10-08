@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-08
+
 ### Fixed
 
 - The greeting ends with a full stop.
@@ -18,5 +20,6 @@ All notable changes to this project are documented in this file.
 
 [1]: https://github.com/loplex/sandbox_testing_repo_1/blob/master/README.md
 
-[Unreleased]: https://github.com/loplex/sandbox_testing_repo_1/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/loplex/sandbox_testing_repo_1/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/loplex/sandbox_testing_repo_1/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/loplex/sandbox_testing_repo_1/commits/v0.1.0
