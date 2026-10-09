@@ -1,4 +1,6 @@
 import cz.loplex.dogvision.packaging.artifact
+import cz.loplex.dogvision.packaging.jvm.LWJGL_JAVA_OPTIONS
+import cz.loplex.dogvision.packaging.jvm.LWJGL_MANIFEST_ATTRIBUTES
 import cz.loplex.dogvision.packaging.jvm.glNatives
 import cz.loplex.dogvision.packaging.jvm.uberJar
 import cz.loplex.dogvision.packaging.jvm.uberJarLicences
@@ -56,6 +58,11 @@ tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }
 
+// The window as the packages' launchers start it.
+tasks.named<JavaExec>("runJvm") {
+    jvmArgs(LWJGL_JAVA_OPTIONS)
+}
+
 // What runs the window on Windows on x86-64 in place of this machine's natives: LWJGL's for it, and ANGLE. Only
 // windowsUberJar and windowsLauncher take it.
 windowsRuntime()
@@ -89,6 +96,7 @@ val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
         windowJar,
         jvmRuntimeClasspath,
         linuxUberJarNotices,
+        manifestAttributes = LWJGL_MANIFEST_ATTRIBUTES,
     )
 }
 artifact(linuxUberJar)
@@ -111,6 +119,7 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
         windowsRuntime,
         windowsUberJarNotices,
         excludes = listOf("$armAngle/**"),
+        manifestAttributes = LWJGL_MANIFEST_ATTRIBUTES,
     )
 }
 artifact(windowsUberJar)
@@ -125,6 +134,7 @@ windowsLauncher(
     ownJar = windowJar,
     classpath = windowsRuntime,
     mainClass = mainClassName,
+    javaOptions = LWJGL_JAVA_OPTIONS,
     runtimeModules = runtimeModules,
     leftOut = listOf(armAngle),
 )
