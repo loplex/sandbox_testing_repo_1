@@ -1,8 +1,8 @@
 @file:Suppress("UnstableApiUsage")
 
 pluginManagement {
-    // The tasks the packages are made with, the natives the desktop modules share, and ktlint as every module
-    // applies it.
+    // The tasks the packages are made with, the natives the desktop modules share, ktlint and detekt as the modules
+    // apply them, and where the Kotlin/JS modules get Node.js.
     includeBuild("build-logic")
     repositories {
         google {
