@@ -1,0 +1,11 @@
+[project]
+name = "dog-vision-reference"
+version = "0"
+description = "The reference values core's tests compare against, and the Python model that computes them"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+# The versions that write the values in core/src/jvmTest/resources byte for byte as they are.
+dependencies = ["numpy==2.5.3", "opencv-python-headless==5.0.0.93"]
+
+[tool.uv]
+package = false
