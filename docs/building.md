@@ -267,9 +267,11 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   package serves every architecture:
   - the page in `/usr/share/dog-vision-web`, `index.html`, `dog-vision.js` and `styles.css`, without
     the script's source map;
+  - a command, `/usr/bin/dog-vision-web`, which opens that `index.html` in the system's browser
+    through `xdg-open`, with a manual page of its own,
+    [`dog-vision-web.1`](../packaging/man/dog-vision-web.1);
   - its menu entry, `cz.loplex.dogvision.web.desktop` ("Dog Vision (web)", "Jak vidí pes (web)"),
-    which opens that `index.html` in the system's browser through `xdg-open`, and its icons;
-  - no command in `/usr/bin`, as the menu entry is what opens the page.
+    which runs that command, and its icons.
 - **The script's source map is a package of its own, `dog-vision-web-sourcemap`**:
   `dog-vision.js.map` in `/usr/share/dog-vision-web`, beside the script of `dog-vision-web` or
   `dog-vision`, with which a browser's developer tools show the Kotlin sources.
@@ -377,8 +379,8 @@ Besides the build's own needs, making them takes these tools, on Ubuntu from the
   It is DejaVu by name, as Fedora and Rocky or openSUSE package it, not `font(:lang=en)`:
   openSUSE's `xorg-x11-fonts-core` provides that, with bitmap fonts only, which Java does not read.
   The Compose window draws its text through skiko and needs none.
-- **`xdg-utils` alone, for `dog-vision-web`**, whose `xdg-open` the menu entry runs: the browser
-  is the user's, as a desktop has one, and the windows' packages name no desktop either.
+- **`xdg-utils` alone, for `dog-vision-web`**, whose `xdg-open` its command runs: the browser is
+  the user's, as a desktop has one, and the windows' packages name no desktop either.
 - **The others' together, for `dog-vision`**: both windows' and the page's, of which a Java that
   can open a window serves the command line too, but not `dog-vision-common`, whose JARs it holds.
 - **`dog-vision-web` or `dog-vision` of its own version, for `dog-vision-web-sourcemap`**, as the
@@ -405,7 +407,8 @@ runtime into its packages.
     dependencies so that its X libraries hide none the deb misses, and that skiko, LWJGL and FlatLaf
     unpacked no natives of their own into the home or `/tmp`;
   - of `dog-vision-web`, which no browser opens there, that its menu entry is valid, as
-    `desktop-file-validate` has it, and that the file it opens with `xdg-open` is there;
+    `desktop-file-validate` has it, that it runs `dog-vision-web` from `PATH`, and that the file
+    that command opens with `xdg-open` is there;
   - of `dog-vision-web-sourcemap`, that the map lies beside the script, and that removing it leaves
     the page;
   - of `dog-vision`, all of the above for the five packages it holds.
