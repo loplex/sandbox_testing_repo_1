@@ -285,7 +285,7 @@ val composeTree = windowPackages(
     sharedPackage = commonPackage,
     // The application's ID, which the Windows MSI does not use.
     applicationId = "cz.loplex.dogvision.compose",
-    mainClass = "cz.loplex.dogvision.desktop.MainKt",
+    mainClass = "cz.loplex.dogvision.compose.MainKt",
     nameSuffix = " (Kotlin Compose)",
     // As jpackage's launcher passes them, but for the resources folder, which the window has no use for.
     jvmOptions = { natives ->
@@ -354,7 +354,7 @@ artifact(
         module = ":gui-compose",
         jars = composeJars,
         cliJars = commonJars,
-        mainClass = "cz.loplex.dogvision.desktop.MainKt",
+        mainClass = "cz.loplex.dogvision.compose.MainKt",
         // As Compose's launchers pass them, but for the resources folder, which the window has no use for: the first
         // has its application give Swing the system's look, the second has skiko take its natives from beside the JARs.
         javaOptions = listOf("-Dcompose.application.configure.swing.globals=true", $$"-Dskiko.library.path=$APPDIR"),
