@@ -1,5 +1,7 @@
 // Plugins are declared here once, so that every module shares one version of each.
 plugins {
+    // The root's own `check`, which the checks of the whole repository below are in.
+    base
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.compose.multiplatform) apply false
@@ -42,7 +44,7 @@ if (gradle.startParameter.systemPropertiesArgs["idea.sync.active"] == "true") {
 }
 
 // ktlint leaves a line that holds a comment and nothing else as long as it is, and nothing measures Markdown, so every
-// line of either is held to .editorconfig's max_line_length for it here, in each module's `check`.
+// line of either is held to .editorconfig's max_line_length for it here, in `check`.
 fun maxLineLength(section: String) = file(".editorconfig").readLines()
     .dropWhile { it.trim() != section }.drop(1)
     .takeWhile { !it.startsWith("[") }
@@ -95,9 +97,9 @@ val checkLineLength = tasks.register("checkLineLength") {
 }
 
 // docs/developing.md draws which module uses which, in Mermaid's graphs, split so that fewer lines cross; together
-// they are held here to the dependencies the modules declare on each other, in each module's `check`. An arrow is `==>`
-// for api, `-->` for implementation, and `-.->` for a dependency that only tests have; `~~~`, which only places a
-// layer, is no dependency. The modules' dependencies are read once all of them are evaluated.
+// they are held here to the dependencies the modules declare on each other, in `check`. An arrow is `==>` for api,
+// `-->` for implementation, and `-.->` for a dependency that only tests have; `~~~`, which only places a layer, is no
+// dependency. The modules' dependencies are read once all of them are evaluated.
 val moduleUses = objects.setProperty<String>()
 // A graph's `class ... program` line makes bold the programs it draws: the modules whose build makes something to
 // run, an APK, a desktop package or a web page.
@@ -182,7 +184,7 @@ val checkModuleGraph = tasks.register("checkModuleGraph") {
 }
 
 // docs/building.md's table in "Every artifact at once" says which folder each artifact lands in; it is held here to the
-// outputs that the tasks packageAll runs declare, in each module's `check`: each output is a folder of the table or
+// outputs that the tasks packageAll runs declare, in `check`: each output is a folder of the table or
 // lies directly in one, and each folder holds one. A folder `…/rpm` is beside the one before it in its cell. The
 // tasks' outputs are read once every module is evaluated, by task, but for the work files in build/intermediates,
 // Android's plugin's, and in build/tmp, Gradle's.
@@ -232,10 +234,9 @@ val checkArtifactFolders = tasks.register("checkArtifactFolders") {
     }
 }
 
-// build-logic is a build of its own, which `check` here does not reach otherwise: its ktlint, in each module's `check`.
-val buildLogicCheck = gradle.includedBuild("build-logic").task(":check")
-subprojects {
-    tasks.matching { it.name == "check" }.configureEach {
-        dependsOn(checkLineLength, checkModuleGraph, checkArtifactFolders, buildLogicCheck)
-    }
+// The checks of the whole repository, in the root's `check`, which `./gradlew check` runs beside every module's. They
+// include build-logic's, a build of its own, which `check` here does not reach otherwise: its ktlint and its tests.
+tasks.named("check") {
+    val buildLogicCheck = gradle.includedBuild("build-logic").task(":check")
+    dependsOn(checkLineLength, checkModuleGraph, checkArtifactFolders, buildLogicCheck)
 }
