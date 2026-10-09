@@ -1,4 +1,4 @@
-import cz.loplex.dogvision.packaging.glNatives
+import cz.loplex.dogvision.packaging.jvm.glNatives
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // What a desktop window draws with, in no toolkit: a photo, a video or the camera through ffmpeg, rendered by gl's
