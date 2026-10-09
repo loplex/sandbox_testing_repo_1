@@ -72,6 +72,10 @@ compose.desktop {
     }
 }
 
+/** The JARs the JVM target runs on, here and on Windows. */
+val jvmRuntimeClasspath = configurations.named("jvmRuntimeClasspath")
+val windowsRuntime = configurations.named("windowsRuntime")
+
 /** The window's own JAR, which each uber JAR below merges with the JARs the window needs. */
 val windowJar = tasks.named<Jar>("jvmJar").flatMap { it.archiveFile }
 
@@ -84,7 +88,7 @@ val linuxUberJarNotices =
     uberJarLicences(
         "linuxUberJarLicences",
         "dog-vision-compose-linux-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
-        configurations.named("jvmRuntimeClasspath"),
+        jvmRuntimeClasspath,
     )
 val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
     description = "Assembles build/compose/jars/dog-vision-compose-linux-x64-<version>.jar, the window for this " +
@@ -95,7 +99,7 @@ val linuxUberJar = tasks.register<Jar>("linuxUberJar") {
         "dog-vision-compose-linux-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
         mainClassName,
         windowJar,
-        configurations.named("jvmRuntimeClasspath"),
+        jvmRuntimeClasspath,
         linuxUberJarNotices,
     )
 }
@@ -106,7 +110,7 @@ val windowsUberJarNotices =
     uberJarLicences(
         "windowsUberJarLicences",
         "dog-vision-compose-windows-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
-        configurations.named("windowsRuntime"),
+        windowsRuntime,
     )
 val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
     description = "Assembles build/compose/jars/dog-vision-compose-windows-x64-<version>.jar, the window for " +
@@ -117,7 +121,7 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
         "dog-vision-compose-windows-x64-${compose.desktop.application.nativeDistributions.packageVersion}.jar",
         mainClassName,
         windowJar,
-        configurations.named("windowsRuntime"),
+        windowsRuntime,
         windowsUberJarNotices,
         excludes = listOf("$armAngle/**"),
     )
@@ -130,7 +134,7 @@ artifact(windowsUberJar)
 windowsLauncher(
     name = "dog-vision-compose",
     ownJar = windowJar,
-    classpath = configurations.named("windowsRuntime"),
+    classpath = windowsRuntime,
     mainClass = mainClassName,
     javaOptions = listOf("-Dcompose.application.configure.swing.globals=true"),
     runtimeModules = compose.desktop.application.nativeDistributions.modules,
