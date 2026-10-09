@@ -39,7 +39,7 @@ jobs:
           ./gradlew "${tasks[@]}"
           ./gradlew "${tasks[@]}" -PappVersion=0.1.1
       # Every deb held to lintian's errors and warnings,
-      # but those each deb overrides, of what it bundles as its makers ship it.
+      # but those each deb overrides, each with its reason.
       - name: Hold the debs to lintian
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: |
