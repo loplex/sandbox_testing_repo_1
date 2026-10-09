@@ -1,0 +1,41 @@
+name: libx265 sweep on Windows
+on: push
+jobs:
+  sweep:
+    name: Sweep ${{ matrix.shard }}/6
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Versions
+        shell: bash
+        run: |
+          choco list ffmpeg
+          ffmpeg -hide_banner -version
+          ffmpeg -hide_banner -f lavfi -i color=s=64x48 -frames:v 1 -c:v libx265 -f null - 2>&1 | grep -i x265
+      - name: Sweep
+        run: python -I x265_sweep.py --shard ${{ matrix.shard }}/6 --out sweep-${{ matrix.shard }}.log
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: sweep-${{ matrix.shard }}
+          path: sweep-*.log
+  timing:
+    name: Probe timing
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Time
+        run: python -I x265_sweep.py --sizes 1280x720,1920x1080,3840x2160 --variants probe3,gray30,pipe3null --workers 1 --out timing.log
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: timing
+          path: timing.log
