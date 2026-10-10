@@ -1,0 +1,165 @@
+diff --git a/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt b/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt
+index 53da8e9900..1c3b894220 100644
+--- a/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt
++++ b/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt
+@@ -1,7 +1,10 @@
+ package dev.detekt.core.settings
+ 
++import com.intellij.core.CoreApplicationEnvironment
+ import com.intellij.openapi.Disposable
+ import com.intellij.openapi.util.Disposer
++import com.intellij.openapi.vfs.impl.ZipHandler
++import com.intellij.openapi.vfs.impl.jar.CoreJarFileSystem
+ import com.intellij.pom.PomModel
+ import com.intellij.pom.tree.TreeAspect
+ import dev.detekt.core.parser.createCompilerConfiguration
+@@ -11,12 +14,15 @@ import dev.detekt.tooling.api.spec.LoggingSpec
+ import dev.detekt.tooling.api.spec.ProjectSpec
+ import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
+ import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
++import org.jetbrains.kotlin.analysis.api.standalone.StandaloneAnalysisAPISession
+ import org.jetbrains.kotlin.analysis.api.standalone.buildStandaloneAnalysisAPISession
+ import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtLibraryModule
+ import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSdkModule
+ import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSourceModule
+ import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
++import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreApplicationEnvironment
+ import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
++import org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem
+ import org.jetbrains.kotlin.config.CommonConfigurationKeys
+ import org.jetbrains.kotlin.config.CompilerConfiguration
+ import org.jetbrains.kotlin.config.JvmTarget
+@@ -65,8 +71,19 @@ internal class EnvironmentFacade(projectSpec: ProjectSpec, compilerSpec: Compile
+     override val ktFiles: List<KtFile>
+         get() = sourceModule.psiRoots.filterIsInstance<KtFile>()
+ 
++    // Shared with every other session open in this class loader, and possibly kept after they all close.
++    private val applicationEnvironment: CoreApplicationEnvironment
++
+     init {
+-        buildStandaloneAnalysisAPISession(disposable) {
++        openSession()
++        applicationEnvironment = runCatching(::buildSession)
++            .onFailure { closeSession(environment = null) }
++            .getOrThrow()
++            .coreApplicationEnvironment
++    }
++
++    private fun buildSession(): StandaloneAnalysisAPISession {
++        return buildStandaloneAnalysisAPISession(disposable) {
+             // Required for autocorrect support
+             registerProjectService(TreeAspect::class.java)
+             registerProjectService(PomModel::class.java, DetektPomModel(project))
+@@ -124,6 +141,37 @@ internal class EnvironmentFacade(projectSpec: ProjectSpec, compilerSpec: Compile
+ 
+     override fun close() {
+         Disposer.dispose(disposable)
++        closeSession(applicationEnvironment)
++    }
++
++    private companion object {
++        private val sessionsLock = Any()
++        private var openSessions = 0
++
++        fun openSession() {
++            synchronized(sessionsLock) { openSessions++ }
++        }
++
++        /**
++         * Once no session is open, drops what [environment] remembers of the jars the sessions read.
++         *
++         * The Kotlin compiler keeps the application environment after its last project closes when
++         * `kotlin.environment.keepalive` is true, which the Kotlin Gradle plugin and Android Lint set in the
++         * Gradle daemon detekt may run in. Its jar file system reads a jar's entries once, so a class added to a
++         * jar at the same path would stay unresolved in every later run. The Kotlin daemon clears the same caches
++         * after each compilation.
++         */
++        fun closeSession(environment: CoreApplicationEnvironment?) {
++            synchronized(sessionsLock) {
++                openSessions--
++                if (openSessions == 0 && environment != null) {
++                    ZipHandler.clearFileAccessorCache()
++                    (environment.jarFileSystem as? CoreJarFileSystem)?.clearHandlersCache()
++                    (environment.jrtFileSystem as? CoreJrtFileSystem)?.clearRoots()
++                    (environment as? KotlinCoreApplicationEnvironment)?.idleCleanup()
++                }
++            }
++        }
+     }
+ }
+ 
+diff --git a/detekt-core/src/test/kotlin/dev/detekt/core/settings/EnvironmentFacadeSpec.kt b/detekt-core/src/test/kotlin/dev/detekt/core/settings/EnvironmentFacadeSpec.kt
+new file mode 100644
+index 0000000000..83958a65b2
+--- /dev/null
++++ b/detekt-core/src/test/kotlin/dev/detekt/core/settings/EnvironmentFacadeSpec.kt
+@@ -0,0 +1,69 @@
++package dev.detekt.core.settings
++
++import dev.detekt.core.createProcessingSettings
++import org.assertj.core.api.Assertions.assertThat
++import org.jetbrains.kotlin.analysis.api.analyze
++import org.jetbrains.kotlin.analysis.api.components.KaDiagnosticCheckerFilter
++import org.jetbrains.kotlin.analysis.api.diagnostics.KaSeverity
++import org.jetbrains.org.objectweb.asm.ClassWriter
++import org.jetbrains.org.objectweb.asm.Opcodes
++import org.junit.jupiter.api.Test
++import org.junit.jupiter.api.io.TempDir
++import java.nio.file.Path
++import java.util.jar.JarEntry
++import java.util.jar.JarOutputStream
++import kotlin.io.path.outputStream
++import kotlin.io.path.writeText
++
++class EnvironmentFacadeSpec {
++
++    @Test
++    fun `resolves a class added to a classpath jar that an earlier run read`(@TempDir dir: Path) {
++        val jar = dir.resolve("lib.jar")
++        val source = dir.resolve("Use.kt")
++        val keepalive = System.getProperty(KEEPALIVE)
++        // As in a Gradle daemon where the Kotlin Gradle plugin or Android Lint has set it:
++        // the application environment, and what it read of the jars, outlives each run.
++        System.setProperty(KEEPALIVE, "true")
++        try {
++            writeJar(jar, "lib/Old")
++            source.writeText("import lib.Old\n\nfun use(old: Old) = listOf(old)\n")
++            assertThat(compilerErrors(source, jar)).isEmpty()
++
++            writeJar(jar, "lib/Old", "lib/New")
++            source.writeText("import lib.New\nimport lib.Old\n\nfun use(old: Old, new: New) = listOf(old, new)\n")
++            assertThat(compilerErrors(source, jar)).isEmpty()
++        } finally {
++            if (keepalive == null) System.clearProperty(KEEPALIVE) else System.setProperty(KEEPALIVE, keepalive)
++        }
++    }
++}
++
++private const val KEEPALIVE = "kotlin.environment.keepalive"
++
++private fun compilerErrors(source: Path, jar: Path): List<String> =
++    createProcessingSettings(source) { compiler { classpath = listOf(jar) } }.use { settings ->
++        settings.ktFiles.flatMap { file ->
++            analyze(file) {
++                file.collectDiagnostics(KaDiagnosticCheckerFilter.ONLY_COMMON_CHECKERS)
++                    .filter { it.severity == KaSeverity.ERROR }
++                    .map { it.defaultMessage }
++            }
++        }
++    }
++
++private fun writeJar(jar: Path, vararg classNames: String) {
++    JarOutputStream(jar.outputStream()).use { out ->
++        classNames.forEach { name ->
++            out.putNextEntry(JarEntry("$name.class"))
++            out.write(emptyClass(name))
++            out.closeEntry()
++        }
++    }
++}
++
++private fun emptyClass(name: String): ByteArray =
++    ClassWriter(0).apply {
++        visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, name, null, "java/lang/Object", null)
++        visitEnd()
++    }.toByteArray()
