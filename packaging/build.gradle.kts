@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 import cz.loplex.dogvision.packaging.WEB_PAGE_USAGE
 import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.jvm.jvmRuntimeOf
