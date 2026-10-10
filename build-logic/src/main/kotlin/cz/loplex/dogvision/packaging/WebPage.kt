@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package cz.loplex.dogvision.packaging
 
 import org.gradle.api.Project
