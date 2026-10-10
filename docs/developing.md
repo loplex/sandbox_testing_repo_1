@@ -63,6 +63,10 @@ The root project declares the plugin, so these are on every module's build scrip
   The app, the web page, the window and the command line all speak through it.
 - **`ui`'s Compose Multiplatform 1.12 is Jetpack Compose 1.12**, and its Material 3 1.9 is androidx
   Material 3 1.4, the versions of the app's Compose BOM, so that the app runs one of each.
+- **`ui`'s controls have previews** in
+  [`Previews.kt`](../ui/src/commonMain/kotlin/cz/loplex/dogvision/ui/Previews.kt), in English in light
+  colours and in Czech in dark ones, which the IDE draws through the Android target, with the Kotlin
+  Multiplatform plugin.
 - **The command line and the windows take options of their own**, and share the view's:
   [`jvm-common`'s `ViewOptions`](../jvm-common/src/jvmMain/kotlin/cz/loplex/dogvision/common/Options.kt)
   reads them for both, and
@@ -241,8 +245,8 @@ in [`.editorconfig`](../.editorconfig):
   these modules, as their code is not in `src/main`.
 - **Its rules are detekt's defaults**, but where [`detekt.yml`](../detekt.yml) says otherwise:
   a composable function is left out of the naming, length and parameter rules, as Compose names and
-  lays out its own that way, and a class of tests out of LargeClass, as it holds every test of its
-  subject.
+  lays out its own that way, a class of tests out of LargeClass, as it holds every test of its
+  subject, and a preview out of UnusedPrivateFunction, as only the IDE calls it.
 - **A finding that stays is suppressed where it stands**, with `@Suppress` on its declaration, or
   on its file where the file's numbers are data, with a comment saying so; no rule is switched off
   for the whole build.
