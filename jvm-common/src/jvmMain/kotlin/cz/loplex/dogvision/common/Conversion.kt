@@ -130,9 +130,9 @@ class Conversion(private val file: File, private val view: View, private val out
         } finally {
             reader.close()
         }
-        return when {
-            frames == null -> null
-            frames == 0L -> throw ConversionException(Str.VIDEO_NO_FRAMES, file)
+        return when (frames) {
+            null -> null
+            0L -> throw ConversionException(Str.VIDEO_NO_FRAMES, file)
             else -> Converted.Video(output, encoder, writer.sound)
         }
     }
