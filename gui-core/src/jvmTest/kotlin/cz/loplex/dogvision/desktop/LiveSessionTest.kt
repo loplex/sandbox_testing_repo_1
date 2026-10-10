@@ -812,7 +812,7 @@ class LiveSessionTest {
         val session = session(WindowArguments(file = File("a.jpg"), outputDir = directory), ffmpegFound = { found })
         renderer.composed = listOf(Image(1, 1, intArrayOf(5)))
         session.toggleRecording()
-        assertTrue(session.state.value.failure?.ffmpegMissing == true)
+        assertEquals(true, session.state.value.failure?.ffmpegMissing)
         found = true
         session.toggleRecording()
         assertNull(session.state.value.failure)

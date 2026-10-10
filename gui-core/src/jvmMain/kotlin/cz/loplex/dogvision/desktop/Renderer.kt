@@ -282,7 +282,7 @@ class GlRenderer<I>(
             if (requests.isNotEmpty() || recorded) {
                 val images = passes.readImages(view.images)
                 requests.forEach { it(images) }
-                if (recorded) checkNotNull(recorder)(images)
+                if (recorded) recorder(images)
                 recordFirst = false
             }
             var counted = false
