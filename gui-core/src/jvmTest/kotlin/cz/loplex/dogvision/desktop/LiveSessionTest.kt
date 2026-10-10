@@ -287,6 +287,24 @@ class LiveSessionTest {
     }
 
     @Test
+    fun theSourceStartsAgainBeforeFfmpegIsSaidToBeThere() {
+        var session: LiveSession<Unit>? = null
+        val getting = Collections.synchronizedList(mutableListOf<Boolean>())
+        session = session(
+            arguments = WindowArguments(),
+            feed = { source, renderer, onFailure ->
+                session?.let { getting += it.state.value.gettingFfmpeg }
+                feed(source, renderer, onFailure)
+            },
+        )
+        session.installFfmpeg()
+        awaitInstalled(session)
+        session.downloadFfmpeg()
+        awaitInstalled(session)
+        assertEquals(listOf(true, true), getting)
+    }
+
+    @Test
     fun ffmpegNotInstalledIsSaidAndTheSourceNotStartedAgain() {
         val session = session(arguments = WindowArguments(), installer = { FfmpegInstall.Failed("no network") })
         session.installFfmpeg()

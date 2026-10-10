@@ -525,8 +525,9 @@ class LiveSession<I>(
                 val failure = (downloaded as? FfmpegInstall.Failed)?.let { failed ->
                     Failure { it.get(Str.FFMPEG_NOT_DOWNLOADED, failed.reason) }
                 }
-                change { copy(downloadingFfmpeg = null, ffmpegFailure = failure) }
+                // The source starts again before the state says ffmpeg is there, so whoever sees it there sees that.
                 if (downloaded == FfmpegInstall.Found && !closed) startAgain()
+                change { copy(downloadingFfmpeg = null, ffmpegFailure = failure) }
             }
         }
     }
@@ -546,8 +547,9 @@ class LiveSession<I>(
                     FfmpegInstall.NoWinget -> Failure(link = DOWNLOAD_PAGE) { it.get(Str.NO_WINGET, DOWNLOAD_PAGE) }
                     is FfmpegInstall.Failed -> Failure { it.get(Str.FFMPEG_NOT_INSTALLED, installed.reason) }
                 }
-                change { copy(installingFfmpeg = false, ffmpegFailure = failure) }
+                // As in downloadFfmpeg, the source starts again before the state says ffmpeg is there.
                 if (installed == FfmpegInstall.Found && !closed) startAgain()
+                change { copy(installingFfmpeg = false, ffmpegFailure = failure) }
             }
         }
     }
