@@ -31,7 +31,7 @@ class WrappedTextTest {
             pieces = "ffmpeg can be downloaded from $link".split(' ')
             this.link = link
             onLink = { opened += it }
-            setSize(preferredSize)
+            size = preferredSize
         }
         click(text, 2)
         assertEquals(emptyList(), opened)
