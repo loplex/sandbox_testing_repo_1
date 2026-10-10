@@ -16,16 +16,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: pair-1, args: '' }
-          - { name: pair-2, args: '' }
+          # project/ as it is: Gradle's and the Kotlin Gradle plugin's defaults.
+          - { name: default-1, args: '' }
+          - { name: default-2, args: '' }
           - { name: debug, args: '-Prepro.detektDebug=true' }
-          - { name: clean-between, args: '--clean-between' }
+          - { name: in-process, args: '-Pkotlin.compiler.execution.strategy=in-process' }
+          - { name: clean-between-1, args: '--clean-between' }
+          - { name: clean-between-2, args: '--clean-between' }
+          - { name: build-cache, args: '--build-cache' }
+          # Controls.
           - { name: second-only, args: '--second-only' }
           - { name: no-daemon, args: '--no-daemon' }
-          - { name: worker-api, args: '-Pdetekt.use.worker.api=true' }
-          - { name: no-build-cache, args: '--no-build-cache' }
-          - { name: no-configuration-cache, args: '--no-configuration-cache' }
-          - { name: kotlin-daemon, args: '-Pkotlin.compiler.execution.strategy=daemon' }
+          - { name: worker-api-1, args: '-Pdetekt.use.worker.api=true' }
+          - { name: worker-api-2, args: '-Pdetekt.use.worker.api=true' }
+          - { name: configuration-cache, args: '--configuration-cache' }
+          # As the project the bug was found in builds: configuration cache, build cache, Kotlin in-process.
+          - { name: like-original, args: '--clean-between --configuration-cache --build-cache -Pkotlin.compiler.execution.strategy=in-process' }
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5

@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Builds project/ twice in one Gradle daemon, as a developer or a CI job that builds commit after commit would:
-#   build 1: `check` on project/ as it is; :a:detektMainJvm reads lib's jar.
+#   build 1: `check` on project/ as it is; :a:detektMain reads lib's jar.
 #   then:    lib gains repro.lib.New, and b depends on lib and uses New (the files of step2/).
-#   build 2: `check` again; :b:detektMainJvm should resolve New from lib's rebuilt jar.
-# The builds run in a copy, build/work, with a build cache and a daemon of their own; the logs go to build/logs.
+#   build 2: `check` again; :b:detektMain should resolve New from lib's rebuilt jar.
+# The builds run in a copy, build/work, in a daemon of their own; the logs go to build/logs.
+# A build cache, where an argument turns one on, is the run's own too: build/work-build-cache.
 #
 # Usage: ./reproduce.sh [--second-only] [--clean-between] [--keep-daemon] [gradle argument...]
 #   --second-only    skips build 1: build 2 alone, in a fresh daemon.
 #   --clean-between  removes the build's outputs before build 2 (build/, .gradle/, .kotlin/), as `git clean` would.
-#   --keep-daemon    leaves the daemon running; otherwise it is stopped at the end.
+#   --keep-daemon    leaves the Gradle daemon running; otherwise it is stopped at the end.
 # Every other argument goes to both builds, e.g. --no-daemon or -Pdetekt.use.worker.api=true.
 set -u
 
