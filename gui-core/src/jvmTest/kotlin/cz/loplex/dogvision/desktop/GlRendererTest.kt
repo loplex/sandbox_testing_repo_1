@@ -22,7 +22,7 @@ import kotlin.test.assertNull
 class GlRendererTest {
     private val pictures = LinkedBlockingQueue<Picture<ByteArray>>()
     private val failures = LinkedBlockingQueue<String>()
-    private val renderer = GlRenderer<ByteArray>(null, { pixels, _, _ -> pixels }, pictures::put, failures::put)
+    private val renderer = GlRenderer(null, { pixels, _, _ -> pixels }, pictures::put, failures::put)
 
     private val frame = frameOf(
         Image(WIDTH, HEIGHT, IntArray(WIDTH * HEIGHT) { if (it % WIDTH < WIDTH / 2) RED else BLUE }),

@@ -551,7 +551,7 @@ class LiveSessionTest {
     @Test
     fun noPictureIsShownWhileTheCameraIsOff() {
         var onPicture: (Picture<Unit>) -> Unit = {}
-        val session = LiveSession<Unit>(
+        val session = LiveSession(
             WindowArguments(),
             { picture, _ -> renderer.also { onPicture = picture } },
             feed,
