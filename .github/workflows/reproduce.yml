@@ -1,0 +1,43 @@
+# Runs reproduce.sh once per job, each job on a fresh runner with one thing varied; the verdict is each job's
+# summary.txt, and no job fails because a build failed.
+name: reproduce
+
+on:
+  push:
+    branches: [probe/detekt-stale-jar]
+  workflow_dispatch:
+
+jobs:
+  reproduce:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: pair-1, args: '' }
+          - { name: pair-2, args: '' }
+          - { name: debug, args: '-Prepro.detektDebug=true' }
+          - { name: clean-between, args: '--clean-between' }
+          - { name: second-only, args: '--second-only' }
+          - { name: no-daemon, args: '--no-daemon' }
+          - { name: worker-api, args: '-Pdetekt.use.worker.api=true' }
+          - { name: no-build-cache, args: '--no-build-cache' }
+          - { name: no-configuration-cache, args: '--no-configuration-cache' }
+          - { name: kotlin-daemon, args: '-Pkotlin.compiler.execution.strategy=daemon' }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Reproduce
+        run: |
+          ./reproduce.sh ${{ matrix.args }}
+          { echo "variant: ${{ matrix.name }} (${{ matrix.args }})"; cat build/logs/summary.txt; } >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: logs-${{ matrix.name }}
+          path: build/logs/
