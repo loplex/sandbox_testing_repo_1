@@ -1,5 +1,5 @@
 diff --git a/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt b/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt
-index 53da8e9900..770222182f 100644
+index 53da8e9900..8bda8c1832 100644
 --- a/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt
 +++ b/detekt-core/src/main/kotlin/dev/detekt/core/settings/EnvironmentAware.kt
 @@ -1,7 +1,10 @@
@@ -29,7 +29,7 @@ index 53da8e9900..770222182f 100644
  import org.jetbrains.kotlin.config.CommonConfigurationKeys
  import org.jetbrains.kotlin.config.CompilerConfiguration
  import org.jetbrains.kotlin.config.JvmTarget
-@@ -65,65 +71,105 @@ internal class EnvironmentFacade(projectSpec: ProjectSpec, compilerSpec: Compile
+@@ -65,7 +71,18 @@ internal class EnvironmentFacade(projectSpec: ProjectSpec, compilerSpec: Compile
      override val ktFiles: List<KtFile>
          get() = sourceModule.psiRoots.filterIsInstance<KtFile>()
  
@@ -37,107 +37,22 @@ index 53da8e9900..770222182f 100644
 +    private val applicationEnvironment: CoreApplicationEnvironment
 +
      init {
--        buildStandaloneAnalysisAPISession(disposable) {
--            // Required for autocorrect support
--            registerProjectService(TreeAspect::class.java)
--            registerProjectService(PomModel::class.java, DetektPomModel(project))
 +        openSession()
 +        applicationEnvironment = runCatching(::buildSession)
 +            .onFailure { closeSession(environment = null) }
 +            .getOrThrow()
 +            .coreApplicationEnvironment
 +    }
- 
--            configuration.putIfAbsent(CommonConfigurationKeys.MODULE_NAME, "<no module name provided>")
-+    private fun buildSession(): StandaloneAnalysisAPISession = buildStandaloneAnalysisAPISession(disposable) {
-+        // Required for autocorrect support
-+        registerProjectService(TreeAspect::class.java)
-+        registerProjectService(PomModel::class.java, DetektPomModel(project))
- 
--            buildKtModuleProvider {
--                val targetPlatform =
--                    JvmPlatforms.jvmPlatformByTargetVersion(configuration.jvmTarget ?: JvmTarget.DEFAULT)
--                platform = targetPlatform
-+        configuration.putIfAbsent(CommonConfigurationKeys.MODULE_NAME, "<no module name provided>")
- 
--                val jdk = configuration.jdkHome?.let { jdkHome ->
--                    buildKtSdkModule {
--                        addBinaryRootsFromJdkHome(jdkHome.toPath(), isJre = false)
--                        platform = targetPlatform
--                        libraryName = "jdk"
--                    }
-+        buildKtModuleProvider {
-+            val targetPlatform =
-+                JvmPlatforms.jvmPlatformByTargetVersion(configuration.jvmTarget ?: JvmTarget.DEFAULT)
-+            platform = targetPlatform
 +
-+            val jdk = configuration.jdkHome?.let { jdkHome ->
-+                buildKtSdkModule {
-+                    addBinaryRootsFromJdkHome(jdkHome.toPath(), isJre = false)
-+                    platform = targetPlatform
-+                    libraryName = "jdk"
-                 }
-+            }
- 
--                val friends = configuration.friendPaths.takeIf { it.isNotEmpty() }
--                    ?.let { paths ->
--                        buildKtLibraryModule {
--                            platform = targetPlatform
--                            paths.forEach { addBinaryRoot(Path(it)) }
--                            libraryName = "friendDependencies"
--                        }
-+            val friends = configuration.friendPaths.takeIf { it.isNotEmpty() }
-+                ?.let { paths ->
-+                    buildKtLibraryModule {
-+                        platform = targetPlatform
-+                        paths.forEach { addBinaryRoot(Path(it)) }
-+                        libraryName = "friendDependencies"
-                     }
--
--                val dependencies = buildKtLibraryModule {
--                    platform = targetPlatform
--                    addBinaryRoots(configuration.jvmClasspathRoots.map { it.toPath() })
--                    libraryName = "regularDependencies"
-                 }
- 
--                sourceModule = buildKtSourceModule {
--                    addSourceRoots(configuration.kotlinSourceRoots.map { Path(it.path) })
--                    platform = targetPlatform
--                    moduleName = "source"
-+            val dependencies = buildKtLibraryModule {
-+                platform = targetPlatform
-+                addBinaryRoots(configuration.jvmClasspathRoots.map { it.toPath() })
-+                libraryName = "regularDependencies"
-+            }
- 
--                    jdk?.let { addRegularDependency(it) }
--                    friends?.let {
--                        // Friend dependencies must also be declared as regular dependencies - https://github.com/JetBrains/kotlin/commit/69cfa0498a76f0c3eec39eb06b5de70a0d06e41a
--                        addFriendDependency(it)
--                        addRegularDependency(it)
--                    }
--                    addRegularDependency(dependencies)
-+            sourceModule = buildKtSourceModule {
-+                addSourceRoots(configuration.kotlinSourceRoots.map { Path(it.path) })
-+                platform = targetPlatform
-+                moduleName = "source"
- 
--                    languageVersionSettings = configuration.languageVersionSettings
-+                jdk?.let { addRegularDependency(it) }
-+                friends?.let {
-+                    // Friend dependencies must also be declared as regular dependencies - https://github.com/JetBrains/kotlin/commit/69cfa0498a76f0c3eec39eb06b5de70a0d06e41a
-+                    addFriendDependency(it)
-+                    addRegularDependency(it)
-                 }
-+                addRegularDependency(dependencies)
- 
--                addModule(sourceModule)
-+                languageVersionSettings = configuration.languageVersionSettings
++    private fun buildSession(): StandaloneAnalysisAPISession =
+         buildStandaloneAnalysisAPISession(disposable) {
+             // Required for autocorrect support
+             registerProjectService(TreeAspect::class.java)
+@@ -120,10 +137,40 @@ internal class EnvironmentFacade(projectSpec: ProjectSpec, compilerSpec: Compile
+                 addModule(sourceModule)
              }
-+
-+            addModule(sourceModule)
          }
-     }
+-    }
  
      override fun close() {
          Disposer.dispose(disposable)
