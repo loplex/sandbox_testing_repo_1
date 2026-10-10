@@ -57,7 +57,7 @@ jobs:
             > ../build/logs/spec.log 2>&1
           echo "EnvironmentFacadeSpec: exit=$?" | tee -a ../build/logs/summary.txt
           if [ "${{ matrix.name }}" = test-fixed ]; then
-            ./gradlew :detekt-core:test :detekt-core:detektMain :detekt-core:detektTest --no-configuration-cache \
+            ./gradlew :detekt-core:test :detekt-core:detektMain :detekt-core:detektTest --continue --no-configuration-cache \
               > ../build/logs/detekt-core.log 2>&1
             echo "detekt-core test detektMain detektTest: exit=$?" | tee -a ../build/logs/summary.txt
           fi
