@@ -105,9 +105,16 @@ What was observed above, and what was read in the sources, without a debugger:
   with it, the plugin keeps the value in a map of its own, and the property stays unset.
 - So, with the configuration cache off, the application environment outlives the build
   when the last detekt task to close was created after a compile task had set the property.
-- The Analysis API finds a library jar through the environment's `CoreJarFileSystem`, which keeps one
-  `CoreJarHandler` per path; the handler reads the jar's entries once, when it is created.
-  When the environment survives, it is not cleared: `idleCleanup()` clears only the `FastJarFileSystem`.
-  Whether that handler or `KotlinStandaloneIndexCache`, keyed by the jar's root, is what serves the old entries
-  was not checked.
+- The Analysis API finds a library jar through the environment's `CoreJarFileSystem` (IntelliJ 251.27812.49, the SDK
+  of Kotlin 2.4.10), which keeps one `CoreJarHandler` per path; its `refresh()` does nothing.
+  `CoreJarHandler` builds the jar's tree of files once, in its constructor.
+  `ZipHandler` reopens the jar when a class file is read from it after it changed, but the tree stays:
+  `Old`'s content comes from the new jar, and `New` is not in the tree.
+- `idleCleanup()`, which runs instead of the disposal while the environment is kept, clears only the
+  `FastJarFileSystem`.
+- The Kotlin daemon (`CompileServiceImpl.clearJarCache()`) and the Build Tools API
+  (`CompilationServiceImpl.clearJarCaches()`) clear these caches themselves after each compilation:
+  `ZipHandler.clearFileAccessorCache()`, `CoreJarFileSystem.clearHandlersCache()`, `CoreJrtFileSystem.clearRoots()`,
+  `idleCleanup()`.
+  detekt has no such call.
 - With the Worker API, detekt runs in a worker process, where the Kotlin Gradle plugin does not set the property.
