@@ -1,0 +1,49 @@
+# The Windows GL tests of dog-vision 7ada855e alone, from its ci.yml, for a bisect.
+name: Windows GL bisect
+
+on:
+  push:
+
+jobs:
+  windows-gl:
+    name: Windows GL tests
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      # Windows's own opengl32.dll has OpenGL 1.1 alone, where WglContext asks for 3.3 core: Mesa's
+      # llvmpipe, beside java.exe, which Windows loads a DLL from before its system folder. Its WGL
+      # alone: Mesa's libEGL and libGLESv2 there could be taken for ANGLE's, which have their names.
+      - name: Put Mesa's OpenGL beside java.exe
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo pal1000/mesa-dist-win --pattern "*release-msvc.7z" --output mesa.7z
+          7z x mesa.7z -omesa "x64/*.dll" | Out-Null
+          Write-Host "Mesa's DLLs: $((Get-ChildItem mesa/x64).Name -join ', ')"
+          foreach ($dll in "opengl32.dll", "libgallium_wgl.dll", "libglapi.dll") {
+            if (Test-Path "mesa/x64/$dll") { Copy-Item "mesa/x64/$dll" (Join-Path $env:JAVA_HOME "bin") }
+          }
+      # ANGLE runs on Direct3D 11's software rasteriser, WARP, as the runner has no GPU. Mesa would
+      # take its Direct3D 12 driver, which needs Mesa's dxil.dll, over llvmpipe. ffmpeg's own tests
+      # run here too, for how a program is started on Windows.
+      - run: ./gradlew :gui-core:jvmTest :ffmpeg:jvmTest
+        env:
+          GALLIUM_DRIVER: llvmpipe
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-gl-reports
+          path: |
+            gui-core/build/reports/
+            gui-core/build/test-results/
+            gui-core/hs_err_pid*.log
+            ffmpeg/build/reports/
+            ffmpeg/build/test-results/
