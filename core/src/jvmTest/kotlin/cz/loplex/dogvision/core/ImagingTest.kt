@@ -254,7 +254,7 @@ class ImagingTest {
 
     /**
      * The reference model renders the same pattern alike, to one step of 8 bits where the two round a
-     * float differently: images.tsv holds its results, written by tools/reference/reference_values.py.
+     * float differently: images.tsv holds its results.
      */
     @TestFactory
     fun `every reference image is matched`(): List<DynamicTest> {
