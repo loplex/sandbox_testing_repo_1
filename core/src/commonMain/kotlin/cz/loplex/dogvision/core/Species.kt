@@ -155,3 +155,4 @@ const val ASSUMED_S_CONE_FRACTION = 0.10
  * trichromat and calls it assumed.
  */
 const val ASSUMED_L_TO_M = 1.0
+this line is not Kotlin, injected for the gate probe
