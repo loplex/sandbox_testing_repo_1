@@ -354,12 +354,17 @@ private fun scopeOf(option: String, value: String, inputs: List<String>): Pair<I
         "$option '$value' is for input '$input', which is not one of: " + inputs.distinct().joinToString()
     }
     // A name is a label two inputs may share, and a scope naming both would speak for either.
-    require(named.size == 1) {
-        "$option '$value' is for input '$input', and ${named.size} inputs are called that; give " +
-            "one of them another name"
-    }
+    if (named.size > 1) throw SharedScope(option, value, input, named.size)
     return named.single() to rest
 }
+
+/**
+ * A scope naming a name [count] inputs share, refused. Its own exception so that a caller that knows
+ * where those inputs are, and how each was written, can say so: [scopeOf] knows only their names.
+ */
+class SharedScope(val option: String, val value: String, val input: String, count: Int) : IllegalArgumentException(
+    "$option '$value' is for input '$input', and $count inputs are called that; give one of them another name"
+)
 
 /** The `::` that ends a scope — see [scopeOf]. */
 private const val SCOPE = "::"

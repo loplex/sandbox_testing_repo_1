@@ -13,7 +13,8 @@ class ScannedRepository(
     /** Where the repository is, absolute, as [SourceRepository.absolute] has the base. */
     val path: Path,
     /**
-     * Where its content lands: its own path relative to the base directory, or `null` for the base
+     * Where its content lands: its own path relative to the base directory, the last segment named
+     * as any input is (`libs/backend.git` lands at `libs/backend`), or `null` for the base
      * directory itself, which is the output root.
      */
     val subdir: String?,

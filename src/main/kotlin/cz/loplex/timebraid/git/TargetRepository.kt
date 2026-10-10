@@ -57,8 +57,8 @@ class TargetRepository private constructor(
             ?: repository.newObjectInserter()
 
     /** Builds the braid's trees into this repository, deduplicating identical ones. */
-    fun treeAssembler(dissolveSubmodules: Boolean = false): TreeAssembler =
-        TreeAssembler(inserter, dissolveSubmodules)
+    fun treeAssembler(dissolveSubmodules: Boolean = false, relocation: Relocation = Relocation.UNSPELLED) =
+        TreeAssembler(inserter, dissolveSubmodules, relocation)
 
     /**
      * Fetches everything reachable from [refs] in [source] into this repository, parking the refs
@@ -69,7 +69,7 @@ class TargetRepository private constructor(
      * The trees and blobs come across because the braid's new root trees point straight at them; the
      * commits come across because a fetch cannot leave them out, and because moving their bytes is
      * the only way an original sha survives, which is what `--keep-remotes` points its
-     * `refs/remotes/<repo>/` refs at.
+     * `refs/remotes/<name>/` refs at.
      *
      * A fetch rather than an object-by-object copy for two reasons that were measured on a
      * three-repository history of 14 387 commits and 139 MB of inputs, a corpus outside this
@@ -384,6 +384,20 @@ class TargetRepository private constructor(
         /** The git directory a [bare] or non-bare output at [location] has. */
         private fun gitDirOf(location: Path, bare: Boolean) =
             if (bare) location.toFile() else location.resolve(Constants.DOT_GIT).toFile()
+
+        /**
+         * The remotes an output at [location] already records, each name with its URL, or none where
+         * no repository is there yet. Read from the git directory [create] would write into, a bare
+         * output's own or a non-bare one's `.git`, and never from a repository around it.
+         */
+        fun remotesOf(location: Path, bare: Boolean): Map<String, String?> {
+            val gitDir = gitDirOf(location, bare)
+            if (!RepositoryCache.FileKey.isGitRepository(gitDir, FS.DETECTED)) return emptyMap()
+            return FileRepositoryBuilder().setGitDir(gitDir).build().use { repository ->
+                val config = repository.config
+                config.getSubsections("remote").associateWith { config.getString("remote", it, "url") }
+            }
+        }
 
         /**
          * Pins line-ending handling off in the output's own config.

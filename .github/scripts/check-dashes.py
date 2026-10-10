@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Hold the punctuation dash to one spelling, where the spelling is a choice and not a constraint.
 
-Everything the program prints is ASCII, because a Windows console encodes to a code page that has
+Every string the program spells is ASCII, because a Windows console encodes to a code page that has
 no em dash and substitutes a `?` for it. So a user-facing string writes ` -- `, and MessageCharsetTest
-holds it there by reading the compiled constant pool.
+holds it there by reading the compiled constant pool. The progress bar's glyphs are mordant's, not
+the program's, and fall back to ASCII where the console cannot encode them (Glyphs.kt).
 
 Comments and prose reach no console, so that reason does not apply to them and the em dash is what
 they use. Both spellings then live in one tree for different reasons, which is how they drift: a
@@ -34,10 +35,9 @@ src/test is read on the same terms as src/main. It holds no user-facing message,
 can be confused with one, and a comment in a test is read in the same editor as any other.
 .github/scripts is left out because it writes ` -- ` throughout and is consistent in itself, and
 pom.xml because Maven's own vocabulary carries the ASCII mark in contexts this cannot tell from
-prose. The manual page is left out for the reason the messages are: groff reads the
-bytes before it decides what a comment is, and refuses an em dash there with `invalid input
-character code 128` -- so in roff the ASCII spelling is the only one, which makes it a constraint
-rather than a choice, and there is nothing for this check to hold. The rest of what the scan below
+prose. The manual page is left out because this check reads no roff. groff refuses an em dash
+written as a raw byte, with `invalid input character code 128`, but has `\\(em` for one, so the
+page's ` \\- ` is a choice of its own, held by nothing here. The rest of what the scan below
 does not read is named here too: doc/examples/build-inputs.sh, the workflows and .gitattributes, for
 the first of those reasons, writing the ASCII mark and never the em dash; the root git-timebraid
 wrapper and .editorconfig, which write neither; LICENSE and NOTICE, which are legal text; and
@@ -60,8 +60,8 @@ import sys
 import kotlin_source
 
 # A dash standing on its own. The lookarounds are the filter the over-matching needs: `---`, an
-# option (`--verbose`, and the `--[no-]x` and `--<name>` spellings the help uses), and `foo--bar`
-# are all spelled with a dash and none of them is punctuation.
+# option (`--verbose`, the `--[no-]x` spelling the help uses, a `--<name>` placeholder), and
+# `foo--bar` are all spelled with a dash and none of them is punctuation.
 DASH = re.compile(r"(?<![-\w])--(?![-\w\[<])")
 FENCE = re.compile(r"^ {0,3}(```|~~~)")
 INLINE_CODE = re.compile(r"(`+)(?:(?!\1).)*\1")

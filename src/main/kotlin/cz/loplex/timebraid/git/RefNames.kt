@@ -15,7 +15,7 @@ sealed class RefSource {
     class Of(val ref: BraidOutRef) : RefSource()
 
     /** A notes ref, at the notes commit written for it. */
-    class Notes(val note: BraidNotes) : RefSource()
+    class Notes(val notesRef: BraidNotes) : RefSource()
 
     /** A `--keep-remotes` mirror, at the input's own original commit. */
     class Original(val id: ObjectId) : RefSource()
@@ -23,7 +23,7 @@ sealed class RefSource {
 
 /** Every name the output's refs get, and what each points at; see [RefNames.resolve]. */
 class Named(
-    val sources: Map<String, RefSource>,
+    val refs: Map<String, RefSource>,
     val branches: Int,
     val tags: Int,
     val foreign: Int,
@@ -107,9 +107,10 @@ class RefNames(
      * write gives out: the inputs as read, the options and the plan's braid decide it all.
      *
      * The mainline collapses: every input contributed its mainline to one braid, so the output gets
-     * one branch of that name, at the braid's tip. Every other ref is written under the prefix its
-     * kind carries — `--branch-prefix` for a branch, `--tag-prefix` for a tag — and that prefix
-     * applies to all of them alike.
+     * one branch at the braid's tip, named by the unscoped `--mainline-branch` or else after the
+     * first input's mainline. Every other ref is written under the prefix its kind carries —
+     * `--branch-prefix` for a branch, `--tag-prefix` for a tag — and that prefix applies to all of
+     * them alike.
      *
      * **Unconditionally, bar one thing: a pattern spelling its destination out takes the name as
      * written, prefix and all.** Short of that, an output ref name is a function of its input. The
@@ -162,11 +163,10 @@ class RefNames(
 
         var notes = 0
         for (input in inputs.sources) {
-            val repo = input.source.name
-            for (note in input.notes) {
-                val name = Constants.R_NOTES + expand(options.notesPrefix, input.source) + note.name
+            for (notesRef in input.notes) {
+                val name = Constants.R_NOTES + expand(options.notesPrefix, input.source) + notesRef.name
                 claim(claimed, name, Holder(input.source), "--notes-prefix")
-                refs[name] = RefSource.Notes(note)
+                refs[name] = RefSource.Notes(notesRef)
                 notes++
             }
         }
@@ -220,30 +220,30 @@ class RefNames(
         else -> error("no prefix rule for '$namespace' -- it should have been named outright")
     }
 
-    /** The option setting the prefix [ref] sees, for a message that has to suggest a remedy. */
-    private fun prefixFlag(ref: OutputName): String = when {
-        !ref.prefixed -> "the destination"
-        ref.namespace == Constants.R_HEADS -> "--branch-prefix"
+    /** The option setting the prefix [out] sees, for a message that has to suggest a remedy. */
+    private fun prefixFlag(out: OutputName): String = when {
+        !out.prefixed -> "the destination"
+        out.namespace == Constants.R_HEADS -> "--branch-prefix"
         else -> "--tag-prefix"
     }
 
     /**
      * Records that [holder] wants [name], refusing a name already taken.
      *
-     * Reached four ways. A prefix that has stopped telling two inputs apart, such as an emptied one
+     * Reached five ways. A prefix that has stopped telling two inputs apart, such as an emptied one
      * or one holding no `{repo}`: the default qualifies every ref with the name of its input, and
-     * so keeps them apart. The braid's own branch, which takes no prefix, so an input can meet it
-     * under any prefix: under the default, input `release`'s branch `x` meets a mainline called
-     * `release/x`. A destination spelled out in full, which takes the prefix off whatever it holds.
-     * And one input sending two of its refs to one name — a branch `v1.0` written as a tag beside
-     * its tag `v1.0`, or a destination with no `*` given a pattern that matches more than one ref.
+     * so keeps them apart unless two share a name. The braid's own branch, which takes no prefix,
+     * so an input can meet it under any prefix: under the default, input `release`'s branch `x`
+     * meets a mainline called `release/x`. A destination spelled out in full, which takes the prefix
+     * off whatever it holds. One input sending two of its refs to one name — a branch `v1.0` written
+     * as a tag beside its tag `v1.0`, or a destination with no `*` given a pattern that matches more
+     * than one ref. And two inputs that share a name, which a name is free to do: `{repo}` then
+     * qualifies them alike, and `{subdir}`, where each lands, is what still tells them apart.
      * The braid's own mainline claims its name first, so the side already holding one may be it.
-     * Two inputs meet the same way when they share a name, which a name is free to do: `{repo}`
-     * then qualifies them alike, and `{subdir}`, where each lands, is what still tells them apart.
      * Refused rather than resolved: the two refs can point at different commits, so silently keeping
      * either would publish one ref's history under a name the other's reader would look up.
      */
-    private fun claim(claimed: MutableMap<String, Holder>, name: String, holder: Holder, prefix: String) {
+    private fun claim(claimed: MutableMap<String, Holder>, name: String, holder: Holder, prefixOption: String) {
         // The run's own corner of the ref space: the fetch parks the inputs' refs there, and
         // everything under it is deleted once the braid is written, so a ref of the braid's there
         // would be counted as written and then be gone.
@@ -259,25 +259,25 @@ class RefNames(
             // does for input `release` and a mainline `release/x`, so advising one is not enough.
             if (first.source == null) {
                 "'${first.name}' and '$repo' would both write '$name'; " +
-                    "give $prefix a template, or the input a name, that moves its refs off the " +
+                    "give $prefixOption a template, or the input a name, that moves its refs off the " +
                     "braid's, or narrow the run"
             } else if (first.source === holder.source) {
                 "two refs of '$repo' would both write '$name'; " +
                     "give one of them another destination, or narrow the run"
             } else if (first.name == repo) {
                 "two inputs called '$repo' would both write '$name'; " +
-                    "give $prefix a template holding {subdir}, which tells them apart where {repo} " +
+                    "give $prefixOption a template holding {subdir}, which tells them apart where {repo} " +
                     "cannot, or one of them another name, or narrow the run"
             } else {
                 "'${first.name}' and '$repo' would both write '$name'; " +
-                    "give $prefix a template that keeps {repo} apart from the name, as {repo}/ " +
+                    "give $prefixOption a template that keeps {repo} apart from the name, as {repo}/ " +
                     "does, or narrow the run"
             }
         )
     }
 
     /**
-     * Adds a ref under `refs/remotes/<repo>/` for every ref the run carried over, and for each input's
+     * Adds a ref under `refs/remotes/<name>/` for every ref the run carried over, and for each input's
      * mainline whether the selection took it or not — a branch at its own name, everything else under
      * the tail of its namespace — each pointing at that input's *original* commit. Notes are not among
      * them: they are carried on their own field and written under `refs/notes/`, and a notes ref names
@@ -318,11 +318,11 @@ class RefNames(
      * own branch, and named by nothing at all.
      *
      * A name the braid already writes is refused rather than written over, the mainline's mirror
-     * as much as any other. A destination spelled out under `refs/remotes/<repo>/` can meet a
+     * as much as any other. A destination spelled out under `refs/remotes/<name>/` can meet a
      * mirror there, and either write winning loses something: the mirror drops the rewritten commit
      * the destination asked for, the destination leaves the original unnamed. So, as for two inputs
      * meeting in [claim], the run is refused, and the refusal names both. So is a destination
-     * there that meets no mirror: the remote's refspec covers the whole of `refs/remotes/<repo>/`,
+     * there that meets no mirror: the remote's refspec covers the whole of `refs/remotes/<name>/`,
      * and a pruning fetch deletes whatever in it names no branch of the input.
      *
      * @param claimed who wrote each of the braid's own names, as [resolve] recorded them.

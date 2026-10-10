@@ -106,8 +106,8 @@ private class ManPageFormatter(private val context: Context) : HelpFormatter {
  *     mvn -q test-compile exec:java -Dexec.classpathScope=test \
  *         -Dexec.mainClass=cz.loplex.timebraid.cli.ManPageScaffoldKt
  *
- * `exec.mainClass` and not `main.class`: the second is what the manifest of the jar and of the
- * shaded jar is built with, and pom.xml keeps the two apart so that running this cannot become the
+ * `exec.mainClass` and not `main.class`: the second is what the jar's manifest is built with, and
+ * pom.xml keeps the two apart so that running this cannot become the
  * entry point of anything that gets packaged.
  */
 fun main() {

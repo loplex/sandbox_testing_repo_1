@@ -42,8 +42,8 @@ Comparison allows for the four ways the READMEs are written, and nothing more:
     written out in full has to match in full, which is what keeps example 05's "these two trees are
     the same object" claim at full strength;
   * runs of whitespace collapse, since `ls-tree` output is padded by hand to line up;
-  * an inline `# ...` annotation is stripped, which examples 02 and 04 use to date a commit inside
-    the output they quote;
+  * an inline `# ...` annotation is stripped, which example 02 uses to date a commit inside the
+    output it quotes;
   * a line reading `(no output)` stands for no output at all, which is how a command that prints
     nothing is quoted -- example 08's `grep` for what the scan left out rests on it. A command
     that failed prints nothing on stdout too, which is why a `$ git` line that writes anything to
@@ -51,8 +51,8 @@ Comparison allows for the four ways the READMEs are written, and nothing more:
     a `grep` that finds nothing exits 1.
 
 `./git-timebraid <args>` is executed as `java -jar <jar> <args>`, which is what the wrapper in the
-repo root does. Pass the jar as the first argument; it defaults to target/git-timebraid.jar, which
-`mvn package` puts there.
+repo root does. Pass the jar as the first argument; it defaults to target/lib/git-timebraid.jar,
+which `mvn package` puts there beside the jars its manifest names.
 
 Usage: check-examples.py [path/to/git-timebraid.jar]
 Exit status is 0 when every example reproduces, 1 otherwise, with each failure printed.
@@ -191,7 +191,7 @@ def cli_args(command: str) -> list[str]:
 
 
 def main() -> int:
-    jar = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "target" / "git-timebraid.jar"
+    jar = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "target" / "lib" / "git-timebraid.jar"
     if not jar.is_file():
         print(f"no jar at {jar} -- run `mvn -DskipTests package` first, or pass its path")
         return 1

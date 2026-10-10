@@ -5,9 +5,9 @@
 # Timestamps map directly to the "@n" notation the example READMEs use for a commit's ordering
 # timestamp: offset n -> BASE + n hours, so relative order and gaps are preserved and stay
 # readable in `git log`. Every date, name and address is pinned, so the repositories this builds
-# are byte-identical on every machine -- which is why the commit hashes quoted in those READMEs
-# can be checked against a fresh run. That pinning is also what lets 07's README quote a
-# submodule's commit by sha: the sha is a property of the fixture, not of the machine.
+# hold the same commits, hash for hash, on every machine -- which is why the commit hashes quoted
+# in those READMEs can be checked against a fresh run. That pinning is also what lets 07's README
+# quote a submodule's commit by sha: the sha is a property of the fixture, not of the machine.
 #
 # The repositories it writes are generated output and are not tracked by git; rerun freely.
 set -euo pipefail
@@ -103,7 +103,7 @@ add_gitlink() {
     # add_gitlink <repo-dir> <path> <sha>
     # Stages a 160000 entry directly instead of going through `git submodule add`, which would
     # need a url that resolves on this machine -- and would then record it. update-index takes the
-    # sha as given, so the fixture stays byte-identical and its .gitmodules can name a url that
+    # sha as given, so the fixture keeps the same commits and its .gitmodules can name a url that
     # never has to exist.
     git -C "$1" update-index --add --cacheinfo "160000,$3,$2"
 }

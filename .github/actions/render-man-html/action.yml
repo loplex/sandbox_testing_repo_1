@@ -1,5 +1,6 @@
-# Every job that packages an archive runs this first, so that the archive carries the manual page as
-# HTML; .github/scripts/render-man-html.sh says why the HTML is there and why Maven does not make it.
+# Every job that builds an archive to ship or to smoke-test runs this first, so that the archive
+# carries the manual page as HTML; .github/scripts/render-man-html.sh says why the HTML is there and
+# why Maven does not make it.
 # One action rather than the two steps in each job, so that the jobs cannot install groff, or
 # render, in different ways.
 name: Render the manual page as HTML

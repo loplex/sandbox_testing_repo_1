@@ -1,9 +1,10 @@
 """Where the code blocks are in a Markdown document, and which documents there are.
 
-Two checkers need this: check-blocks.py measures the lines inside a code block, and
+Two checkers need the blocks: check-blocks.py measures the lines inside a code block, and
 check-width.py measures the prose outside one. Each line of a document but a fence or a table row
 has to fall to exactly one of them, so both ask the same function where the blocks are; two
-scanners that disagreed about an indented block would leave its lines to neither.
+scanners that disagreed about an indented block would leave its lines to neither. Both take the
+list of documents from here too, and so does check-links.py.
 """
 import pathlib
 import re

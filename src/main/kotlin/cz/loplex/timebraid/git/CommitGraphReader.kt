@@ -181,7 +181,7 @@ object CommitGraphReader {
      * Every pattern arrives parsed ([ScopedPatterns.parse]), each scoped to an input by its position
      * in [repositories], so nothing here reads option text.
      *
-     * @param mainline which branch each input braids along, as `--mainline-branch` asked for it.
+     * @param requested which branch each input braids along, as `--mainline-branch` asked for it.
      * @param refs glob patterns matched against full ref names — `refs/heads/main` for one branch,
      *   `refs/tags/v1.*` for a release series, a star alone for every branch and tag — selecting
      *   which of each input's refs are loaded and later recreated. Empty selects every branch and
@@ -193,8 +193,8 @@ object CommitGraphReader {
      *   narrowing.
      *
      *   The resolved mainline is loaded whatever the patterns say, since the braid is built along
-     *   it, and the output's branch of that name is written from the braid's tip rather than from
-     *   this selection ([BraidWriter] does that unconditionally).
+     *   it, and the output's mainline branch is written from the braid's tip rather than from this
+     *   selection ([BraidWriter] does that unconditionally).
      * @param interleaveRefs glob patterns matched against full ref names — `refs/tags/v1.*` for a
      *   release series, a star alone for every branch and tag, a ref of another namespace only by a
      *   pattern naming that namespace — applied in every input repository, or in the one an
@@ -205,8 +205,8 @@ object CommitGraphReader {
      *   A `^` in front of a pattern subtracts, which is how *opt in broadly, except these* is
      *   written: a pattern reaching the mainline tips opts them in when [refs] carries them, as it
      *   does by default, and their ancestry is everything the mainlines ever merged, so every
-     *   branch with `^refs/heads/main` taken back out is every side branch. A star opts in every
-     *   tag as well, and a tag on a mainline reaches what that mainline had merged. Since the
+     *   branch with `^refs/heads/main` taken back out is every side branch. A bare star opts in
+     *   every tag as well, and a tag on a mainline reaches what that mainline had merged. Since the
      *   empty case here is *no ref*, a value holding nothing but subtractions has nothing to take
      *   back out and is refused.
      * @param labelRefs glob patterns matched against full ref names, recreating every matched ref
@@ -233,7 +233,7 @@ object CommitGraphReader {
     fun read(
         repositories: List<SourceRepository>,
         orderBy: OrderBy,
-        mainline: MainlineRequest = MainlineRequest.NONE,
+        requested: MainlineRequest = MainlineRequest.NONE,
         refs: ScopedPatterns = ScopedPatterns.NONE,
         interleaveRefs: ScopedPatterns = ScopedPatterns.NONE,
         labelRefs: ScopedPatterns = ScopedPatterns.NONE,
@@ -241,7 +241,7 @@ object CommitGraphReader {
     ): BraidInputs {
         require(repositories.isNotEmpty()) { "no input repositories" }
 
-        val mainlines = resolveMainlines(repositories, mainline)
+        val mainlines = resolveMainlines(repositories, requested)
         val outputBranch = mainlines.output
         val builder = CommitGraphBuilder()
         val heads = ArrayList<Commit>(repositories.size)
@@ -333,14 +333,14 @@ object CommitGraphReader {
 
             // After the commits, because a note is keyed by the object it annotates and the graph is
             // the only thing that can say whether this run wrote that object at all.
-            val sourceNotes = if (!notes) emptyList() else repo.notes().map { note ->
-                val rekeyed = LinkedHashMap<Commit, ObjectId>(note.entries.size)
-                for ((sha, blob) in note.entries) {
+            val sourceNotes = if (!notes) emptyList() else repo.notes().map { notesRef ->
+                val rekeyed = LinkedHashMap<Commit, ObjectId>(notesRef.entries.size)
+                for ((sha, blob) in notesRef.entries) {
                     val commit = builder.find(source, sha)
                     if (commit == null) notesSkipped++ else rekeyed[commit] = blob
                 }
                 notesAttached += rekeyed.size
-                BraidNotes(note.name, rekeyed, note.author, note.committer, note.message)
+                BraidNotes(notesRef.name, rekeyed, notesRef.author, notesRef.committer, notesRef.message)
             }
 
             inputs += SourceInputs(

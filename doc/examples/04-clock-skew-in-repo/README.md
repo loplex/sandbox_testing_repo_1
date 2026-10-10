@@ -45,4 +45,5 @@ the front of `A`'s own queue, so `a1` and `a2` can never swap regardless of what
 say; Kahn's algorithm over the whole graph gets the same result from the other direction, by never
 emitting a commit before its parents. A comparator sort over the whole graph that compares a commit
 only against its *direct* parent, and lets time decide everything else, can get a case like this
-wrong and place a commit before its own grandparent. Neither of the two is built that way.
+wrong and place a commit before its own parent: such a comparator is not transitive, so the sort
+need never compare `a2` with `a1` at all. Neither of the two is built that way.

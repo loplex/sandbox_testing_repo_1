@@ -42,19 +42,29 @@ internal class RepoSpec(
 /**
  * The way out a refusal about one input offers, spelled from the argument as it was written.
  *
- * Every form is [RepoSpec.format] over that argument with one field changed, so a remedy keeps the
- * parts it is not about — a subdirectory the argument gave, a location holding a `::` — where one
- * spelled by hand drops them.
+ * Every form is [RepoSpec.format] over that argument with the field the refusal is about changed,
+ * so a remedy keeps the parts it is not about — a subdirectory the argument gave, a location
+ * holding a `::` — where one spelled by hand drops them. [moved] also writes out the input's
+ * name, which the argument may have left to be derived.
  */
-internal class InputRemedy(private val location: String, private val subdir: String? = null) {
+internal class InputRemedy(
+    private val location: String,
+    private val subdir: String? = null,
+    /** The input's name, which [moved] keeps; `null` where none is known. */
+    private val name: String? = null,
+) {
 
-    constructor(spec: RepoSpec) : this(spec.location, spec.subdir)
+    constructor(spec: RepoSpec) : this(spec.location, spec.subdir, spec.name)
 
     /** The argument with a name given, quoted: `'<location>::<subdir>=<name>'`. */
     fun named(): String = quoted(RepoSpec(location, false, split = true, NAME, subdir, given = NAME))
 
-    /** The argument with a subdirectory given and no name, quoted: `'<location>::<subdir>'`. */
-    fun placed(): String = quoted(RepoSpec(location, false, split = true, SUBDIR, SUBDIR))
+    /**
+     * The argument with another subdirectory and the input's name, quoted: `'<location>::<subdir>=<name>'`,
+     * or `'<location>::<subdir>'` where no name is known. The name is spelled out because without it
+     * the name would follow from the new subdirectory, and moving the input would rename it.
+     */
+    fun moved(): String = quoted(RepoSpec(location, false, split = true, name ?: SUBDIR, SUBDIR, given = name))
 
     /**
      * What to do when the `::` a refusal is about was never meant as the separator: the whole of
@@ -115,7 +125,7 @@ internal fun parseRepoSpec(raw: String): RepoSpec {
 
     val (subdirText, nameText) = splitAtEquals(suffix)
     val subdir = subdirText.ifEmpty { null }?.also { text ->
-        refusePlain(text, "subdirectory", raw)
+        refuseSeparators(text, "subdirectory", raw)
         if (!text.split('/').all(::isOneSegment)) {
             throw UsageError("'$text' is not a usable subdirectory (in '$raw')" + suffixRemedy(raw))
         }
@@ -131,7 +141,7 @@ internal fun parseRepoSpec(raw: String): RepoSpec {
             }
             throw UsageError("'$raw' names no repository after its '=' ($advice)" + suffixRemedy(raw))
         }
-        refusePlain(text, "name", raw)
+        refuseSeparators(text, "name", raw)
         if (!text.split('/').all(::isOneSegment)) throw unusableName(text, raw, fromSuffix = true)
     }
 
@@ -221,7 +231,7 @@ private fun splitAtEquals(suffix: String): Pair<String, String?> {
  *
  * A second `=` reaches this only in the name, the first one having ended the subdirectory.
  */
-private fun refusePlain(text: String, part: String, raw: String) {
+private fun refuseSeparators(text: String, part: String, raw: String) {
     val remedy = suffixRemedy(raw)
     if (':' in text) throw UsageError("a ':' cannot appear in the $part (in '$raw')$remedy")
     if ('=' in text) throw UsageError("a '=' cannot appear in the $part (in '$raw')$remedy")

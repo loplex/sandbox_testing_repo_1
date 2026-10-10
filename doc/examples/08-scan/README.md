@@ -29,7 +29,7 @@ $ ./git-timebraid -o doc/examples/08-scan/output-unnamed --no-bare \
 
 Usage: git-timebraid [<options>] [<repo>]...
 
-Error: --ref 'core::refs/heads/main' is for input 'core', and 2 inputs are called that; give one of them another name
+Error: --ref 'core::refs/heads/main' is for input 'core', and two inputs are called that: doc/examples/08-scan/input/platform/libs/core and doc/examples/08-scan/input/platform/tools/core -- give one of them another name, as '::libs/core=<name>' or '::tools/core=<name>'
 ```
 
 `libs/core` and `tools/core` derive the same name. A name is a label, and two inputs may share one:

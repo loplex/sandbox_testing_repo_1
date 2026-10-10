@@ -119,6 +119,8 @@ class BraidWriter(
     private val mirrorRemotes: Boolean = false,
     /** Whether an input may land on a gitlink of the repository around it — see [TreeAssembler]. */
     private val dissolveSubmodules: Boolean = false,
+    /** How a refusal tells the user to give an input another subdirectory. */
+    private val relocation: Relocation = Relocation.UNSPELLED,
     /**
      * Called with the running commit count as [writeCommits] goes, so a caller can narrate the one
      * phase long enough to look stalled. A count rather than a line per commit: what happens here
@@ -139,7 +141,7 @@ class BraidWriter(
     /** New identity of every original commit, filled in write order. */
     private val written = HashMap<Commit, ObjectId>(graph.size)
 
-    private val trees = target.treeAssembler(dissolveSubmodules)
+    private val trees = target.treeAssembler(dissolveSubmodules, relocation)
 
     /**
      * Per input, what the `.gitmodules` of each of its trees contributes to the output's, keyed by
@@ -288,7 +290,7 @@ class BraidWriter(
         occupied: Set<String>,
         at: () -> String,
     ): ObjectId? {
-        val text = SubmoduleWiring.merge(parts, occupied, at) ?: return null
+        val text = SubmoduleWiring.merge(parts, occupied, relocation, at) ?: return null
         return gitmodulesBlobs.getOrPut(text) { target.writeBlob(text) }
     }
 
@@ -335,20 +337,21 @@ class BraidWriter(
      */
     private fun resolveRefs(): Refs {
         val named = RefNames(inputs, plan, options, mirrorRemotes).resolve()
-        val targets = LinkedHashMap<String, ObjectId>(named.sources.size)
-        for ((name, source) in named.sources) {
-            targets[name] = when (source) {
-                is RefSource.Braid -> idOf(source.commit)
-                is RefSource.Of -> targetOf(name, source.ref)
-                is RefSource.Notes -> rewrittenNotes(source.note)
-                is RefSource.Original -> source.id
+        val targets = LinkedHashMap<String, ObjectId>(named.refs.size)
+        for ((name, refSource) in named.refs) {
+            targets[name] = when (refSource) {
+                is RefSource.Braid -> idOf(refSource.commit)
+                is RefSource.Of -> targetOf(name, refSource.ref)
+                is RefSource.Notes -> rewrittenNotes(refSource.notesRef)
+                is RefSource.Original -> refSource.id
             }
         }
         return Refs(targets, named.branches, named.tags, named.foreign, named.notes, named.remoteRefs)
     }
 
     /**
-     * Writes [note] as a notes commit of the output, keyed by the shas the braid gave those commits.
+     * Writes [notesRef] as a notes commit of the output, keyed by the shas the braid gave those
+     * commits.
      *
      * A flat tree, with no fan-out: git reads a notes tree at whatever depth it finds one, and the
      * fan-out exists to keep a directory listing small in a repository with a great many notes. The
@@ -360,16 +363,16 @@ class BraidWriter(
      * keyed by shas the output never wrote under those names, so carrying the history would carry
      * a chain of notes attached to nothing.
      */
-    private fun rewrittenNotes(note: BraidNotes): ObjectId {
-        val entries = note.entries.map { (commit, blob) ->
+    private fun rewrittenNotes(notesRef: BraidNotes): ObjectId {
+        val entries = notesRef.entries.map { (commit, blob) ->
             TreeEntry(idOf(commit).name, FileMode.REGULAR_FILE, blob)
         }
         return target.writeCommit(
             tree = target.writeTree(entries),
             parents = emptyList(),
-            author = note.author,
-            committer = note.committer,
-            message = note.message,
+            author = notesRef.author,
+            committer = notesRef.committer,
+            message = notesRef.message,
         )
     }
 
@@ -385,9 +388,9 @@ class BraidWriter(
      * the ref points straight at the commit and no tag object is written at all.
      *
      * A signature is not carried: it covers the input's tag object, which names a commit the output
-     * does not have, so nothing could verify it there. JGit's reader already leaves it out of the
-     * message [SourceRepository.tags] hands over, PGP and SSH alike, so the message is written as
-     * it comes.
+     * does not have, so nothing could verify it there. The reader leaves it out of the message
+     * [SourceRepository.tags] hands over, cut where git cuts it (see [messageAsGitReads]), so the
+     * message is written as it comes.
      */
     private fun targetOf(name: String, ref: BraidOutRef): ObjectId {
         val commit = idOf(ref.commit)

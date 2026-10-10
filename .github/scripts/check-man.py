@@ -38,7 +38,7 @@ import subprocess
 import sys
 
 PAGE = pathlib.Path("src/main/man/git-timebraid.1")
-JAR = pathlib.Path("target/git-timebraid.jar")
+JAR = pathlib.Path("target/lib/git-timebraid.jar")
 
 # The width the program lays out to. Only the name column is read here, and it is the same at any
 # width, but a pinned value keeps the run independent of the caller's window.

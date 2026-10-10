@@ -647,7 +647,7 @@ class BraidPipelineIT {
     }
 
     @Test
-    fun `an unscoped mainline names the output while a scoped one covers the odd input`() {
+    fun `an unscoped mainline names the output even where every input has a scoped one`() {
         TestRepoBuilder.create(tmp.resolve("backend.git")).use { r ->
             r.branch("main", r.commit("a1", at = at("09:00")))
         }
@@ -1392,7 +1392,8 @@ class BraidPipelineIT {
             // Two notes refs, and a fan-out on one of them: the depth is a storage detail of the
             // input, and the key is the sha whichever way the directories were cut.
             // Authored before it was committed, so a notes commit's author and committer show apart.
-            r.notes(notes = mapOf(a1 to "reviewed by nobody\n"), authorAt = at("08:00"))
+            // Two notes on one ref, so that every note of a ref is carried and not only its first.
+            r.notes(notes = mapOf(a1 to "reviewed by nobody\n", a2 to "and a2\n"), authorAt = at("08:00"))
             r.notes(ref = "builds", notes = mapOf(a2 to "green\n"), fanout = 2)
             ids += mapOf("a1" to a1, "a2" to a2)
         }
@@ -1421,6 +1422,7 @@ class BraidPipelineIT {
             }
             // Keyed by the *new* sha: the note follows the commit the braid actually wrote.
             assertEquals("reviewed by nobody\n", noteOn("backend/commits", "a1"))
+            assertEquals("and a2\n", noteOn("backend/commits", "a2"))
             assertEquals("green\n", noteOn("backend/builds", "a2"))
             assertEquals("the other input's default ref\n", noteOn("webui/commits", "b1"))
             // And nothing is left keyed by an original sha, which would be a note on nothing.
@@ -1544,7 +1546,7 @@ class BraidPipelineIT {
     }
 
     @Test
-    fun `a pattern aimed outside the two namespaces is refused, not left to match nothing`() {
+    fun `a pattern that can match no ref, or one aimed at the notes, is refused, not left to match nothing`() {
         TestRepoBuilder.create(tmp.resolve("backend.git")).use { r ->
             val a1 = r.commit("a1", at = at("09:00"))
             r.branch("main", a1)
@@ -1775,7 +1777,7 @@ class BraidPipelineIT {
         val run = braid(
             "-o", out.toString(),
             "--ref", "backend::refs/legacy/*:refs/archived_*", "--ref", "refs/heads/*",
-            "--ref", "backend::refs/old/*-old:refs/retired_*",
+            "--ref", "backend::refs/old/*-old:refs/retired_*_x",
             path("backend.git"), path("webui.git"),
         )
         // Counted by the namespace each ref is written to, which for these is neither.
@@ -1788,8 +1790,9 @@ class BraidPipelineIT {
                 listOf("alpha", "beta/gamma"),
                 repo.refsUnder("refs/archived_").map { it.name }.sorted(),
             )
-            // What follows the pattern's star is matched and left out of what it captured.
-            assertEquals(listOf("delta"), repo.refsUnder("refs/retired_").map { it.name })
+            // What follows the pattern's star is matched and left out of what it captured, and what
+            // follows the destination's star stays where it stands.
+            assertEquals(listOf("delta_x"), repo.refsUnder("refs/retired_").map { it.name })
             // Spelled out means spelled out: no prefix went anywhere near these.
             assertEquals(setOf("main"), repo.branches().map { it.name }.toSet())
         }

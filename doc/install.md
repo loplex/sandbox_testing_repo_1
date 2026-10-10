@@ -81,16 +81,17 @@ export PATH="$HOME/opt/git-timebraid-<version>/bin:$PATH"
 ```
 
 - It wants **Java 17 or newer** on the machine.
-- Roughly 46 MB unpacked for a platform archive, against the 9 MB of the self-contained jar this one
-  carries.
+- Roughly 55 MB unpacked for a platform archive on Linux, against the 10 MB of jars in this one's
+  `lib/`.
 - Unlike a platform archive it is not tied to the machine that built it, which is what makes it the
   one to put in an image or a shared directory.
 
 ## The launcher, and which JVM it picks
 
-Both archives are `bin/git-timebraid` (plus `git-timebraid.bat` for Windows) beside
-`lib/git-timebraid.jar`. The launcher finds the jar relative to itself, through symlinks, so linking
-`bin/git-timebraid` into a directory already on `PATH` works too.
+Both archives are `bin/git-timebraid` (plus `git-timebraid.bat` for Windows) beside `lib/`, which
+holds `git-timebraid.jar` and the jars of its dependencies. The launcher finds the jar relative to
+itself, through symlinks, so linking `bin/git-timebraid` into a directory already on `PATH` works
+too.
 
 The JVM it runs the jar on is picked in this order, first hit wins:
 
@@ -108,8 +109,8 @@ than the one it brought.
 JAVA_OPTS=-Xmx4g git-timebraid -o /tmp/merged ~/repos/backend.git ~/repos/webui.git
 ```
 
-The jar is self-contained — every dependency is shaded in — so running it without the launcher works
-as well:
+The jar's manifest names its dependencies, which sit beside it in `lib/`, so running it without the
+launcher works as well:
 
 ```bash
 java -jar lib/git-timebraid.jar --help
@@ -127,8 +128,12 @@ an archive for a platform the releases do not cover.
 mvn -q package                       # builds target/git-timebraid-<version>.tar.gz (and .zip)
 ```
 
-That is the portable archive, unpacked the same way, plus `target/git-timebraid.jar` for running the
-jar straight out of the build.
+That is the portable archive, unpacked the same way, plus `target/lib/`, the archive's `lib/` as it
+ships, for running the jar straight out of the build: `java -jar target/lib/git-timebraid.jar`. The
+release archives also carry the manual page as HTML, which `.github/scripts/render-man-html.sh`
+renders before they are packaged, and which needs groff and
+python3; an archive packaged without running it first has no `share/doc/git-doc/`, which only
+[Git for Windows](#git-for-windows-reads-the-html-page) misses.
 
 **`./git-timebraid` in the repo root runs that jar**, so a clone needs no install to be driven. It
 is what the [worked examples](examples/README.md) are written in terms of, and it reads

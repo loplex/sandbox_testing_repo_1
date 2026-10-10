@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 DOC = pathlib.Path("doc/usage.md")
-JAR = pathlib.Path("target/git-timebraid.jar")
+JAR = pathlib.Path("target/lib/git-timebraid.jar")
 
 # The width doc/usage.md is written to; the program takes it from COLUMNS.
 WIDTH = 100

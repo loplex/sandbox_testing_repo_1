@@ -199,9 +199,9 @@ Neither is something braiding introduces, and both are worked through under
   lands, and what the output holds when the run finishes.
 - [**doc/how-it-works.md**](doc/how-it-works.md) — the parent rule, the tree rule, why a merge on
   the braid can end up with three parents, and the caveats that follow from them.
-- [**doc/examples/**](doc/examples/README.md) — nine small histories you can build and walk
-  yourself, four on the order the commits end up in and five on where their content lands and which
-  refs come with it.
+- [**doc/examples/**](doc/examples/README.md) — small histories you can build and walk yourself,
+  some on the order the commits end up in and others on where their content lands and which refs
+  come with it.
 
 ---
 
@@ -232,8 +232,8 @@ Verification:
   also builds the bundled-runtime archive and merges two repositories with the launcher inside it.
   The Windows archive is linked on Linux, as a release links it, and that merge runs on Windows.
 
-`mvn package` produces the runnable artifacts — a self-contained jar, a portable archive, and under
-`-Pbundled-runtime` one carrying its own JVM.
+`mvn package` produces the runnable artifacts — `target/lib/`, the program's jar beside its
+dependencies', a portable archive, and under `-Pbundled-runtime` one carrying its own JVM.
 [Building from source](doc/install.md#building-from-source) has the detail.
 
 Releases are cut by tagging:
@@ -250,9 +250,10 @@ What changed between releases is in [CHANGELOG.md](CHANGELOG.md).
 
 ### Permanent
 
-None of these is a choice the tool made, and none can be fixed in a later version.\
-A commit's sha is a hash over its content *and its parent list*; a relative submodule url resolves
-against a remote the output does not share.
+New shas, and signatures that no longer verify, are no choice the tool made, and no later
+version can change them: a commit's sha is a hash over its content *and its parent list*.\
+A relative submodule url fails for another reason: git resolves it against a remote the output does
+not share.
 
 - **Commit SHAs change.** Rewriting parents rewrites identity. Use the provenance trailer to map new
   commits back to the originals.
@@ -270,7 +271,7 @@ against a remote the output does not share.
 ### By design
 
 - **Inputs must be complete clones.** Shallow clones and partial clones are rejected — the tool
-  needs the entire commit graph.
+  needs every commit and every object behind it.
 - **A destination must not collide** with what the repository around it already holds there. That
   depends on the content of each commit, so it is checked at every commit before anything is written
   into the output, and a collision is reported against the commit it happens at. The rules, and the

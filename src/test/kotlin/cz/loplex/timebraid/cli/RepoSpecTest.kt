@@ -42,6 +42,9 @@ class RepoSpecTest {
 
         assertEquals("'backend.git::libs/a=<name>'", remedy.named())
         assertEquals("'odd::name::=<name>'", InputRemedy(parseRepoSpec("odd::name::=x")).named())
-        assertEquals("'backend.git::<subdir>'", InputRemedy("backend.git").placed())
+        assertEquals("'backend.git::<subdir>'", InputRemedy("backend.git").moved())
+        // Moved, an input keeps its name, given or derived: without it, the new subdirectory would name it.
+        assertEquals("'backend.git::<subdir>=core'", InputRemedy(parseRepoSpec("backend.git::libs/a=core")).moved())
+        assertEquals("'backend.git::<subdir>=a'", InputRemedy(parseRepoSpec("backend.git::libs/a")).moved())
     }
 }

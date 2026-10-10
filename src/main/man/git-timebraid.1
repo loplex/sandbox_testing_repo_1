@@ -22,7 +22,7 @@
 .\" and what a reader takes it for; the version bump open-next-version.sh makes is not one. Nothing
 .\" holds it: a depth-1 CI checkout cannot read when a file last changed, so the check would have to
 .\" be a full clone for one field. It is kept by hand.
-.TH GIT\-TIMEBRAID 1 "2026\-09\-29" "git\-timebraid 0.2.1" "Git Extensions"
+.TH GIT\-TIMEBRAID 1 "2026\-09\-29" "git\-timebraid 0.2.0" "Git Extensions"
 .
 .SH NAME
 git\-timebraid \- merge several git repositories into one, braided along the time axis
@@ -85,6 +85,9 @@ or of the location. Neither field may be written with a
 .B :
 or a
 .BR = .
+.PP
+One local repository is one input: two arguments naming it, however each spells its location, are
+refused.
 .
 .SH OPTIONS
 .SS Where the result is written
@@ -95,8 +98,13 @@ The repository to write. It must not exist yet or must be an empty directory;
 also takes one that is not empty.
 .TP
 \fB\-\-force\fR
-Write into a non-empty output directory instead of refusing it. Nothing already there is deleted,
-so a directory holding an unrelated repository is a poor choice of output rather than a safe one.
+Write into a non-empty output directory instead of refusing it, over whatever it already holds: a
+ref of a name the braid writes is replaced, and under \fB\-\-no\-bare\fR the checkout overwrites the
+files at the braid's paths and removes those the output tracked that the braid does not have.
+Untracked files are left as they were, and so is every ref the braid does not write, an earlier
+run's included, but for those under \fBrefs/timebraid\-fetch/\fR, where a run parks what it
+fetches. A directory holding an unrelated repository is a poor choice of output rather than a safe
+one.
 .
 .SS Finding the inputs, and placing their content
 .TP
@@ -123,7 +131,7 @@ The input whose content lands at the output root rather than in a subdirectory o
 of an input and not its path, and one two inputs share is refused.
 .TP
 \fB\-\-splice\fR
-Allow one input's destination to lie inside another's, splicing the two into one directory. Without
+Allow one input's subdirectory to lie inside another's, splicing the two into one directory. Without
 it such a pair is refused, because a placement that buries one input inside another is more often a
 mistake in the arguments than an intention.
 .TP
@@ -137,13 +145,13 @@ the repository they came from.
 .TP
 \fB\-\-mainline\-branch\fR=\fI<branch>\fR
 The branch treated as the mainline in every input. Every input contributed its own, and they
-collapse into the single branch of that name at the braid's tip.
+collapse into one branch at the braid's tip.
 .IP
 Repeatable. Prefixing a value with
 .IB <input> ::
 gives that one input a mainline of its own, and one quoted argument may hold several values
 separated by spaces. An unscoped value covers the inputs not named that way, and is also the name
-the output's branch takes.
+the output's branch takes; with none, the branch is named after the first input's mainline.
 .IP
 Defaults to the first of
 .BR main ,
@@ -239,10 +247,10 @@ Adding one cannot change a commit the run writes, which a selection can: it name
 letting it pull any history in. Defaults to none.
 .TP
 \fB\-\-interleave\-ref\fR=\fI<ref\-pattern>\fR
-Let the commits on this ref delay a mainline merge that merges them in, rather than being braided as
-if they stood on their own.
+Let the commits on this ref delay a mainline merge that merges them in, rather than letting the
+merge land by its own timestamp.
 .B \&'refs/heads/* ^refs/heads/main'
-is every side branch; a star opts in every tag as well. Defaults to none.
+is every side branch; a bare star opts in every tag as well. Defaults to none.
 .
 .SS What the output repository holds
 .B \-\-tag\-prefix\fR,
@@ -266,7 +274,7 @@ checks out a working tree instead.
 .TP
 \fB\-\-keep\-remotes\fR
 Add each input as a remote of the output, every ref it carried over landing under
-.BR refs/remotes/<repo>/* ,
+.BR refs/remotes/<name>/* ,
 at the original commits \- as does each input's mainline, whether the selection took it or not.
 Notes are written under
 .B refs/notes/
@@ -363,8 +371,8 @@ Say nothing but the closing report and any error: no phase headings, no bars. Re
 .BR \-\-verbose .
 .TP
 \fB\-v\fR, \fB\-\-verbose\fR
-Print the git command behind each step: every subprocess, and the equivalent of the object transfer
-and of every ref written.
+Print the git command behind each step: each one it shells out to, and the equivalent of the object
+transfer and of every ref written.
 .TP
 \fB\-\-[no\-]progress\fR
 Draw progress, or refuse to, whatever standard error happens to be \- for a log of a run that is

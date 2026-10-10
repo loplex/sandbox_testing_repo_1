@@ -18,8 +18,8 @@ The two are independent: nothing in 05–09 changes the order, and nothing in 01
 from a fresh clone, and rebuilt by the commands below. Nothing is lost by deleting them.
 
 Every timestamp, name and address the generator uses is pinned, and it reads neither your global
-nor your system git configuration, so a rebuild is byte-identical: the commit hashes quoted
-throughout these examples can be checked against your own run.
+nor your system git configuration, so a rebuild writes the same commits, hash for hash: the commit
+hashes quoted throughout these examples can be checked against your own run.
 
 ## Layout, per example
 
@@ -49,7 +49,8 @@ destination, a tag prefix and `--root-repo` are all written in terms of.
 ## How the `output` directories were generated
 
 The real CLI, e.g. for example 01. `./git-timebraid` is the wrapper in the repo root: it runs
-`target/git-timebraid.jar`, so a line below can be copied and run from there once the jar is built.
+`target/lib/git-timebraid.jar`, so a line below can be copied and run from there once the jar is
+built.
 The `$ git -C output…` and `$ git -C input/…` lines in each example are written from the example's
 own directory instead, which is where those paths lead.
 

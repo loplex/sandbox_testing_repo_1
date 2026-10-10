@@ -86,6 +86,12 @@ class MergeCommandOptionsTest {
     @Test
     fun `every input object arrives, and nothing is written but the braid's own`() {
         corpus()
+        // A side branch: the only input objects the mainline does not reach, so a transfer narrowed
+        // to the mainline's ref would leave its commit, its tree and its blob behind.
+        TestRepoBuilder.open(tmp.resolve("backend.git")).use { repo ->
+            val a1 = repo.repository.resolve("refs/heads/main~1")
+            repo.branch("side", repo.commit("s1", parents = listOf(a1), at = Instant.parse("2021-01-01T12:00:00Z")))
+        }
         val out = tmp.resolve("merged.git")
 
         run(
@@ -102,8 +108,9 @@ class MergeCommandOptionsTest {
         val inputObjects = listOf("backend.git", "webui.git")
             .flatMap { objectIdsOf(tmp.resolve(it)) }
             .toSet()
-        // Three braid commits over three root trees; every blob and subtree came from an input.
-        val invented = 3 + 3
+        // Four commits over four root trees, the side branch's rewritten onto its rewritten parent
+        // as the braid's three are; every blob and subtree came from an input.
+        val invented = 4 + 4
 
         assertEquals(
             inputObjects.size + invented,
@@ -114,6 +121,47 @@ class MergeCommandOptionsTest {
             objectIdsOf(out).containsAll(inputObjects),
             "an input object went missing, so the transfer was not complete",
         )
+    }
+
+    @Test
+    fun `a rerun into its own output keeps its remotes, and a remote under another URL is refused`() {
+        corpus()
+        val out = tmp.resolve("merged.git")
+        val inputs = arrayOf(tmp.resolve("backend.git").toString(), tmp.resolve("webui.git").toString())
+        run("-o", out.toString(), "--keep-remotes", *inputs)
+        fun remotes() = FileRepositoryBuilder().setGitDir(out.toFile()).build().use { repository ->
+            repository.config.getSubsections("remote").associateWith {
+                repository.config.getString("remote", it, "url")
+            }
+        }
+        fun refs() = FileRepositoryBuilder().setGitDir(out.toFile()).build().use { repository ->
+            repository.refDatabase.refs.associate { it.name to it.objectId }
+        }
+        val recorded = remotes()
+
+        // The same run again, into what it wrote: the remotes are its own, and stay as they were.
+        run("-o", out.toString(), "--keep-remotes", "--force", *inputs)
+        assertEquals(recorded, remotes())
+
+        // Another repository under the name of one: refused before the output is written, where 0.1.0
+        // failed on `git remote add` with the braid already written, and on a dry run too, which 0.1.0
+        // passed.
+        TestRepoBuilder.create(tmp.resolve("elsewhere/backend.git")).use { repo ->
+            repo.branch("main", repo.commit("c1", at = Instant.parse("2021-01-01T08:00:00Z")))
+        }
+        val written = refs()
+        for (dryRun in listOf(false, true)) {
+            val result = MergeCommand().test(
+                listOfNotNull(
+                    "-o", out.toString(), "--keep-remotes", "--force", "--dry-run".takeIf { dryRun },
+                    tmp.resolve("elsewhere/backend.git").toString(), tmp.resolve("webui.git").toString(),
+                )
+            )
+            assertEquals(1, result.statusCode, result.output)
+            assertTrue(result.output.contains("already has a remote 'backend'"), result.output)
+        }
+        assertEquals(written, refs())
+        assertEquals(recorded, remotes())
     }
 
     /**
@@ -542,6 +590,8 @@ class MergeCommandOptionsTest {
             tmp.resolve("webui.git").toString(),
         )
         assertFalse(quiet.output.contains("-- writing the braid"), quiet.output)
+        // Nor a blank line ahead of the closing report: no phase was printed to set it off from.
+        assertTrue(quiet.stderr.startsWith("mainline branch:"), quiet.stderr)
 
         val verbose = run(
             "-o", tmp.resolve("v.git").toString(), "--verbose", "--keep-remotes",

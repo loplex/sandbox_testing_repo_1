@@ -180,7 +180,7 @@ class Progress(
             val on = terminal
             val drawn = on != null && synchronized(open) { open.any { it.isDrawn } }
             // A terminal failing here costs the detail its place above the animation, and no more.
-            if (!drawn || runCatching { on?.rawPrint("  $message\n") }.isFailure) sink("  $message")
+            if (!drawn || runCatching { on.rawPrint("  $message\n") }.isFailure) sink("  $message")
         }
     }
 
@@ -349,11 +349,11 @@ class Progress(
      */
     private fun labelled(task: String, of: String?) = if (of == null) task else "[$of] $task"
 
-    private fun bar(label: String, unit: String? = null) = progressBarLayout {
+    private fun bar(label: String) = progressBarLayout {
         text(label)
         percentage()
         progressBar()
-        completed(suffix = unit?.let { " $it" } ?: "")
+        completed()
         speed(suffix = "/s")
         timeRemaining()
     }

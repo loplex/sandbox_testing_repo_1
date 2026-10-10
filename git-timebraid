@@ -9,7 +9,7 @@
 # src/main/scripts/git-timebraid is the launcher that ships, and it is the authority on how this
 # program starts. This is its counterpart for a build tree, and differs in three ways:
 #
-#   * the jar is target/git-timebraid.jar, not lib/git-timebraid.jar beside bin/;
+#   * the jar is target/lib/git-timebraid.jar, not lib/git-timebraid.jar beside bin/;
 #   * there is no bundled runtime to prefer, since only the platform archive carries one;
 #   * $0 is taken as it stands, with no loop resolving symlinks: this is run from the repo root as
 #     ./git-timebraid, not from an entry on PATH, which is usually a link to somewhere else.
@@ -24,7 +24,7 @@ set -e
 
 home=$(cd -- "$(dirname -- "$0")" > /dev/null && pwd)
 
-jar=$home/target/git-timebraid.jar
+jar=$home/target/lib/git-timebraid.jar
 if [ ! -f "$jar" ]; then
     echo "git-timebraid: jar not found at $jar" >&2
     echo "git-timebraid: run 'mvn -DskipTests package' to build it" >&2

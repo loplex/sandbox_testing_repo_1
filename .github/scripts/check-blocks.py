@@ -36,9 +36,7 @@ WIDE_OK = re.compile(r"^\s*<!--\s*wide block:\s*(\S.*?)\s*-->\s*$")
 WIDTH = 100
 
 
-
-
-def too_wide(doc: pathlib.Path, body: str) -> tuple[list[str], list[str]]:
+def findings(doc: pathlib.Path, body: str) -> tuple[list[str], list[str]]:
     """The width rule's findings for one document: what is wrong, and what is allowed to be wide.
 
     A `<!-- wide block: ... -->` on the line above a block allows every line in that block, and is
@@ -96,7 +94,7 @@ def main() -> int:
     for doc in docs:
         body = doc.read_text(encoding="utf-8")
         measured += sum(len(content) for _, _, content in markdown_source.code_blocks(body))
-        found, allowed = too_wide(doc, body)
+        found, allowed = findings(doc, body)
         problems += found
         allowed_wide += allowed
 

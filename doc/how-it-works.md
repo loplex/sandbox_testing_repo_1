@@ -59,7 +59,11 @@ The arithmetic follows:
 | root commit                 | a different repo                    | **1** — the braided edge alone               |
 | ordinary commit             | same repo (i.e. already its parent) | **1** — unchanged                            |
 | ordinary commit             | a different repo                    | **2** — braided edge + original parent       |
-| merge commit                | a different repo                    | **3** — braided edge + both original parents |
+| two-parent merge            | same repo (i.e. its first parent)   | **2** — unchanged                            |
+| two-parent merge            | a different repo                    | **3** — braided edge + both original parents |
+
+A merge of more parents goes the same way: it keeps them all, and gains the braided edge only
+where its predecessor comes from a different repo.
 
 [Example 01](examples/01-two-linear-repos/README.md) is the rule on two linear repositories, and
 [example 04](examples/04-clock-skew-in-repo/README.md) on a child timestamped before its own parent,

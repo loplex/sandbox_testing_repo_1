@@ -168,6 +168,11 @@ class MergeCommandDryRunTest {
         assertEquals(1, result.statusCode, result.output)
         assertTrue(result.output.contains("no such option --dryrun"), result.output)
         assertTrue(result.output.contains("Did you mean --dry-run?"), result.output)
+
+        // A short one too, which is no more an input than a long one is.
+        val short = MergeCommand().test(listOf("--dry-run", tmp.resolve("backend.git").toString(), "-x"))
+        assertEquals(1, short.statusCode, short.output)
+        assertTrue(short.output.contains("no such option -x"), short.output)
     }
 
     @Test
@@ -472,7 +477,7 @@ class MergeCommandDryRunTest {
         Files.createDirectories(pointed)
         Files.writeString(pointed.resolve(".git"), "gitdir: $pointedStore\n")
         // A `..` past a symlink into a working tree whose git directory is kept elsewhere: its graph
-        // is read from the one `pointed/.git` names, though its objects are fetched by the path.
+        // and its objects both come from the one `pointed/.git` names.
         Files.createDirectories(pointed.resolve("sub"))
         val up = Files.createSymbolicLink(tmp.resolve("up"), pointed.resolve("sub"))
         // A `..` past a symlink: `dotdot/..` is backend.git itself, not the directory `dotdot` sits in.
@@ -592,8 +597,8 @@ class MergeCommandDryRunTest {
         val holding = tmp.resolve("odd::name")
         tmp.resolve("backend.git").toFile().renameTo(holding.toFile())
 
-        // The location is now whole — but the name derived from it is not one git would take in a
-        // ref, so the argument has to say what the input is called.
+        // The location is now whole — but the name derived from it holds a ':', which an <input>::
+        // scope could not spell, so the argument has to say what the input is called.
         val derived = MergeCommand().test(listOf("--dry-run", "$holding::", path("webui.git")))
         assertEquals(1, derived.statusCode, derived.output)
         assertTrue(derived.output.contains("cannot be a repository name"), derived.output)
@@ -710,9 +715,12 @@ class MergeCommandDryRunTest {
         // What refers to an input by its name cannot say which of the two it means.
         val scoped = MergeCommand().test(listOf("--dry-run", "--ref", "a::refs/heads/main") + inputs)
         assertEquals(1, scoped.statusCode, scoped.output)
-        assertTrue(scoped.output.contains("2 inputs are called that"), scoped.output)
+        assertTrue(scoped.output.contains("two inputs are called that"), scoped.output)
+        // Said as --root-repo says it: where each is, and each argument's own way out.
+        assertTrue(scoped.output.contains("'${inputs[0].substringBefore("::")}::libs/a=<name>'"), scoped.output)
+        assertTrue(scoped.output.contains("'${inputs[1].substringBefore("::")}::apps/a=<name>'"), scoped.output)
 
-        // And the way out keeps the subdirectory each argument gave: `<repo>::=<name>` would move
+        // And the way out keeps the subdirectory each argument gave: `<path-or-url>::=<name>` would move
         // either input from where its argument put it to `<name>/`.
         val root = MergeCommand().test(listOf("--dry-run", "--root-repo", "a") + inputs)
         val printed = root.output.replace(Regex("\\s+"), " ")
@@ -899,7 +907,8 @@ class MergeCommandDryRunTest {
         assertEquals(1, result.statusCode, result.output)
         assertTrue(printed.contains("two inputs would be placed at 'core'"), result.output)
         assertTrue(printed.contains("$first and $second"), result.output)
-        assertTrue(printed.contains("'$first::<subdir>'"), result.output)
+        // Moved, it keeps its name, which the new subdirectory would otherwise give it.
+        assertTrue(printed.contains("'$first::<subdir>=core'"), result.output)
     }
 
     @Test
@@ -1056,6 +1065,53 @@ class MergeCommandDryRunTest {
         assertTrue(result.output.contains("ui -> frontend/"), result.output)
     }
 
+    @Test
+    fun `one repository given as two arguments is refused, however the second spells it`() {
+        corpus()
+        val backend = path("backend.git")
+        for (second in listOf("$backend::y", "$backend/.::y")) {
+            val result = MergeCommand().test(listOf("--dry-run", "$backend::x", second))
+
+            assertEquals(1, result.statusCode, result.output)
+            assertTrue(result.output.contains("two input arguments name one repository"), result.output)
+            assertTrue(result.output.contains("placing it at 'x' and 'y'"), result.output)
+        }
+    }
+
+    @Test
+    fun `two findings at one subdirectory are refused, told that a finding stays where it is`() {
+        // `core.git` and `core` both land at `libs/core`, and neither is an argument to move.
+        scanned("libs/core.git")
+        scanned("libs/core", bare = false)
+
+        val result = MergeCommand().test(listOf("--dry-run", "--scan", path("tree")))
+
+        val printed = result.output.replace(Regex("\\s+"), " ")
+        assertEquals(1, result.statusCode, result.output)
+        assertTrue(printed.contains("two inputs would be placed at 'libs/core'"), result.output)
+        assertTrue(
+            printed.contains("a finding cannot be given another subdirectory: rename one of their directories"),
+            result.output,
+        )
+    }
+
+    @Test
+    fun `a finding and two arguments at one subdirectory offer one of the arguments a subdirectory`() {
+        scanned("libs/core.git")
+        for (name in listOf("a.git", "b.git")) {
+            TestRepoBuilder.create(tmp.resolve(name)).use { it.branch("main", it.commit("x1")) }
+        }
+
+        val result = MergeCommand().test(
+            listOf("--dry-run", "--scan", path("tree"), path("a.git") + "::libs/core", path("b.git") + "::libs/core"),
+        )
+
+        val printed = result.output.replace(Regex("\\s+"), " ")
+        assertEquals(1, result.statusCode, result.output)
+        assertTrue(printed.contains("three inputs would be placed at 'libs/core'"), result.output)
+        assertTrue(printed.contains("give one of the arguments a subdirectory of its own"), result.output)
+    }
+
     /** A repository at [at] under the scan base, with one commit in it. */
     private fun scanned(at: String, bare: Boolean = true) {
         val dir = tmp.resolve("tree/$at")
@@ -1087,6 +1143,31 @@ class MergeCommandDryRunTest {
         assertEquals(0, result.statusCode, result.output)
         assertTrue(result.output.contains("tree -> <root>"), result.output)
         assertTrue(result.output.contains("backend -> libs/backend/"), result.output)
+    }
+
+    @Test
+    fun `a placement refusal tells an argument how to move, and a finding that it cannot`() {
+        // A file where the scan found a repository below it: the base holds 'libs', so nothing lands
+        // inside it.
+        TestRepoBuilder.create(tmp.resolve("tree"), bare = false).use {
+            it.branch("main", it.commit("p1", files = mapOf("libs" to "a stray file")))
+        }
+        scanned("libs/backend.git")
+        val found = MergeCommand().test(listOf("--dry-run", "--scan", path("tree")))
+        assertEquals(1, found.statusCode, found.output)
+        assertTrue(found.output.contains("rename the directory of the repository at 'libs/backend'"), found.output)
+
+        TestRepoBuilder.create(tmp.resolve("webui.git")).use { it.branch("main", it.commit("w1")) }
+        val argument = MergeCommand().test(
+            listOf("--dry-run", "--scan", path("tree"), "${path("webui.git")}::libs/webui")
+        )
+        assertEquals(1, argument.statusCode, argument.output)
+        assertTrue(
+            argument.output.contains(
+                "give the repository at 'libs/webui' another subdirectory, as '${path("webui.git")}::<subdir>=webui'"
+            ),
+            argument.output,
+        )
     }
 
     @Test
@@ -1292,7 +1373,9 @@ class MergeCommandDryRunTest {
     @Test
     fun `a name derived from a location git would not take in a ref is refused, and naming it works`() {
         corpus()
-        val spaced = tmp.resolve("my repo")
+        // A '~', which only git's own rule refuses in a ref: a space or a ':' is refused earlier, by
+        // the rules every name is held to, and would not show that this one is asked at all.
+        val spaced = tmp.resolve("my~repo")
         tmp.resolve("backend.git").toFile().renameTo(spaced.toFile())
         val webui = tmp.resolve("webui.git").toString()
 
@@ -1301,7 +1384,7 @@ class MergeCommandDryRunTest {
         val derived = MergeCommand().test(listOf("--dry-run", spaced.toString(), webui))
         val printed = derived.output.replace(Regex("\\s+"), " ")
         assertEquals(1, derived.statusCode, derived.output)
-        assertTrue(printed.contains("'my repo' cannot be a repository name"), derived.output)
+        assertTrue(printed.contains("'my~repo' cannot be a repository name"), derived.output)
         assertTrue(printed.contains("give the input a name, as '$spaced::=<name>'"), derived.output)
 
         val named = MergeCommand().test(listOf("--dry-run", "$spaced::=myrepo", webui))

@@ -3,7 +3,7 @@
 *What to type, and what the output holds when the run finishes.*
 
 - [Examples](#examples) — whole invocations, before any of the rules behind them.
-- [Writing an input](#writing-an-input) — the `<repo>[::[<subdir>][=<name>]]` argument, and the two
+- [Writing an input](#writing-an-input) — the `<repo>` argument, and the two
   characters its suffix may not hold.
 - [Naming and placement](#naming-and-placement) — what an input is called, and where its content
   lands.
@@ -25,7 +25,7 @@ Elsewhere in the doc set:
 - [README](../README.md) — what the tool is, and why the braid is shaped the way it is.
 - [how-it-works.md](how-it-works.md) — the parent rule, the tree rule, and the caveats that follow
   from them.
-- [examples/](examples/README.md) — nine small histories you can build and walk yourself.
+- [examples/](examples/README.md) — small histories you can build and walk yourself.
 
 ---
 
@@ -124,16 +124,9 @@ same directory refreshes that clone rather than downloading it again, whatever i
 the input. A clone of another URL found there is refused, naming both. A `--dry-run` without `-o`
 clones into a temporary directory instead, and removes it when the run ends.
 
-A name may hold a `/` — `libs/core` is a fine label — each of its segments one a directory could be
-called. It holds no whitespace and no `:`, and opens with no `^`, wherever it is used, since a
-pattern's `<input>::` has to be able to spell it.
-What else it may hold follows from where it is used: a prefix holding `{repo}`, or `{subdir}` for
-the input at the root, puts it in a ref name — the tag and branch prefixes whether or not the run
-writes a tag or a branch, the notes prefix only under `--notes` — and so does `--keep-remotes`,
-which names a remote after it, so there git's rules for a ref name apply and a name they refuse is
-refused, naming the option. A pattern's destination holding `{repo}`, and `{subdir}` for the input
-at the root, put it in a ref name too, checked with every other ref name before the output exists.
-Where none of these puts it in a ref, a name is only a label.
+A name holds no whitespace and no `:`, and opens with no `^`, wherever it is used, since a
+pattern's `<input>::` has to be able to spell it. What else it may hold is under
+[naming and placement](#naming-and-placement).
 
 ## Naming and placement
 
@@ -154,10 +147,21 @@ Placement and naming travel together, and can be separated.
   A reference to a shared name is refused as naming both, and so are two inputs `--keep-remotes`
   would add as one remote. Where two of one name meet on a ref name, a prefix holding `{subdir}`
   keeps them apart where `{repo}` cannot.
+- A name may hold a `/` — `libs/core` is a fine label — each of its segments one a directory could
+  be called. What else it may hold follows from where it is used: a prefix holding `{repo}`, or
+  `{subdir}` for the input at the root, puts it in a ref name — the tag and branch prefixes whether
+  or not the run writes a tag or a branch, the notes prefix only under `--notes` — and so does
+  `--keep-remotes`, which names a remote after it, so there git's rules for a ref name apply and a
+  name they refuse is refused, naming the option. A pattern's destination holding `{repo}`, and
+  `{subdir}` for the input at the root, put it in a ref name too, checked with every other ref name
+  before the output exists. Where none of these puts it in a ref, a name is only a label.
 - **`repo.git::subdir=name` sets the two apart**, and `repo.git::=name` names an input without
   placing it, which then lands at `<name>/`. Renaming a repository
   [`--scan`](#taking-the-layout-off-a-directory-tree) found is a correction instead,
   `::<subdir>=<name>`, with no location.
+- One local repository is one input. Given as two arguments, however the second spells its
+  location — through a symlink, or by its `.git` — it is refused, naming it and where each argument
+  would place it.
 - Two inputs may not contain each other — `libs` and `libs/backend` — unless **`--splice`** says so.
 - `--splice` never buys a merge of two repositories' files: anything the containing repository
   already holds at the inner destination is a collision, with or without the flag. The one entry
@@ -258,6 +262,10 @@ worked out under [dissolving a submodule](how-it-works.md#dissolving-a-submodule
 
 ## Which history is read, and how it interleaves
 
+`--order-by` picks the timestamp the strands interleave by, the committer's unless it says the
+author's; which suits which question is under
+["that instant" is the mainline](how-it-works.md#that-instant-is-the-mainline-not-the-deployment).
+
 ### Mainlines that do not agree
 
 `--mainline-branch` takes the `<input>::` scope a ref pattern takes ([saying it for one input
@@ -319,10 +327,16 @@ out — the example above, or a narrow one over a release series.
 **All of them**, recreated at the corresponding new commits (narrow with `-b` or `--ref`):
 
 - The mainline branch collapses into one: every input contributed its own to the same braid, so the
-  output has a single branch of that name, at the braid's tip.
+  output has a single branch at the braid's tip, named by the unscoped `--mainline-branch` or else
+  after the first input's mainline ([mainlines that do not agree](#mainlines-that-do-not-agree)).
 - Any other branch is prefixed with the repository name (`wip` from `webui` becomes `webui/wip`), so
   branches of differently named inputs cannot collide. The prefix is `--branch-prefix`, and one
   holding `{subdir}` keeps apart two inputs that share a name.
+
+Prefixing every other branch is a change in 0.2.0. The qualifier used to go on a branch only where
+two inputs had used the name, which made the name depend on what the other inputs called theirs:
+adding an input that had a branch of the same name renamed this one's, out of an argument that says
+nothing about naming.
 
 Why a side branch needs no special handling, and why a branch from one input still gives you a
 checkout of the whole system, is under [branches](how-it-works.md#branches).
@@ -352,12 +366,9 @@ else. Without it two inputs can meet on one name, and a run that would write two
 to one ref is **refused** rather than resolved — naming both inputs and the ref they collided on.
 Even with it, an input can meet the braid's own branch, which takes no prefix: under the default,
 input `release`'s branch `x` becomes `release/x`, which is the output's branch where the mainline is
-called `release/x`. That is refused the same way, naming the braid. So can two inputs that share a
-name, which `{repo}` qualifies alike; a prefix holding `{subdir}` keeps those apart.
-
-This is a change in 0.2.0. The qualifier used to go on a branch only where two inputs had used the
-name, which made the name depend on what the other inputs called theirs: adding an input that had a
-branch of the same name renamed this one's, out of an argument that says nothing about naming.
+called `release/x`. That is refused the same way, naming the braid. Two inputs that share a name
+can meet even with the default prefix, which `{repo}` spells alike for both, and are refused the
+same way; a prefix holding `{subdir}` keeps them apart.
 
 ### Commit notes
 
@@ -389,6 +400,43 @@ trailer records where a commit came from, the rekeying moves what was said about
 note contributes no commit and reaches no ancestry, so it cannot be part of the selection that
 decides what is read.
 
+### Writing a ref pattern
+
+A ref pattern is `[<input>::][^]<refspec>`: an optional scope, ended by `::`, the separator a
+[`<repo>`](#writing-an-input) puts between its location and its suffix, and after it git's refspec.
+The first `::` is the separator, since an input's name holds no `:`. What the scope does is under
+[saying it for one input only](#saying-it-for-one-input-only).
+
+| written                           | input    | pattern            | destination  |
+|-----------------------------------|----------|--------------------|--------------|
+| `refs/heads/*`                    | every    | `refs/heads/*`     | its own      |
+| `backend::refs/heads/*`           | backend  | `refs/heads/*`     | its own      |
+| `backend::refs/heads/*:refs/tags/`| backend  | `refs/heads/*`     | `refs/tags/` |
+| `refs/heads/*:refs/tags/`         | every    | `refs/heads/*`     | `refs/tags/` |
+
+**A value git takes as a refspec means the same here.** The differences are few, and each is on
+purpose: a destination may name a namespace, `refs/tags/`, left to that namespace's prefix, and may
+hold `{repo}` and `{subdir}`; a pattern with stars may go without a destination, which `git fetch`
+allows only in a negative refspec, or name one ref as its destination; and there is no `+`, no empty
+pattern or destination, and no short name — a pattern matches full ref names. git resolves a single
+short name, tags before branches, and never a short pattern; `-b` is the short form here, and says
+which of the two it means.
+
+What may stand in the destination is under [saying where a ref lands](#saying-where-a-ref-lands).
+
+**One quoted argument may hold several values, separated by spaces**: a space cannot occur in a ref
+name, as a `:` and a `^` cannot, nor in an input's name, so the split can never cut a pattern or its
+scope in half. These two are the same run:
+
+```bash
+--ref 'backend::refs/heads/main' --ref 'webui::refs/heads/release/*'
+--ref 'backend::refs/heads/main webui::refs/heads/release/*'
+```
+
+It holds for `-b`, `--label-ref`, `--interleave-ref` and `--mainline-branch` alike.
+What does *not* work is leaving the quotes off: an option takes one argument, and the rest would be
+read as input repositories.
+
 ### Choosing which refs are carried over
 
 `-b` and `--ref` are one selection rather than two: `-b main` *is* `--ref refs/heads/main`, and
@@ -408,7 +456,7 @@ them:
 - Matching is against the *full* ref name because a short one cannot say whether `v1.0` is a branch
   or a tag.
 - The mainline is loaded whatever the patterns say — the braid is built along it — and the output's
-  branch of that name comes from the braid's tip.
+  mainline branch comes from the braid's tip.
 
 - A pattern may also **subtract** rather than select, written with a leading `^` — see [taking refs
   back out](#taking-refs-back-out).
@@ -476,7 +524,7 @@ overrides exactly the part of the name it writes out** — nothing, the namespac
   `*`, gives every input's match the same name, and the run would be refused for the collision.
 - Where you spell the name out, **unique names are yours to arrange**. The collision check still
   refuses two inputs meeting on one ref, naming both, and under `--keep-remotes` it refuses any
-  destination under an input's `refs/remotes/<repo>/`, where the mirrors are, meeting one or not.
+  destination under an input's `refs/remotes/<name>/`, where the mirrors are, meeting one or not.
   It refuses any under `refs/timebraid-fetch/` as well, where the run parks the refs it fetches and
   which it empties once the braid is written.
 - Where two patterns match one ref, **a scoped pattern beats an unscoped one**, which is what makes
@@ -539,42 +587,9 @@ it speaks for all of them, so nothing written before this existed changes meanin
 --ref 'refs/tags/v*'
 ```
 
-A value is `[<input>::][^]<refspec>`: the scope is ended by `::`, the separator a
-[`<repo>`](#writing-an-input) puts between its location and its suffix, and what follows it is
-git's refspec. The first `::` is the separator, since an input's name holds no `:`. An
-`<input>::` naming something that is not an input is refused, so a typo is not a pattern that
+An `<input>::` naming something that is not an input is refused, so a typo is not a pattern that
 quietly matches nothing; so is an empty one, `::refs/heads/main`, the unscoped form already saying
 it.
-
-| written                           | input    | pattern            | destination  |
-|-----------------------------------|----------|--------------------|--------------|
-| `refs/heads/*`                    | every    | `refs/heads/*`     | its own      |
-| `backend::refs/heads/*`           | backend  | `refs/heads/*`     | its own      |
-| `backend::refs/heads/*:refs/tags/`| backend  | `refs/heads/*`     | `refs/tags/` |
-| `refs/heads/*:refs/tags/`         | every    | `refs/heads/*`     | `refs/tags/` |
-
-**A value git takes as a refspec means the same here.** The differences are few, and each is on
-purpose: a destination may name a namespace, `refs/tags/`, left to that namespace's prefix, and may
-hold `{repo}` and `{subdir}`; a pattern with stars may go without a destination, which `git fetch`
-allows only in a negative refspec, or name one ref as its destination; and there is no `+`, no empty
-pattern or destination, and no short name — a pattern matches full ref names. git resolves a single
-short name, tags before branches, and never a short pattern; `-b` is the short form here, and says
-which of the two it means.
-
-What may stand in the destination is under [saying where a ref lands](#saying-where-a-ref-lands).
-
-**One quoted argument may hold several values, separated by spaces**: a space cannot occur in a ref
-name, as a `:` and a `^` cannot, nor in an input's name, so the split can never cut a pattern or its
-scope in half. These two are the same run:
-
-```bash
---ref 'backend::refs/heads/main' --ref 'webui::refs/heads/release/*'
---ref 'backend::refs/heads/main webui::refs/heads/release/*'
-```
-
-It holds for `-b`, `--label-ref`, `--interleave-ref` and `--mainline-branch` alike.
-What does *not* work is leaving the quotes off: an option takes one argument, and the rest would be
-read as input repositories.
 
 **The empty case stays per input.** An input no pattern names keeps that option's default — every
 branch and tag for `--ref`, none for `--label-ref` and `--interleave-ref`. So patterns scoped to
@@ -584,8 +599,7 @@ is *naming any ref leaves out every ref not named* read one input at a time; an 
 
 Narrowing one input leaves every other input's ref **names** alone: the qualifier goes on wherever a
 pattern has not spelled a destination out, so narrowing decides which refs exist and not what the
-surviving ones are called. That was not true before 0.2.0 — see
-[turning the prefix off](#turning-the-prefix-off).
+surviving ones are called. That was not true before 0.2.0 — see [branches](#branches).
 
 ### Taking refs back out
 
@@ -645,15 +659,15 @@ They are in the output too, with their own shas intact, next to the rewritten on
   commits out.
 - Nothing points at them by default, so they are invisible to `git log`, and `git gc --prune=now`
   reclaims them.
-- `--keep-remotes` points `refs/remotes/<repo>/*` at every ref the run carried over instead, and at
+- `--keep-remotes` points `refs/remotes/<name>/*` at every ref the run carried over instead, and at
   each input's mainline whether the selection took it or not — a branch at its own name, everything
   else under the tail of its namespace, so a tag lands under `tags/` — which reaches all of them, so
   the originals stay one `git log` away. Notes are the exception: they are written under
   `refs/notes/`, and a notes ref names a notes commit, which is not in the braid and so has no
   original to point at.
-- Each remote is given the fetch refspec `+refs/heads/*:refs/remotes/<repo>/*`, so a pruning fetch
+- Each remote is given the fetch refspec `+refs/heads/*:refs/remotes/<name>/*`, so a pruning fetch
   — `git fetch --prune <repo>`, or any fetch under `fetch.prune` — deletes every mirror under
-  `refs/remotes/<repo>/` that names no branch of the input: the tag mirrors among them, and what
+  `refs/remotes/<name>/` that names no branch of the input: the tag mirrors among them, and what
   only they reached is unreferenced again. It would delete a destination written there too, which is
   why one is refused under `--keep-remotes`.
 - Either way the fetch covers the refs that were read, so narrowing the selection narrows what
@@ -737,6 +751,22 @@ A heading is ruled to the width of the terminal, or to `COLUMNS` where that is s
 variable that lays `-h` and `-hh` out, so it decides how wide a merge prints and not only the help.
 Redirected output without `COLUMNS` has no width to ask for and gets a fixed one.
 
+Once the last phase is done, the closing report says what the run came to: the output's mainline,
+what was fetched into it, what was written on top, and the refs it ends with. On stderr:
+
+```text
+mainline branch: main
+fetched 3 refs from 2 repositories into out.git
+wrote 6 commits and 6 trees on top
+refs: 2 branches, 0 tags, HEAD -> main
+```
+
+A splice `--splice` enabled and a dissolved submodule each add a line under the first, and
+`--plan-out` one saying where the plan went. An option that carries refs of a kind of its own adds
+their count to the `refs:` line, as `--keep-remotes` does its remote-tracking refs. A dry run
+fetches and writes nothing, so its report has no `fetched`, `wrote` or `refs:` line. The plan
+summary printed in the middle of it goes to stdout.
+
 Three options decide whether anything is drawn, rather than leaving it to stderr:
 
 | option          | effect                                                                  |
@@ -751,9 +781,8 @@ holds for `--ascii`/`--no-ascii`. That is what distinguishes them from `--[no-]b
 `--[no-]provenance`, which are one option with an off switch and where the last one given wins —
 `--help` spells all four the same way.
 
-`-v`/`--verbose` adds a line under each phase for every `git` command the run is made of — the
-subprocesses, and the equivalent of the transfer and of every ref written. See
-[Options](#options) below.
+`-v`/`--verbose` adds a line under each phase for every `git` command the run shells out to, and the
+equivalent of the transfer and of every ref written. See [Options](#options) below.
 
 ### The bar falls back to ASCII on a console that cannot encode it
 
@@ -849,7 +878,7 @@ Where the result is written:
                        Must not exist, or must be an empty directory; --force also takes a non-empty
                        one.
   --force              Write into a non-empty output directory instead of refusing it.
-                       Deletes nothing.
+                       Whatever it already holds may be written over.
 
 Finding the inputs, and placing their content:
   --scan=<path>          Take the layout from this directory.
@@ -858,7 +887,7 @@ Finding the inputs, and placing their content:
                          '::<subdir>=<name>', with no location, renames the one it found at
                          <subdir>.
   --root-repo=<text>     Name of the repository whose content lands at the output root.
-  --splice               Allow one input's destination to lie inside another's, splicing the two
+  --splice               Allow one input's subdirectory to lie inside another's, splicing the two
                          into one directory.
                          Without it, such a pair is refused.
   --dissolve-submodules  Where an input lands exactly on a gitlink, replace that submodule with the
@@ -899,8 +928,8 @@ Which refs a pattern speaks for:
                                   Adding one cannot change a commit the run writes; a selection can.
                                   Default: none.
   --interleave-ref=<ref-pattern>  Let this ref's commits delay a mainline merge that merges them in.
-                                  'refs/heads/* ^refs/heads/main' is every side branch; a star opts
-                                  in every tag too.
+                                  'refs/heads/* ^refs/heads/main' is every side branch; a bare '*'
+                                  opts in every tag too.
                                   Default: none.
 
 What the output repository holds:
@@ -913,7 +942,7 @@ What the output repository holds:
                                --no-bare checks out a working tree instead.
                                Default: bare.
   --keep-remotes               Add each input as a remote.
-                               Every ref it carried over lands under refs/remotes/<repo>/*, at the
+                               Every ref it carried over lands under refs/remotes/<name>/*, at the
                                original commits, and so does each input's mainline whether the
                                selection took it or not. Notes are written under refs/notes/ and are
                                not mirrored.
@@ -944,7 +973,8 @@ Inspecting a run:
   --plan-out=<path>  Dump the deterministic plan as text to this file.
   -q, --quiet        Say nothing but the closing report and any error.
   -v, --verbose      Print the git command behind each step.
-                     Every subprocess, and the equivalent of the transfer and of every ref written.
+                     Every git command it shells out to, and the equivalent of the transfer and of
+                     every ref written.
                      Writing the commits is not one command; --plan-out dumps that.
   --[no-]progress    Draw progress, or refuse to, whatever stderr is.
                      For a log of a run that is taking too long, or a terminal to keep clean.

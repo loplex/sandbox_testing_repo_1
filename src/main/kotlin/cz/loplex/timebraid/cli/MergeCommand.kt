@@ -36,6 +36,7 @@ import cz.loplex.timebraid.git.MainlineRequest
 import cz.loplex.timebraid.git.OrderBy
 import cz.loplex.timebraid.git.RepositoryScan
 import cz.loplex.timebraid.git.ScopedPatterns
+import cz.loplex.timebraid.git.SharedScope
 import cz.loplex.timebraid.git.branchPatterns
 import cz.loplex.timebraid.git.ScannedRepository
 import cz.loplex.timebraid.git.SourceRepository
@@ -97,7 +98,7 @@ private class OutputRepoOptions : OptionGroup(
     val force by option("--force").flag()
         .help(
             "Write into a non-empty output directory instead of refusing it." + BR +
-                "Deletes nothing."
+                "Whatever it already holds may be written over."
         )
 }
 
@@ -117,7 +118,7 @@ private class PlacementOptions : OptionGroup(
 
     val splice by option("--splice").flag()
         .help(
-            "Allow one input's destination to lie inside another's, splicing the two into one " +
+            "Allow one input's subdirectory to lie inside another's, splicing the two into one " +
                 "directory." + BR + "Without it, such a pair is refused."
         )
 
@@ -182,8 +183,8 @@ private class RefOptions : OptionGroup(
     val interleaveRefs by option("--interleave-ref", metavar = "<ref-pattern>").multiple()
         .help(
             "Let this ref's commits delay a mainline merge that merges them in." + BR +
-                "'refs/heads/* ^refs/heads/main' is every side branch; a star opts in every " +
-                "tag too." + BR +
+                "'refs/heads/* ^refs/heads/main' is every side branch; a bare '*' opts in " +
+                "every tag too." + BR +
                 "Default: none."
         )
 }
@@ -204,7 +205,7 @@ private class OutputContentOptions : OptionGroup(
     val keepRemotes by option("--keep-remotes").flag()
         .help(
             "Add each input as a remote." + BR +
-                "Every ref it carried over lands under refs/remotes/<repo>/*, at the original " +
+                "Every ref it carried over lands under refs/remotes/<name>/*, at the original " +
                     "commits, and so does each input's mainline whether the selection took it or " +
                     "not. Notes are written under refs/notes/ and are not mirrored."
         )
@@ -275,7 +276,8 @@ private class ReportingOptions : OptionGroup(
     val verbose by option("-v", "--verbose").flag()
         .help(
             "Print the git command behind each step." + BR +
-                "Every subprocess, and the equivalent of the transfer and of every ref written." + BR +
+                "Every git command it shells out to, and the equivalent of the transfer and of every " +
+                    "ref written." + BR +
                 "Writing the commits is not one command; --plan-out dumps that."
         )
 
@@ -530,15 +532,19 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
         report(result)
     }
 
+    /** Every input as [resolveInputs] placed it, for a later refusal to say where each is. */
+    private var landings: List<Landing> = emptyList()
+
     /**
      * The inputs the run will use: what `--scan` found, renamed by the corrections, what the
      * `<repo>` arguments named, and `--root-repo` applied over all of them.
      *
-     * An argument with a location is always another input. One naming a repository the scan already
-     * found — its git directory, however the argument spells it — is refused rather than read as
-     * that finding, since it would otherwise be one input by one spelling and a second by another:
-     * the rename it may have meant is a correction, `::<subdir>=<name>`, which names the finding by
-     * where it sits and has no location to be spelled two ways.
+     * An argument with a location is always another input, and two naming one local repository are
+     * refused. One naming a repository the scan already found — its git directory, however the
+     * argument spells it — is refused rather than read as that finding, since it would otherwise be one
+     * input by one spelling and a second by another: the rename it may have meant is a correction,
+     * `::<subdir>=<name>`, which names the finding by where it sits and has no location to be spelled
+     * two ways.
      */
     private fun resolveInputs(specs: List<RepoSpec>): List<ResolvedInput> {
         val scanned = placement.scan?.let { base ->
@@ -564,29 +570,39 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
             )
         }
         val renamed = corrections(specs.filter { it.isCorrection }, scanned)
-        val extras = ArrayList<Placed>()
+        val extras = ArrayList<Landing>()
         for (spec in specs.filterNot { it.isCorrection }) {
             val local = if (spec.isRemote) null else placeOf(spec.location)
             local?.let { byGitDir[it.gitDir] }?.let { found ->
                 throw UsageError(
                     "'${spec.format()}' names a repository --scan already found, at " +
-                        "${placeName(found.subdir)} -- an argument with a location is always another " +
+                        "${subdirName(found.subdir)} -- an argument with a location is always another " +
                         "input; to rename that one, write ${InputRemedy("", found.subdir).named()}"
                 )
             }
-            extras += Placed(
+            extras += Landing(
                 spec.location, spec.isRemote, spec.name, spec.subdir ?: spec.name, local, InputRemedy(spec),
                 spec = spec,
             )
         }
+        // Two arguments naming one git directory are one repository, which braided as two inputs would
+        // be braided against itself.
+        val byRepository = extras.filter { it.local != null }.groupBy { it.local!!.gitDir }
+        byRepository.values.firstOrNull { it.size > 1 }?.let { twice ->
+            val shown = shownPath(twice.first().local!!.path.toString())
+            throw UsageError(
+                "${count(twice)} input arguments name one repository, '$shown', placing it at " +
+                    "${twice.joinToString(" and ") { "'${it.subdir}'" }} -- give it once"
+            )
+        }
 
-        val merged = ArrayList<Placed>(scanned.size + extras.size)
+        val merged = ArrayList<Landing>(scanned.size + extras.size)
         for (found in scanned) {
             val name = renamed[found]
                 ?: found.name.also {
                     refuseUnusableName(it, null, found.path.toString(), InputRemedy("", found.subdir))
                 }
-            merged += Placed(
+            merged += Landing(
                 found.path.toString(), isRemote = false, name, found.subdir, foundPlaces[found],
                 // What renames a finding is a correction naming where it sits; nothing moves one.
                 InputRemedy("", found.subdir),
@@ -595,9 +611,9 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
         }
         merged += extras
 
-        // The input --root-repo names lands at the root, whatever place it was written with; two it
-        // names are refused below.
-        refuseSharedPlaces(merged.filter { it.name != placement.rootRepo })
+        // The input --root-repo names lands at the root, whatever subdirectory it was written
+        // with; two it names are refused below.
+        refuseSharedSubdirs(merged.filter { it.name != placement.rootRepo })
         if (outputContent.keepRemotes) refuseSharedRemotes(merged)
         placement.rootRepo?.let { root ->
             val named = merged.filter { it.name == root }
@@ -625,12 +641,13 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
             // Refused only now, after the refusals that speak of the whole command line.
             if (!input.isRemote && input.local == null) throw CliktError("no git repository at ${input.location}")
             val subdir = input.subdir.takeIf { input.name != placement.rootRepo }
-            ResolvedInput(input.location, input.name, subdir, input.local)
+            ResolvedInput(input.location, input.name, subdir, input.local, input.movable)
         }
         resolved.firstOrNull { input ->
             val local = input.local
             local != null && outputPlaces != null && meet(placesOf(local.path), outputPlaces)
         }?.let { throw UsageError("'${it.location}' is the output (-o), which a run cannot braid into itself") }
+        landings = merged
         return resolved
     }
 
@@ -641,7 +658,8 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
      *
      * A correction renames and does not move: where the scan put a finding is where the directory
      * sits, and `--root-repo` is what moves one, to the root. So one has to give a name, and name a
-     * place the scan found something at, once; and without a scan there is nothing to correct.
+     * subdirectory the scan found something at, once; and without a scan there is nothing to
+     * correct.
      */
     private fun corrections(
         corrections: List<RepoSpec>,
@@ -661,12 +679,12 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
                     "correction does -- write ${InputRemedy("", spec.subdir).named()}"
             )
             val found = scanned.firstOrNull { it.subdir == spec.subdir } ?: throw UsageError(
-                "'$written' corrects the repository --scan found at ${placeName(spec.subdir)}, and it " +
-                    "found none there; it found one at " + scanned.joinToString { placeName(it.subdir) }
+                "'$written' corrects the repository --scan found at ${subdirName(spec.subdir)}, and it " +
+                    "found none there; it found one at " + scanned.joinToString { subdirName(it.subdir) }
             )
             if (renamed.put(found, name) != null) {
                 throw UsageError(
-                    "two corrections rename the repository --scan found at ${placeName(found.subdir)}"
+                    "two corrections rename the repository --scan found at ${subdirName(found.subdir)}"
                 )
             }
         }
@@ -674,13 +692,13 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
     }
 
     /** Where a finding at [subdir] sits, as a refusal names it. */
-    private fun placeName(subdir: String?): String = subdir?.let { "'$it'" } ?: "the output root"
+    private fun subdirName(subdir: String?): String = subdir?.let { "'$it'" } ?: "the output root"
 
     /**
-     * An input's place and name, and where it is on disk: `null` for a remote input, and for a local
+     * An input's subdirectory and name, and where it is on disk: `null` for a remote input, and for a local
      * one holding no repository, which is refused once the command line as a whole has been.
      */
-    private class Placed(
+    private class Landing(
         val location: String,
         val isRemote: Boolean,
         val name: String,
@@ -801,18 +819,27 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
      * The destination is what tells inputs apart, their names being labels two may share, so it has
      * to be unique; asked here, on the command line, rather than by the planner once every input is
      * read. An argument that places nothing lands at its name, so two naming one directory `core` in
-     * different places meet here, and each is offered a place of its own.
+     * different places meet here, and each argument among them is offered a subdirectory of its own;
+     * a finding stays where it sits.
      */
-    private fun refuseSharedPlaces(inputs: List<Placed>) {
+    private fun refuseSharedSubdirs(inputs: List<Landing>) {
         val shared = inputs.filter { it.subdir != null }.groupBy { it.subdir }.filterValues { it.size > 1 }
         val (subdir, sharing) = shared.entries.firstOrNull() ?: return
-        // A finding sits where the directory does, so only an argument can be given another place.
+        // A finding sits where the directory does, so only an argument can be given another
+        // subdirectory.
         val movable = sharing.filter { it.movable }
-        throw UsageError(
-            "${count(sharing)} inputs would be placed at '$subdir': ${listed(sharing)} -- give " +
-                "${if (movable.size == sharing.size) "one of them" else "the argument"} a place of its " +
-                "own, as ${movable.joinToString(" or ") { it.remedy.placed() }}"
-        )
+        val remedy = if (movable.isEmpty()) {
+            "each was found by --scan, and a finding cannot be given another subdirectory: rename one of " +
+                "their directories"
+        } else {
+            val which = when {
+                movable.size == sharing.size -> "one of them"
+                movable.size == 1 -> "the argument"
+                else -> "one of the arguments"
+            }
+            "give $which a subdirectory of its own, as ${movable.joinToString(" or ") { it.remedy.moved() }}"
+        }
+        throw UsageError("${count(sharing)} inputs would be placed at '$subdir': ${listed(sharing)} -- $remedy")
     }
 
     /**
@@ -822,7 +849,7 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
      * A remote is named after its input, and two sharing a name would be one remote whose refspec
      * covers both inputs' mirrors, the first fetch deleting whichever of them the URL does not have.
      */
-    private fun refuseSharedRemotes(inputs: List<Placed>) {
+    private fun refuseSharedRemotes(inputs: List<Landing>) {
         inputs.groupBy { it.name }.values.firstOrNull { it.size > 1 }?.let { sharing ->
             throw UsageError(
                 "--keep-remotes adds each input as a remote named after it, and ${count(sharing)} are " +
@@ -844,13 +871,13 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
     }
 
     /** [inputs]' locations as a refusal lists them: `a, b and c`. */
-    private fun listed(inputs: List<Placed>): String {
+    private fun listed(inputs: List<Landing>): String {
         val where = inputs.map { shownPath(it.location) }
         return where.dropLast(1).joinToString(", ") + " and " + where.last()
     }
 
     /** How many [inputs] there are, spelled out as far as the refusals around it spell things out. */
-    private fun count(inputs: List<Placed>): String = when (inputs.size) {
+    private fun count(inputs: List<Landing>): String = when (inputs.size) {
         2 -> "two"
         3 -> "three"
         else -> inputs.size.toString()
@@ -870,9 +897,8 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
      * them: on the command line, so a mistyped pattern is refused before an input is cloned or
      * read, as the usage error every other mistyped argument gets.
      *
-     * In the order the reader used to parse them, the scoped patterns before the mainlines, so that
-     * a mistyped input name is reported as the mistyped input name rather than being masked by
-     * whatever the mainline makes of the run.
+     * The scoped patterns are parsed before the mainlines, so that a mistyped input name in a
+     * pattern is reported before anything the mainline value gets wrong.
      */
     private fun patterns(inputs: List<String>): Patterns =
         try {
@@ -886,14 +912,22 @@ class MergeCommand : CliktCommand(name = "git-timebraid") {
                 interleave = ScopedPatterns(interleave, "--interleave-ref", inputs, emptyMeans = false),
                 mainline = MainlineRequest.parse(history.mainlineBranch, inputs),
             )
+        } catch (e: SharedScope) {
+            // Said as --root-repo says it of the same inputs: where each is, and each one's way out.
+            val sharing = landings.filter { it.name == e.input }
+            throw UsageError(
+                "${e.option} '${e.value}' is for input '${e.input}', and ${count(sharing)} inputs are called " +
+                    "that: ${listed(sharing)} -- give one of them another name, as " +
+                    sharing.joinToString(" or ") { it.remedy.named() }
+            )
         } catch (e: IllegalArgumentException) {
             throw UsageError(e.message ?: "a ref pattern could not be read")
         }
 
     private fun report(result: MergeResult) {
         // The report is the last thing said and belongs to no phase, so it is set off from the one
-        // that happened to finish before it.
-        echo("", err = true)
+        // that happened to finish before it; under --quiet no phase was printed to set it off from.
+        if (!reporting.quiet) echo("", err = true)
         echo("mainline branch: ${result.inputs.mainlineBranch}", err = true)
 
         // Only the splices --splice enabled are worth a line in the closing report. The repository

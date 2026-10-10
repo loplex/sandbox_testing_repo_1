@@ -172,6 +172,13 @@ class GlyphsTest {
         assertEquals(Charset.forName("cp852"), Glyphs.consoleCharset { properties[it] })
         assertEquals(Charset.forName("cp437"), Glyphs.consoleCharset { if (it == "native.encoding") "cp437" else null })
         assertEquals(Charset.defaultCharset(), Glyphs.consoleCharset { null })
+        // All three usable at once, as on a Windows console whose code page is not the system's:
+        // the first wins, and without it the second.
+        val all = mapOf(
+            "stderr.encoding" to "cp852", "sun.stderr.encoding" to "cp437", "native.encoding" to "windows-1252",
+        )
+        assertEquals(Charset.forName("cp852"), Glyphs.consoleCharset { all[it] })
+        assertEquals(Charset.forName("cp437"), Glyphs.consoleCharset { if (it == "stderr.encoding") null else all[it] })
     }
 
     /** What a bar is drawn with, read back from the theme the same way the decision reads it. */

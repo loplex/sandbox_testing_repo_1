@@ -81,6 +81,8 @@ class TreeAssembler(
     private val inserter: ObjectInserter,
     /** Whether an input may land on a gitlink of the repository around it, replacing it. */
     private val dissolveSubmodules: Boolean = false,
+    /** How a refusal tells the user to give an input another subdirectory. */
+    private val relocation: Relocation = Relocation.UNSPELLED,
 ) {
 
     /** Distinct trees written so far, keyed by their entry list. */
@@ -178,8 +180,9 @@ class TreeAssembler(
                 val occupant = byName[name]
                 require(occupant == null || occupant.mode == FileMode.TREE) {
                     "'$here' is not a directory in the repository that holds it at ${at()}, so no " +
-                        "repository can be placed inside it -- give that repository another " +
-                        "subdirectory with <repo>::<subdir>"
+                        "repository can be placed inside it -- " +
+                        below.map { it.placement.path.joinToString("/") }.distinct()
+                            .joinToString("; ") { relocation.remedy(it) }
                 }
                 inside = if (occupant == null) emptyList() else entriesOf(occupant.id)
                 deeper = entriesOf
@@ -213,6 +216,16 @@ class TreeAssembler(
     private fun dissolves(clash: TreeEntry): Boolean =
         dissolveSubmodules && clash.mode == FileMode.GITLINK
 
+    private fun collision(here: String, clash: TreeEntry?, at: () -> String): String =
+        "subdirectory '$here' collides with an entry of the same name in the repository that " +
+            "holds it at ${at()} -- " +
+            if (clash?.mode == FileMode.GITLINK) {
+                "that entry is a submodule, so --dissolve-submodules would replace it with " +
+                    "this repository's own content; otherwise " + relocation.remedy(here)
+            } else {
+                relocation.remedy(here)
+            }
+
     /** A [Placement] being walked segment by segment, with [depth] segments already behind it. */
     private class Cursor(val placement: Placement, private val depth: Int) {
 
@@ -236,17 +249,6 @@ class TreeAssembler(
         private val NOTHING_TO_DESCEND_INTO: (ObjectId) -> List<TreeEntry> = {
             error("no repository at the output root to descend into")
         }
-
-        private fun collision(here: String, clash: TreeEntry?, at: () -> String): String =
-            "subdirectory '$here' collides with an entry of the same name in the repository that " +
-                "holds it at ${at()} -- " +
-                if (clash?.mode == FileMode.GITLINK) {
-                    "that entry is a submodule, so --dissolve-submodules would replace it with " +
-                        "this repository's own content; otherwise give the repository another " +
-                        "subdirectory with <repo>::<subdir>"
-                } else {
-                    "give that repository another subdirectory with <repo>::<subdir>"
-                }
 
         /**
          * The order git stores tree entries in, which [TreeFormatter] does not apply on its own:

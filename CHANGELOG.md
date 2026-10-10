@@ -5,18 +5,15 @@ upgrade. The specification of the construction itself lives in
 [doc/how-it-works.md](doc/how-it-works.md); this file only records the differences.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and the
-project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Two sections are kept
+project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). One section is kept
 beyond Keep a Changelog's six: `### Upgrading from <version>`, first, for what the changes below do
-to a command line written for that release, and `### Internal`, last, for changes to CI, the build
-and the release process that a user of the program does not see.
+to a command line written for that release.
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-10-09
-
 ### Upgrading from 0.1.0
 
-Twenty-nine changes alter what a command line written for 0.1.0 does:
+Thirty-one changes alter what a command line written for 0.1.0 does:
 
 - `repo=subdir` is now `repo::subdir=<name>`.\
   Written as `repo::subdir`, the input is also named after the subdirectory, so its tags change with
@@ -60,8 +57,9 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
 - `.git` as a destination, written `repo=.git` in 0.1.0 and `repo::.git=<name>` now, is refused.\
   0.1.0 accepted it, and wrote a tree that git will not check out.
 
-- A shallow or a partial clone is refused as an input.\
-  0.1.0 braided a shallow one given last, or alone, as the part of its history it held.
+- A shallow or a partial clone is refused as an input, on a dry run too.\
+  0.1.0 planned either on a dry run, and braided a shallow one given last, or alone, as the part
+  of its history it held.
 
 - An input that is the output, as in `-o merged.git merged.git …`, is refused, and so is an
   `-o x/.git` inside a bare input `x`.\
@@ -97,7 +95,7 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   0.1.0 wrote a remote-tracking ref only for the branches `-b` took, beside every tag.
 
 - `--keep-remotes` refuses to mirror both a branch `tags/<name>` and a tag `<name>` of one input.\
-  0.1.0 mirrored both to one name, and kept the tag's.
+  0.1.0 kept the tag's mirror and left the branch with none, whether `-b` took it or not.
 
 - A `--tag-prefix` that does not keep `{repo}` apart from the tag name, `''` and any without
   `{repo}` among them, refuses two inputs whose tags meet on a name.\
@@ -116,6 +114,11 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   A ref sitting on a mainline is no longer a no-op, and one off the mainlines reaches past the first
   mainline commit it meets; either can move the braid.
 
+- `--keep-remotes` into an output that already records a remote of an input's name keeps it where
+  its URL is the input's, as on a rerun, and refuses it under another URL, on a dry run too.\
+  0.1.0 failed on either at `git remote add`, with the braid already written; its dry run passed
+  both.
+
 - `--dry-run` refuses three things 0.1.0 refused only while writing: a collision with an entry of
   the `--root-repo`, a ref name that is a directory of another, and a ref name JGit would not
   write.\
@@ -128,24 +131,30 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   output.
 
 - A ref pattern that cannot begin with `refs/` is refused, and so is one under `refs/notes/`.\
-  `--interleave-ref wip` matched nothing in 0.1.0; it is now an error, and so is any short name.
+  `--interleave-ref wip` matched nothing in 0.1.0; it is now an error, and so is any short name.\
+  `--interleave-ref 'refs/changes/*'` matched nothing too, 0.1.0 reading only branches and tags;
+  a namespace a pattern names is now read, and its refs interleave as a branch's do.
 
 - `-h` prints less than it did, and less than `--help`.\
   Every option is still listed, with the first line of its entry; the qualifiers, the defaults, and
   all but the first paragraph of the text above the options and above each group of them are now
   `--help` only, or `-hh` where git handles `--help` itself.
 
+- One local repository given as two arguments is refused, however the second spells its
+  location.\
+  0.1.0 braided it as two inputs, each against the other, wherever the two arguments gave it
+  different names.
+
 - `--tag-prefix` substitutes `{subdir}` as well as `{repo}`.\
   0.1.0 substituted only `{repo}` there, and wrote a `{subdir}` into the tag's name as it stood.
 
-- A recreated tag keeps a `-----BEGIN PGP SIGNATURE-----` line of its message that is not its
-  signature.\
-  0.1.0 cut the message there, where it quoted a block ahead of the tag's own signature or ahead of
-  another `-----BEGIN` line.
+- A recreated tag's message is cut where git reads its signature as beginning.\
+  0.1.0 cut it at the first `-----BEGIN PGP SIGNATURE-----` line, losing a block the message quoted
+  ahead of its own signature, and kept a signature armoured as `-----BEGIN PGP MESSAGE-----`.
 
 ### Changed
 
-- **`<repo>=<subdir>` is now `<repo>::<subdir>`.**\
+- **`<path-or-url>=<subdir>` is now `<path-or-url>::<subdir>`.**\
   Everything before the last `::` is the location, verbatim.\
   Everything after it is `[<subdir>][=<name>]`.\
   A location holding a `::` of its own ends with a bare one.\
@@ -159,7 +168,8 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
 - **A name is a label, and two inputs may share one; the destination tells them apart.**\
   0.1.0 refused two inputs of one name, which is what two directories called `core` derive.\
   Two inputs placed at one destination are refused instead, on the command line, naming both and
-  offering each a place of its own.\
+  offering each argument among them a subdirectory of its own; a `--scan` finding stays where it
+  sits.\
   A reference to a shared name — a pattern's `<input>::`, `--root-repo` — is refused as naming
   both, and so are two inputs `--keep-remotes` would add as one remote.\
   Two of one name meeting on a ref name are refused naming `{subdir}`, which keeps them apart
@@ -190,9 +200,8 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   A destination can be nested arbitrarily deep.\
   A name defaults to one segment, the last of the destination or of the location.
 
-- **Every template substitutes `{subdir}`, where the input lands, beside `{repo}`.**\
-  `--tag-prefix`, `--branch-prefix`, `--notes-prefix`, `--provenance-trailer` and a pattern's
-  destination, as `--subject-prefix` already did.\
+- **`--tag-prefix` substitutes `{subdir}`, where the input lands, beside `{repo}`.**\
+  As `--subject-prefix` already did.\
   The input at the output root gives its name there.
 
 - **The branch qualifier applies to every branch, not only a shared one.**\
@@ -209,9 +218,6 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   A run asking for one branch still pulled in whatever the tags could reach.\
   It is now shorthand for `--ref refs/heads/<name>`, and naming any ref leaves out the rest.\
   The old behaviour is one pattern away: `--ref refs/heads/main --ref 'refs/tags/*'`.
-
-- **The planner allocates less per plan.**\
-  The walks' priority queue no longer boxes timestamps or indices.
 
 - **`--help` groups its options by the decision they belong to, one line per default.**\
   0.1.0 listed every option in one ungrouped run.\
@@ -236,9 +242,14 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   `--help` is unchanged, and `-hh` is a second name for it.
 
 - **A flag that can be turned off is written `--[no-]bare`, not `--bare / --no-bare`.**\
-  That is how git writes one, and it is a line shorter each time.\
-  `--progress`/`--no-progress` and `--ascii`/`--no-ascii` join their partners on one row too,
-  though they stay two options: the default is neither of them, and giving both is still an error.
+  That is how git writes one, and it is a line shorter each time.
+
+- **The archives carry each dependency as its own jar in `lib/`, beside `git-timebraid.jar`,
+  and a release no longer offers the jar on its own.**\
+  The program's jar names the others in its manifest, so `java -jar lib/git-timebraid.jar` still
+  runs it, and every jar keeps the license files its project shipped in it.\
+  `doc/legal/` lists each library with the license it is used under, beside the texts of those
+  licenses; NOTICE points there.
 
 ### Added
 
@@ -247,6 +258,7 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   note carried over unchanged would be attached to nothing.\
   `--notes-prefix` qualifies the refs, `{repo}/` by default: an input with notes usually has
   `refs/notes/commits`.\
+  It substitutes `{repo}` and `{subdir}`, as every template does.\
   A note on an object the run did not write is skipped, and the closing report says how many.\
   The history of a notes ref is not carried over — the output's is one commit, keeping the input's
   author, committer and message.
@@ -267,7 +279,7 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   `--tag-prefix` or `--branch-prefix`.\
   `{repo}` and `{subdir}` are substituted, which is what makes an unscoped destination safe.\
   A destination meeting another input's ref is refused naming both, and under `--keep-remotes` so
-  is one under an input's `refs/remotes/<repo>/`, where a pruning fetch would delete it.\
+  is one under an input's `refs/remotes/<name>/`, where a pruning fetch would delete it.\
   One under `refs/timebraid-fetch/` is refused as well: the run parks the refs it fetches there,
   and deletes everything under it once the braid is written.\
   That is how forty dead branches are kept for the record without being kept as branches — and
@@ -292,7 +304,8 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   A pattern aimed at `refs/notes/` is still refused, naming `--notes`.
 
 - **`--branch-prefix TEMPLATE`** — the qualifier on every recreated branch.\
-  `{repo}` is substituted; the default `{repo}/` matches what `--tag-prefix` does for tags.\
+  `{repo}` and `{subdir}` are substituted; the default `{repo}/` matches what `--tag-prefix` does
+  for tags.\
   An empty value asks for the plain names, and refuses two inputs meeting on one.
 
 - **`--provenance-trailer TEMPLATE`** — the line `--provenance` writes.\
@@ -391,8 +404,7 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   What takes its place is whatever that input had reached at that point of the braid.
 
 - **`doc/examples` covers what the output holds, not only what order it is in.**\
-  Nine worked examples.\
-  Each is a README quoting what the tool prints, over inputs `build-inputs.sh` builds.\
+  Each example is a README quoting what the tool prints, over inputs `build-inputs.sh` builds.\
   Three show the refusal beside the result.
 
 - **The run reports itself by phase, and shows the ones that take the time.**\
@@ -584,6 +596,12 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   mirror) then failed at the write of that ref, the braid already written; one no ref carried went
   through.
 
+- **A rerun with `--keep-remotes` into its own output keeps the remotes it recorded.**\
+  0.1.0 tried to add them again and failed, `remote … already exists`, with the braid already
+  written.\
+  A remote of an input's name under another URL is refused instead, before anything is written into
+  the output, on a dry run too.
+
 - **A collision with an entry of the `--root-repo` is refused before the output is created.**\
   0.1.0 found it only while writing, after creating the output and fetching every input into it, so
   a dry run passed the plan and the run left a half-written output behind. `--dry-run` refuses it
@@ -615,76 +633,20 @@ Twenty-nine changes alter what a command line written for 0.1.0 does:
   `--keep-remotes` records that directory too, by its real path, where 0.1.0 recorded the
   normalized text.
 
-- **A recreated tag's message is cut only where its signature begins.**\
-  0.1.0 also cut it at a `-----BEGIN PGP SIGNATURE-----` line the message quoted ahead of its own
-  signature, or ahead of another `-----BEGIN` line, and lost the rest.\
-  The message is now written as JGit reads it, which leaves out only the signature.
+- **One local repository given as two arguments is refused.**\
+  0.1.0 took `./a::x ./a::y` for two inputs and braided the one history against itself, every
+  commit twice.
 
-### Internal
-
-- Publishing a release opens the next patch version on every branch the tag sits on.\
-  The pom used to keep naming the version just released, so the next tag failed in both jobs that
-  package an archive.
-
-- The release and CI workflows moved onto current major versions of the actions they use.\
-  The hosted runners no longer run the Node.js version the previous ones targeted.
-
-- The jar settles every resource two dependencies both define, rather than letting one shadow
-  another.\
-  Which copy of `META-INF/LICENSE.txt` reached it followed the order the dependencies resolved in.\
-  CI fails on a new overlap, and on a license text `NOTICE` names going missing from the jar.
-
-- `mvn exec:java -Dexec.mainClass=...` runs the class it names.\
-  The plugin's own configuration used to win over the property, and the program ran instead.
-
-- The test reports are cleared before the tests run.\
-  A report used to outlive the test class that wrote it, so a local build's reports counted it with
-  the run's own.
-
-- CI replays `doc/examples` on every run.\
-  The fixtures are rebuilt and the documented invocations re-run.\
-  The output they quote and the plans they track are compared against it.
-
-- CI checks the documentation against itself and against the program.\
-  Every relative link and anchor has to resolve, and no code block may run past 100 columns.\
-  The option list in `doc/usage.md` has to be what `--help` prints.
-
-- CI holds the comments and KDoc in the sources to the rules the documentation already keeps.\
-  A `[Symbol]` link resolving to nothing, a pointer at a document that does not resolve, and a
-  `--` where the prose mark is an em dash are each refused.\
-  One scanner reads Kotlin for all three, because a regex cannot tell a comment from the `//` in a
-  URL.
-
-- CI refuses a KDoc that stands directly on another KDoc.\
-  Kotlin binds a KDoc to the declaration after it, so a documented function inserted between a KDoc
-  and its declaration stacks the two, and the build stays green.\
-  A function inserted there without a KDoc of its own takes the other one silently, which this
-  does not catch.
-
-- CI refuses a `/*` inside a block comment in the Kotlin sources.\
-  Kotlin nests block comments, so a ref glob in a KDoc could swallow code without failing the build.
-
-- The Windows bundled-runtime archive is linked on Linux, from the `jmods` of the Windows Temurin
-  JDK of the same version, in CI and in the release, and smoke-tested on Windows.\
-  `-Djlink.jmods` is what lets a build link another platform's runtime.
-
-- CI holds the manual page to valid roff that renders inside the margin.
-
-- The distribution smoke test asks `man` whether it finds the page from the unpacked archive.\
-  Where a platform has no `man`, it says the page ships unread rather than passing in silence.\
-  It refuses an archive without the HTML page.\
-  On Windows, CI also copies that page into git's HTML path and checks that `git timebraid --help`
-  hands it to the browser.
-
-- `.editorconfig` sets the line width, 120 columns for the Kotlin sources and 100 for the
-  documentation's prose, and CI holds every line to it.\
-  A code block keeps its own rule, its fences and a table row are left out, and a line may run past
-  only where its one word is too long to break.
+- **A recreated tag's message is cut where git reads its signature as beginning.**\
+  0.1.0 cut it at the first `-----BEGIN PGP SIGNATURE-----` line, so a block the message quoted
+  ahead of its own signature was lost with everything after it, and it kept a signature armoured as
+  `-----BEGIN PGP MESSAGE-----`.\
+  It is now cut before the last line that begins one of the signature headers git knows, as git
+  does.
 
 ## [0.1.0] - 2026-09-08
 
 First release.
 
-[Unreleased]: https://github.com/loplex/git-timebraid/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/loplex/git-timebraid/releases/tag/v0.2.0
+[Unreleased]: https://github.com/loplex/git-timebraid/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/loplex/git-timebraid/releases/tag/v0.1.0
