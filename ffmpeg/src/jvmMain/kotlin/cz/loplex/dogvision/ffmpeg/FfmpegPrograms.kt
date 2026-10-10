@@ -133,7 +133,7 @@ object FfmpegPrograms {
      * closed, unless it reads [input] there. Throws [FfmpegMissing] if the program cannot be run.
      */
     fun start(command: List<String>, input: Boolean = false): Process = try {
-        val program = FfmpegPrograms.command(command.first())
+        val program = command(command.first())
         ProcessBuilder(listOf(program) + command.drop(1)).start().apply { if (!input) outputStream.close() }
     } catch (error: IOException) {
         throw FfmpegMissing(command.first(), error)
