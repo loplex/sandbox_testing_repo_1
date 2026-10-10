@@ -326,7 +326,7 @@ on the right](images/window.png)
 - **The panel's last section, *The model and its checks*, shows what `--info` prints** for the
   species and the settings shown, as they change; it starts closed, and its text can be selected.
 - **F9 or the arrow at the images' edge hides the controls**, and the images take their room; the
-  same again shows them.
+  same again shows them, and the next run starts with them as they were left.
 - **Ctrl+M or *View* → *Menu bar* hides the menu bar**, and the window starts without it from then
   on, until Ctrl+M shows it again.
 - **While the menu bar is hidden, three dots under that arrow drop the menus down**: in the Swing
@@ -369,7 +369,8 @@ on the right](images/window.png)
   is checked.
   *File* → *Cancel the conversion* stops it and removes the unfinished file, and so does closing the
   window; a video needs ffmpeg.
-- **The folder chosen, and where a converted file goes, are kept in `settings.json`**: in
+- **The folder chosen, where a converted file goes, and whether the menu bar and the controls are
+  shown, are kept in `settings.json`**: in
   `$XDG_CONFIG_HOME/dog-vision`, or `~/.config/dog-vision` where that is not set, on Linux, and in
   `%APPDATA%\dog-vision` on Windows.
 - **The status bar under the images says what is shown**, the file's name or the camera's, how far a
