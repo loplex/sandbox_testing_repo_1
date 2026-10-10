@@ -1,4 +1,5 @@
-// Prints a stack trace each time kotlin.environment.keepalive is put into this JVM's system properties, by wrapping
+// Prints a stack trace each time kotlin.environment.keepalive is put into or removed from this JVM's system
+// properties, by wrapping
 // them in Properties that watch for it; a value already there when a build starts is reported by the copy below.
 class KeepaliveTracingProperties extends Properties {
     KeepaliveTracingProperties(Properties original) {
@@ -14,6 +15,14 @@ class KeepaliveTracingProperties extends Properties {
             new Throwable("REPRO-TRACE kotlin.environment.keepalive=$value in ${Thread.currentThread().name}").printStackTrace(System.out)
         }
         super.put(key, value)
+    }
+
+    @Override
+    synchronized Object remove(Object key) {
+        if (key == 'kotlin.environment.keepalive') {
+            new Throwable("REPRO-TRACE kotlin.environment.keepalive removed in ${Thread.currentThread().name}").printStackTrace(System.out)
+        }
+        super.remove(key)
     }
 }
 
