@@ -22,7 +22,7 @@ internal fun menuBar(menus: List<Menu>): JMenuBar = JMenuBar().apply {
 
 /** [menus] as a list that pops up, each of them a submenu of it, as the menu button at the images' edge shows them. */
 internal fun popupMenu(menus: List<Menu>): JPopupMenu = JPopupMenu().apply {
-    for (menu in menus) add(JMenu(menu.label).apply { addEntries(menu.entries) })
+    for ((label, entries) in menus) add(JMenu(label).apply { addEntries(entries) })
 }
 
 /** The key as Swing names it. */
