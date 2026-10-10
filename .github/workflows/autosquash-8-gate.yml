@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        chunk: ['01', '02']
+        chunk: ['01', '02', '03', '04', '05', '06', '07', '08']
     steps:
       - uses: actions/checkout@v5
         with:
