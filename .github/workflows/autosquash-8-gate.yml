@@ -1,5 +1,5 @@
 # The build gate of dog-vision's autosquash 8: ./gradlew check, and tools/check_links.py where the commit has it,
-# at every commit of refs/probe/autosquash-8/trial, each chunk of chunks/ built in order by one job, the tree cleaned
+# at every commit of refs/probe/autosquash-8/trial2, each chunk of chunks/ built in order by one job, the tree cleaned
 # between commits and Gradle's build cache reused across them. chunks/20.txt ends with a commit that breaks both,
 # which has to fail.
 name: autosquash-8 gate
