@@ -20,9 +20,7 @@ internal fun stage(tree: File, into: File) {
 /** Writes [bytes] to [path] under [root], rw-r--r--, making each folder on the way rwxr-xr-x. */
 internal fun place(bytes: ByteArray, root: File, path: String) {
     val target = root.resolve(path)
-    for (folder in generateSequence(target.parentFile) { it.parentFile }.takeWhile { it != root }.toList().reversed()) {
-        if (folder.mkdir()) Files.setPosixFilePermissions(folder.toPath(), PosixFilePermissions.fromString("rwxr-xr-x"))
-    }
+    makeFolders(root, target)
     target.writeBytes(bytes)
     Files.setPosixFilePermissions(target.toPath(), PosixFilePermissions.fromString("rw-r--r--"))
 }
@@ -33,10 +31,15 @@ internal fun place(bytes: ByteArray, root: File, path: String) {
  */
 internal fun link(root: File, path: String, target: String) {
     val link = root.resolve(path)
-    for (folder in generateSequence(link.parentFile) { it.parentFile }.takeWhile { it != root }.toList().reversed()) {
+    makeFolders(root, link)
+    Files.createSymbolicLink(link.toPath(), File(target).toPath())
+}
+
+/** Makes each folder on the way from [root] to [file] that is not there yet, rwxr-xr-x. */
+private fun makeFolders(root: File, file: File) {
+    for (folder in generateSequence(file.parentFile) { it.parentFile }.takeWhile { it != root }.toList().reversed()) {
         if (folder.mkdir()) Files.setPosixFilePermissions(folder.toPath(), PosixFilePermissions.fromString("rwxr-xr-x"))
     }
-    Files.createSymbolicLink(link.toPath(), File(target).toPath())
 }
 
 /** [bytes] compressed by gzip -9n, as Debian Policy asks of a changelog and a manual page: no name, no time in it. */
