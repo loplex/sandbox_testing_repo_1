@@ -146,10 +146,61 @@ gradle.projectsEvaluated {
 // that file's SHA-256 with its lines ended by \n, as a checkout on Windows may end them by \r\n. checkModuleGraph holds
 // the SVG to its .dot through it, with no Graphviz to run.
 object ModuleGraphSource {
-    fun comment(dot: File): String {
+    fun text(dot: File): String {
         val digest = java.security.MessageDigest.getInstance("SHA-256")
             .digest(dot.readText().replace("\r\n", "\n").toByteArray())
-        return "<!-- Drawn from ${dot.name}, SHA-256 ${digest.joinToString("") { "%02x".format(it) }} -->"
+        return "Drawn from ${dot.name}, SHA-256 ${digest.joinToString("") { "%02x".format(it) }}"
+    }
+
+    fun comment(dot: File): String = "<!-- ${text(dot)} -->"
+}
+
+// The SVG dot writes, tidied: each element on a line of its own, indented by two spaces, and without the namespace
+// declarations nothing in it uses, such as the xlink one dot writes into every graph; [comment] goes before <svg>.
+object ModuleGraphSvg {
+    fun tidied(svg: String, comment: String): String {
+        val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+        factory.isNamespaceAware = true
+        // The DOCTYPE names the SVG 1.1 DTD, which is not fetched.
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        val document = factory.newDocumentBuilder().parse(org.xml.sax.InputSource(java.io.StringReader(svg)))
+        val blanks = mutableListOf<org.w3c.dom.Node>()
+        val prefixes = mutableSetOf<String>()
+        fun visit(node: org.w3c.dom.Node) {
+            if (node.nodeType == org.w3c.dom.Node.TEXT_NODE && node.nodeValue.isBlank()) blanks += node
+            node.prefix?.let { prefixes += it }
+            val attributes = node.attributes
+            if (attributes != null) {
+                for (i in 0 until attributes.length) {
+                    attributes.item(i).prefix?.takeIf { it != "xmlns" }?.let { prefixes += it }
+                }
+            }
+            val children = node.childNodes
+            for (i in 0 until children.length) visit(children.item(i))
+        }
+        visit(document)
+        blanks.forEach { it.parentNode.removeChild(it) }
+        val root = document.documentElement
+        val declarations = root.attributes
+        (0 until declarations.length).map { declarations.item(it) }
+            .filter { it.prefix == "xmlns" && it.localName !in prefixes }
+            .forEach { root.removeAttributeNode(it as org.w3c.dom.Attr) }
+        // What goes before <svg> is written here, as the serializer puts a DOCTYPE after the comments and runs them on.
+        val out = java.io.StringWriter()
+        if (svg.startsWith("<?xml")) out.appendLine(svg.substringBefore("?>") + "?>")
+        document.doctype?.let { out.appendLine("<!DOCTYPE ${it.name} PUBLIC \"${it.publicId}\"\n \"${it.systemId}\">") }
+        val children = document.childNodes
+        for (i in 0 until children.length) {
+            val child = children.item(i)
+            if (child.nodeType == org.w3c.dom.Node.COMMENT_NODE) out.appendLine("<!--${child.nodeValue}-->")
+        }
+        out.appendLine("<!-- $comment -->")
+        val transformer = javax.xml.transform.TransformerFactory.newInstance().newTransformer()
+        transformer.setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, "yes")
+        transformer.setOutputProperty(javax.xml.transform.OutputKeys.INDENT, "yes")
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2")
+        transformer.transform(javax.xml.transform.dom.DOMSource(root), javax.xml.transform.stream.StreamResult(out))
+        return out.toString()
     }
 }
 val moduleGraphs = layout.projectDirectory.dir("docs/modules")
@@ -165,9 +216,8 @@ tasks.register("drawModuleGraphs") {
             }
             val svg = process.inputStream.bufferedReader().readText()
             if (process.waitFor() != 0) throw GradleException("dot failed on ${dot.name}")
-            if ("\n<svg" !in svg) throw GradleException("dot wrote no <svg> on a line of its own for ${dot.name}")
             val target = File(dot.parentFile, dot.nameWithoutExtension + ".svg")
-            target.writeText(svg.replaceFirst("\n<svg", "\n${ModuleGraphSource.comment(dot)}\n<svg"))
+            target.writeText(ModuleGraphSvg.tidied(svg, ModuleGraphSource.text(dot)))
         }
     }
 }
