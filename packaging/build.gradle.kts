@@ -357,7 +357,7 @@ artifact(
         mainClass = "cz.loplex.dogvision.compose.MainKt",
         // As Compose's launchers pass them, but for the resources folder, which the window has no use for: the first
         // has its application give Swing the system's look, the second has skiko take its natives from beside the JARs.
-        javaOptions = listOf("-Dcompose.application.configure.swing.globals=true", "-Dskiko.library.path=\$APPDIR"),
+        javaOptions = listOf("-Dcompose.application.configure.swing.globals=true", $$"-Dskiko.library.path=$APPDIR"),
         nativesBeside = listOf("skiko-awt-runtime-linux-"),
         moduleLists = launcherModules(":gui-compose", ":cli"),
     ),
