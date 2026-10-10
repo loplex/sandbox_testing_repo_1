@@ -1,0 +1,59 @@
+# Runs reproduce.sh against detekt built from a commit of its main branch and published to Maven Local as
+# main-SNAPSHOT; runs when this file changes.
+name: reproduce on detekt main
+
+on:
+  push:
+    branches: [probe/detekt-stale-jar]
+    paths: ['.github/workflows/detekt-main.yml']
+  workflow_dispatch:
+
+env:
+  DETEKT_COMMIT: 641d9b31501776eb9a5c5b86141a313d83fc540c
+
+jobs:
+  reproduce:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: main-default-1, args: '' }
+          - { name: main-default-2, args: '' }
+          - { name: main-no-daemon, args: '--no-daemon' }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: detekt/detekt
+          ref: ${{ env.DETEKT_COMMIT }}
+          path: detekt-src
+      # detekt's build-logic asks for a JDK 17 toolchain; the builds run on 25.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            25
+      - name: Publish detekt to Maven Local
+        working-directory: detekt-src
+        run: ./gradlew publishToMavenLocal -Dsnapshot=true -x dokkaGenerate --no-configuration-cache
+      - name: Point the project at main-SNAPSHOT
+        run: |
+          set -eu
+          sed -i 's/id("dev.detekt") version "2.0.0-alpha.6"/id("dev.detekt") version "main-SNAPSHOT"/' project/build.gradle.kts
+          sed -i 's/^\( *\)mavenCentral()$/\1mavenLocal()\n&/' project/settings.gradle.kts
+          rm -rf detekt-src
+          git diff
+          ls ~/.m2/repository/dev/detekt/
+      - name: Reproduce
+        run: |
+          ./reproduce.sh ${{ matrix.args }}
+          { echo "variant: ${{ matrix.name }} (${{ matrix.args }})"; cat build/logs/summary.txt; } >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: logs-${{ matrix.name }}
+          path: build/logs/
