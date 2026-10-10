@@ -224,8 +224,8 @@ abstract class WixSource : DefaultTask() {
             check(config.isFile) { "$launcher has no ${config.relativeTo(root)}" }
             config.readLines(Charsets.UTF_8).filter { it.startsWith(LAUNCHER_CLASSPATH) }.map { line ->
                 val entry = line.removePrefix(LAUNCHER_CLASSPATH).trimEnd()
-                check(entry.startsWith("\$APPDIR\\")) { "$config's classpath holds a file outside app: $entry" }
-                "app/" + entry.removePrefix("\$APPDIR\\").replace('\\', '/')
+                check(entry.startsWith($$"$APPDIR\\")) { "$config's classpath holds a file outside app: $entry" }
+                "app/" + entry.removePrefix($$"$APPDIR\\").replace('\\', '/')
             }
         }
         val shared = classpaths.values.flatten().groupingBy { it }.eachCount().filterValues { it > 1 }.keys

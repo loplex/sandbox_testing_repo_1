@@ -70,7 +70,7 @@ abstract class WindowsLauncherConfigs : DefaultTask() {
             val first = lines.indexOfFirst { it.startsWith(LAUNCHER_CLASSPATH) }
             check(first >= 0) { "$config has no $LAUNCHER_CLASSPATH" }
             val end = lines[first].substring(lines[first].trimEnd().length)
-            val classpath = names.map { "$LAUNCHER_CLASSPATH\$APPDIR\\$it$end" }
+            val classpath = names.map { $$"$$LAUNCHER_CLASSPATH$APPDIR\\$$it$$end" }
             val others = lines.filterNot { it.startsWith(LAUNCHER_CLASSPATH) }
             File(out, config.name).writeText(
                 (others.take(first) + classpath + others.drop(first)).joinToString(""),

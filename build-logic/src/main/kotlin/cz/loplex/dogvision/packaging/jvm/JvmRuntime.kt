@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package cz.loplex.dogvision.packaging.jvm
 
 import org.gradle.api.NamedDomainObjectProvider

@@ -1,6 +1,7 @@
+@file:Suppress("UnstableApiUsage")
+
 package cz.loplex.dogvision.packaging.windows
 
-import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.packagingJdk
 import cz.loplex.dogvision.packaging.temurinFeature
 import cz.loplex.dogvision.packaging.temurinRelease

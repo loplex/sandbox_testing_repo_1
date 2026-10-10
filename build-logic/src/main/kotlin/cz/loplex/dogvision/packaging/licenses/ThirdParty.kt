@@ -1,6 +1,5 @@
 package cz.loplex.dogvision.packaging.licenses
 
-import cz.loplex.dogvision.packaging.artifact
 import org.w3c.dom.Element
 import java.io.File
 import java.io.Serializable
@@ -193,7 +192,7 @@ private fun skikoParts(file: String, windows: Boolean): List<ThirdPartyPart> {
     return shared + own
 }
 
-/** The texts that go with [text] beside it: the IJG's licence of libjpeg-turbo, and libwebp's patent grant. */
+/** The texts that go beside a text, by file name: the IJG's licence of libjpeg-turbo, and libwebp's patent grant. */
 private val COMPANION_TEXTS = mapOf(
     "libjpeg-turbo.txt" to listOf("libjpeg-turbo-ijg.txt"),
     "libwebp.txt" to listOf("libwebp-patents.txt"),
@@ -222,6 +221,7 @@ fun thirdPartyNotices(
 ): String = buildString {
     appendLine("$artifact holds, besides its own code under $ownLicence (LICENSE), what follows.")
     appendLine()
+    @Suppress("DestructuringDeclaration")
     for (part in parts.sortedBy { it.name.lowercase() }) {
         appendLine("${part.name} ${part.version}, ${part.licence}, ${part.holder}; in ${part.files.joinToString(", ")}")
     }

@@ -1,6 +1,7 @@
+@file:Suppress("UnstableApiUsage")
+
 package cz.loplex.dogvision.packaging.windows
 
-import cz.loplex.dogvision.packaging.artifact
 import cz.loplex.dogvision.packaging.jvm.installedJarNames
 import cz.loplex.dogvision.packaging.licenses.thirdPartyLicenses
 import org.gradle.api.DefaultTask
