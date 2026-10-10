@@ -1,0 +1,34 @@
+// The probe of the detekt-stale-jar reproducer; REPRO_BUILD_CACHE is unset here, so the build cache is the usual one.
+import javax.inject.Inject
+import org.gradle.api.flow.FlowAction
+import org.gradle.api.flow.FlowParameters
+import org.gradle.api.flow.FlowScope
+
+// At the end of each build: the PID of the JVM the build ran in, which tells whether the two builds shared a daemon,
+// and kotlin.environment.keepalive as that JVM's system properties hold it.
+abstract class ReproProbe implements FlowAction<FlowParameters.None> {
+    @Override
+    void execute(FlowParameters.None parameters) {
+        def keepalive = System.getProperty('kotlin.environment.keepalive')
+        println "REPRO-PROBE pid=${ProcessHandle.current().pid()} kotlin.environment.keepalive=$keepalive"
+    }
+}
+
+abstract class ReproProbePlugin implements Plugin<Settings> {
+    @Inject
+    abstract FlowScope getFlowScope()
+
+    @Override
+    void apply(Settings settings) {
+        flowScope.always(ReproProbe) {}
+    }
+}
+
+beforeSettings { settings ->
+    settings.pluginManager.apply(ReproProbePlugin)
+    // A build cache of this run's own, so that a run starts from nothing as a fresh CI runner does.
+    def cacheDir = System.getenv('REPRO_BUILD_CACHE')
+    if (cacheDir) {
+        settings.buildCache.local.directory = new File(cacheDir)
+    }
+}

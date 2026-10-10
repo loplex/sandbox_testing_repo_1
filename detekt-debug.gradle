@@ -1,0 +1,8 @@
+// Turns on detekt's debug output, which prints the classpath it analyses with and the compiler's errors.
+gradle.beforeProject { p ->
+    p.tasks.configureEach { t ->
+        if (t.name.startsWith('detekt') && t.hasProperty('debug')) {
+            t.debug.set(true)
+        }
+    }
+}

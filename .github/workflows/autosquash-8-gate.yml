@@ -1,0 +1,76 @@
+# Why detekt fails at autosquash 8's 221 after 215-220 in one job: each chunk of chunks/ is a sequence of commits
+# built in order by one job, as the gate built them, with flags per commit that vary one thing. A line is
+# `pos sha [flag...]`: stop (./gradlew --stop before it), nocache (--no-build-cache), nodaemon (--no-daemon),
+# wipebc (the local build cache removed before it), cachedebug (-Dorg.gradle.caching.debug=true), detektdebug
+# (detekt's debug output), workerapi (-Pdetekt.use.worker.api=true), probe (prints the daemon's PID and
+# kotlin.environment.keepalive at the end of the build), trace (prints a stack trace where that property is set).
+# The verdict is the summary; no job fails on a
+# failed commit.
+name: autosquash-8 detekt 221 keepalive
+
+on:
+  push:
+    branches: [probe/detekt-stale-jar-dv]
+
+jobs:
+  build:
+    name: chunk ${{ matrix.chunk }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ['01', '02', '03', '04']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: gate
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      # ffmpeg for the window's feed; Mesa's EGL and llvmpipe for its GL tests, as in dog-vision's ci.yml.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
+      - name: Fetch the commits
+        run: |
+          git init -q dv
+          git -C dv fetch -q --no-tags "https://github.com/${GITHUB_REPOSITORY}" \
+            'refs/probe/autosquash-8/*:refs/probe/autosquash-8/*'
+      - name: Build each commit of the chunk
+        run: |
+          set +e -u
+          mkdir -p logs
+          summary=logs/summary-${{ matrix.chunk }}.txt
+          while read -r pos sha flags; do
+            has() { case " $flags " in *" $1 "*) return 0;; esac; return 1; }
+            has stop && (cd dv 2>/dev/null && [ -x gradlew ] && ./gradlew --stop) > /dev/null 2>&1
+            git -C dv checkout -q -f "$sha" && git -C dv clean -q -ffdx || { echo "$pos $sha checkout-failed" >> "$summary"; continue; }
+            has wipebc && rm -rf ~/.gradle/caches/build-cache-1
+            args=(check --continue -Pkotlin.compiler.execution.strategy=in-process)
+            if has nocache; then args+=(--no-build-cache); else args+=(--build-cache); fi
+            has nodaemon && args+=(--no-daemon)
+            has cachedebug && args+=(-Dorg.gradle.caching.debug=true)
+            has workerapi && args+=(-Pdetekt.use.worker.api=true)
+            has detektdebug && args+=(--init-script "$GITHUB_WORKSPACE/gate/detekt-debug.gradle")
+            has probe && args+=(--init-script "$GITHUB_WORKSPACE/gate/probe.init.gradle")
+            has trace && args+=(--init-script "$GITHUB_WORKSPACE/gate/trace-keepalive.gradle")
+            log=$(printf 'logs/%s-%s.log' "$pos" "${sha:0:8}")
+            { echo "HEAD=$(git -C dv rev-parse HEAD)"; echo "FLAGS=$flags"; echo "ARGS=${args[*]}"; } > "$log"
+            start=$(date +%s)
+            (cd dv && ./gradlew "${args[@]}") >> "$log" 2>&1
+            check=$?
+            echo "$pos $sha check=$check [$flags] $(( $(date +%s) - start ))s" | tee -a "$summary"
+            for j in dv/ffmpeg/build/libs/*.jar; do
+              [ -f "$j" ] && { ls -l --time-style=full-iso "$j"; unzip -l "$j"; } >> "$log" 2>&1
+            done
+            [ -d dv/cli/build/reports/detekt ] && cp -r dv/cli/build/reports/detekt "logs/$pos-cli-detekt"
+            du -sh ~/.gradle/caches/* >> "$log" 2>&1
+            df -h / | tail -1 >> "$log"
+          done < gate/chunks/${{ matrix.chunk }}.txt
+          echo "DONE $(wc -l < gate/chunks/${{ matrix.chunk }}.txt) listed" >> "$summary"
+          cat "$summary"
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: logs-${{ matrix.chunk }}
+          path: logs/
