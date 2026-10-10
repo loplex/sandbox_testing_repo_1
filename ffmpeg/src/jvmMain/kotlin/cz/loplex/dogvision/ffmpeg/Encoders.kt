@@ -50,7 +50,7 @@ fun interface Runs {
     fun run(command: List<String>, timeoutSeconds: Long): Ran?
 }
 
-/** [command] run as [Runs] says, its program from where [FfmpegPrograms] runs it, and stopped if it takes too long. */
+/** `command` run as [Runs] says, its program from where [FfmpegPrograms] runs it, and stopped if it takes too long. */
 val runProgram = Runs { command, timeoutSeconds ->
     val process = FfmpegPrograms.start(command)
     val errors = drained(process)
