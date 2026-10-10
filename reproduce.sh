@@ -80,4 +80,8 @@ if grep -q 'compiler errors found during analysis' "$logs/build-2.log"; then
     echo "RESULT: reproduced: detekt found compiler errors in build 2" | tee -a "$logs/summary.txt"
 else
     echo "RESULT: not reproduced" | tee -a "$logs/summary.txt"
+    if [ "$second_only" = false ] && grep -q 'kotlin.environment.keepalive=null' "$logs/build-1.log"; then
+        echo "  build 1 ended with kotlin.environment.keepalive unset; with the configuration cache on, the Kotlin Gradle"
+        echo "  plugin does not set it. Is it on in ~/.gradle/gradle.properties? Then pass --no-configuration-cache."
+    fi
 fi
