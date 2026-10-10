@@ -41,8 +41,8 @@ internal fun xdgPictures(userDirs: File, home: String): File? {
         ?.replace(ESCAPED, "$1")
         ?: return null
     return when {
-        value == "\$HOME" -> File(home)
-        value.startsWith("\$HOME/") -> File(home, value.removePrefix("\$HOME/"))
+        value == $$"$HOME" -> File(home)
+        value.startsWith($$"$HOME/") -> File(home, value.removePrefix($$"$HOME/"))
         value.startsWith("/") -> File(value)
         else -> null
     }
