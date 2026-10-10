@@ -318,8 +318,9 @@ on the right](images/window.png)
 - **On Linux the dialog is kdialog's on KDE and zenity's elsewhere**, whichever of the two is
   installed, and Java's own where neither is: Java's comes up behind the window on KDE from its
   second opening on.
-- **Camera goes back to the camera** shown last, or else the one the command line names; the
-  panel's [*Camera*](#the-camera-and-its-mirroring) picks another, or *Off*.
+- **Camera goes back to the camera** shown last, or else the one the command line names, and
+  turns it off while it is shown; the panel's [*Camera*](#the-camera-and-its-mirroring) picks
+  another, or *Off*.
 - **The cameras are listed again as the panel's list drops down**, so that one plugged in since
   shows; on Windows, where ffmpeg lists them, they come a moment after it opens.
 - **The panel's last section, *The model and its checks*, shows what `--info` prints** for the
