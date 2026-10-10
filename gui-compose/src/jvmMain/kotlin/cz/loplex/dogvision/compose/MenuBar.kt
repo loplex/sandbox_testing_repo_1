@@ -10,7 +10,6 @@ import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.MenuScope
 import cz.loplex.dogvision.desktop.TopEdgeMenuBar
-import cz.loplex.dogvision.desktop.menus
 import cz.loplex.dogvision.texts.Menu
 import cz.loplex.dogvision.texts.MenuEntry
 import cz.loplex.dogvision.texts.MenuKey
