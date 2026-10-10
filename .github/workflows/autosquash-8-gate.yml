@@ -2,7 +2,8 @@
 # built in order by one job, as the gate built them, with flags per commit that vary one thing. A line is
 # `pos sha [flag...]`: stop (./gradlew --stop before it), nocache (--no-build-cache), nodaemon (--no-daemon),
 # wipebc (the local build cache removed before it), cachedebug (-Dorg.gradle.caching.debug=true), detektdebug
-# (detekt's debug output). The verdict is the summary; no job fails on a failed commit.
+# (detekt's debug output), workerapi (-Pdetekt.use.worker.api=true). The verdict is the summary; no job fails on a
+# failed commit.
 name: autosquash-8 detekt 221
 
 on:
@@ -17,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        chunk: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17']
+        chunk: ['01', '02', '03', '04']
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,6 +48,7 @@ jobs:
             if has nocache; then args+=(--no-build-cache); else args+=(--build-cache); fi
             has nodaemon && args+=(--no-daemon)
             has cachedebug && args+=(-Dorg.gradle.caching.debug=true)
+            has workerapi && args+=(-Pdetekt.use.worker.api=true)
             has detektdebug && args+=(--init-script "$GITHUB_WORKSPACE/gate/detekt-debug.gradle")
             log=$(printf 'logs/%s-%s.log' "$pos" "${sha:0:8}")
             { echo "HEAD=$(git -C dv rev-parse HEAD)"; echo "FLAGS=$flags"; echo "ARGS=${args[*]}"; } > "$log"
