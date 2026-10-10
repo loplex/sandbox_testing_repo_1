@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+LINK = re.compile(r"\[[^]]*\]\(([^)\s]+)\)")
 FENCE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 
 
