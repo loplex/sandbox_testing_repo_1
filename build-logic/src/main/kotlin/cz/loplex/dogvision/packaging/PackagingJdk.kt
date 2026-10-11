@@ -11,12 +11,12 @@ import org.gradle.jvm.toolchain.JvmVendorSpec
 internal fun Project.temurinFeature(): Int = libs().findVersion("temurin").get().requiredVersion.toInt()
 
 /**
- * The JDK the packages' runtimes are linked with and jpackage runs from on Linux:
- * Temurin, of [temurinFeature], which jlink asks the jmods it links for Windows to be of.
+ * The JDK that links the packages' runtimes, and that jpackage runs from on Linux:
+ * Temurin, of [temurinFeature]; jlink requires the Windows jmods it links to be of its own feature release.\
  * Temurin brings its own libjpeg, giflib, libpng, lcms2, HarfBuzz and FreeType,
- * where a distribution's OpenJDK, Ubuntu's among them, links the system's,
+ * whereas a distribution's OpenJDK, Ubuntu's among them, links the system's,
  * and a tar.gz would then need that distribution's.\
- * Gradle downloads it where this machine has none.
+ * Gradle downloads it if this machine has none.
  */
 fun Project.packagingJdk(): Provider<JavaLauncher> =
     extensions.getByType(JavaToolchainService::class.java).launcherFor {
@@ -25,9 +25,9 @@ fun Project.packagingJdk(): Provider<JavaLauncher> =
     }
 
 /**
- * Temurin's release [packagingJdk] is, such as 25.0.4.1+1, as its release file names it:
- * the jmods for Windows are of it exactly,
- * so that every package's runtime is the same, and moves with the JDK the build packages with.
+ * The Temurin release that [packagingJdk] is, such as 25.0.4.1+1, as the JDK's release file gives it:
+ * the Windows jmods are of exactly this release,
+ * so that every package's runtime is the same and is updated along with the JDK the build packages with.
  */
 fun Project.temurinRelease(): Provider<String> = packagingJdk().map { jdk ->
     val release = jdk.metadata.installationPath.file("release").asFile

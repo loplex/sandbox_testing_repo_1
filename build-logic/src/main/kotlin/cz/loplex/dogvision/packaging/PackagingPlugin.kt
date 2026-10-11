@@ -8,8 +8,8 @@ import org.gradle.api.Project
 /**
  * Applied by a module that makes Linux packages or a package for Windows:
  * it puts this package's tasks and functions on the module's build script classpath,
- * and gives each [DebPackage] and [RpmPackage] what every package of the project shares,
- * which the module's script registers with what is its own.
+ * and gives each [DebPackage] and [RpmPackage] what every package of the project shares;
+ * the module's script registers each package with what is its own.
  */
 @Suppress("unused", "RedundantSuppression") // named only by implementationClass in build.gradle.kts
 class PackagingPlugin : Plugin<Project> {

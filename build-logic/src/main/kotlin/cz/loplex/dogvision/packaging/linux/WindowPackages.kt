@@ -28,26 +28,30 @@ val windowDebDepends = listOf("default-jre (>= 2:1.17) | java17-runtime", "libeg
 val windowRpmRequires = listOf("/bin/sh", "(jre-17 or jre-21 or jre-25)", "libEGL.so.1()(64bit)", "/usr/bin/ffmpeg")
 
 /**
- * Registers a window's deb and rpm, [packageName], on the system's Java, with the tasks they are made from,
- * each named after the package, as packageDogVisionSwingDeb and dogVisionSwingTree are dog-vision-swing's:
- * [jars], the window's JARs, in /usr/share/[packageName]/lib,
- * the natives they load unpacked in /usr/lib/[packageName], where the FHS puts what depends on the architecture,
- * a launcher in /usr/bin, which finds a Java 17 or newer, the desktop entry and the icons, named [applicationId],
- * and a link under the package's name to the manual page dog-vision.1 that [sharedPackage] installs.\
- * The command line is the package dog-vision-cli, which each recommends.
+ * Registers a window's deb and rpm, [packageName], which run on the system's Java,
+ * and the tasks they are made from, each named after the package,
+ * such as packageDogVisionSwingDeb and dogVisionSwingTree for dog-vision-swing.\
+ * The packages install:
+ * - [jars], the window's JARs, in /usr/share/[packageName]/lib;
+ * - the natives they load, unpacked in /usr/lib/[packageName], where the FHS puts what depends on the architecture;
+ * - a launcher in /usr/bin, which finds a Java 17 or newer;
+ * - the desktop entry and the icons, named [applicationId];
+ * - a link under the package's name to the manual page dog-vision.1 that [sharedPackage] installs.
+ *
+ * The command line is the package dog-vision-cli, which each of them recommends.
  *
  * - [shared] resolves the JARs of [jars] that the package [sharedPackage] installs,
  *   in /usr/share/[sharedPackage]/lib, which the packages depend on at their own version and leave out.
- * - [mainClass] is the class the launcher starts, its main the window's.
- * - [jvmOptions] are the launcher's options after LWJGL's, [LWJGL_JAVA_OPTIONS],
- *   and before org.lwjgl.librarypath's, given the folder of the natives.
+ * - [mainClass] is the window's class whose main the launcher starts.
+ * - [jvmOptions], given the folder of the natives, are the launcher's Java options, after LWJGL's,
+ *   [LWJGL_JAVA_OPTIONS], and before org.lwjgl.librarypath's, which points to that folder.
  * - [nameSuffix] follows the desktop entry's name in each language.
- * - [summary] and [description] are what a package manager lists the packages with, in its search and its details.
+ * - [summary] and [description] are what a package manager shows for the packages, in its search and their details.
  * - [nativesLeftIn] names the JARs, by the start of their names, whose natives are not unpacked.
- * - [rpmRequires] is what the rpm requires besides what every window's does.
+ * - [rpmRequires] is what the rpm requires besides what every window's rpm requires.
  * - [lintianOverrides] are the lintian tags the deb overrides, as [DebPackage] takes them.
  *
- * Returns the task that lays out the files the packages install, less the shared JARs.
+ * Returns the task that lays out the files the packages install, except the shared JARs.
  */
 fun Project.windowPackages(
     packageName: String,
@@ -189,9 +193,10 @@ fun Project.windowPackages(
         architecture.set("x86_64")
         this.summary.set(summary)
         longDescription.set(description)
-        // The libraries the natives need,
-        // as rpm's own generator names them, since Fedora's and openSUSE's package names differ,
-        // what every window's rpm requires, and the shared JARs' package of this version.
+        // The libraries the natives need, named as rpm's own generator names them,
+        // since Fedora's and openSUSE's package names differ;
+        // what every window's rpm requires;
+        // and the shared JARs' package of this version.
         requires.set(
             rpmLibraryRequires.flatMap { it.requires }.map { file ->
                 file.asFile.readText().split(',') + windowRpmRequires + rpmRequires

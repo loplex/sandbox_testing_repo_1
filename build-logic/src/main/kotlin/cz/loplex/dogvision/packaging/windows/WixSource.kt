@@ -16,29 +16,29 @@ import java.security.MessageDigest
 import java.util.UUID
 
 /**
- * Writes in [destination] what WiX Toolset 3's candle.exe and light.exe make the MSI of,
+ * Writes into [destination] the input that WiX Toolset 3's candle.exe and light.exe make the MSI from,
  * which the scripts in tools hand them:
  *
- * - [product], the MSI's source as it is, which includes variables.wxi and refers to what files.wxs defines.
+ * - [product], the MSI's source, copied as it is, which includes variables.wxi and refers to what files.wxs defines.
  * - variables.wxi: the preprocessor variables [product] takes,
  *   each of this task's values, the paths of its files, and ProductCode, as [productCode] says.
- * - files.wxs: every file of [image] but app/.jpackage.xml, jpackage's record of the image,
- *   which its own MSIs leave out too, each a component of its own whose key path it is,
+ * - files.wxs: every file of [image] except app/.jpackage.xml, jpackage's record of the image,
+ *   which jpackage's own MSIs leave out too; each file is a component of its own, with the file as its key path,
  *   in the folder INSTALLDIR, which [product] defines.\
  *   A launcher's files are in a component group of its own, which [product]'s Feature of that launcher takes:
  *   Launcher.dog_vision_swing holds dog-vision-swing.exe, app/dog-vision-swing.cfg
  *   and each JAR on that .cfg's classpath and on no other launcher's.\
  *   Every other file is in the component group Files.\
- *   Every file of [web] is in the folder web in INSTALLDIR,
- *   in the component group Web, but a source map, a .map, in Web.SourceMap.
+ *   Every file of [web] is in the folder web in INSTALLDIR, in the component group Web,
+ *   except a source map, a .map, which is in Web.SourceMap.
  * - [codePage], the localization that sets the MSI's code page, as it is.
  *
- * A file directly in [image] has an ID of its name, its dashes as underscores, as dog_vision_compose.exe,
- * and one directly in [web] of web_ and its name, as web_index.html, by which [product] refers to them;
- * every other file, folder and component one of a hash of its path in INSTALLDIR.\
- * Each component's GUID is made of [upgradeCode] and that path,
- * so that it stays the same while the file is in the same place,
- * as Windows Installer counts the installations of a component by its GUID.
+ * A file directly in [image] gets its name as its ID, with dashes as underscores, such as dog_vision_compose.exe;
+ * one directly in [web] gets web_ and its name, such as web_index.html; [product] refers to them by these IDs.\
+ * Every other file, folder and component gets an ID made from a hash of its path in INSTALLDIR.\
+ * Each component's GUID is made from [upgradeCode] and that path,
+ * so that it stays the same while the file stays in the same place,
+ * as Windows Installer counts a component's installations by its GUID.
  */
 abstract class WixSource : DefaultTask() {
     /** The app image the MSI installs, with the launchers' .cfg as [WindowsLauncherConfigs] writes them. */
@@ -159,8 +159,8 @@ abstract class WixSource : DefaultTask() {
         val grouped = groups.keys.toMutableSet()
         val body = StringBuilder()
 
-        // The files of the folder [top], [under] in INSTALLDIR,
-        // each in the component group [groups] gives it or else in the one [group] gives it.
+        // The files of the folder [top], installed at [under] in INSTALLDIR,
+        // each in the component group that [groups] gives it, or else in the one that [group] gives it.
         fun folder(top: File, under: String, group: (String) -> String, directory: File, depth: Int) {
             val indent = "  ".repeat(depth)
             for (entry in directory.listFiles().orEmpty().sortedBy { it.name }) {
@@ -217,10 +217,10 @@ abstract class WixSource : DefaultTask() {
     }
 
     /**
-     * The component group of each file of [root] that belongs to one launcher alone, by the file's path in [root]:
+     * The component group of each file of [root] that belongs to only one launcher, keyed by the file's path in [root]:
      * each .exe directly in [root] is a launcher,
-     * which the group Launcher. and its name, its dashes as underscores, holds
-     * with its app/ .cfg and each JAR on that .cfg's classpath and on no other launcher's.
+     * and the group named Launcher. followed by its name, with dashes as underscores, holds it
+     * with its .cfg in app/ and each JAR on that .cfg's classpath and on no other launcher's.
      */
     private fun launcherGroups(root: File): Map<String, String> {
         val launchers = root.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".exe") }.map { it.name }

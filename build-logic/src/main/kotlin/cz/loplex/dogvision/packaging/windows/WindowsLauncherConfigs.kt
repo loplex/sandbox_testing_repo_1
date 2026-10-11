@@ -17,12 +17,12 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * Writes in [destination] the .cfg of each launcher in the app folder of [image],
- * a Windows app image as jpackage made it of [WindowsJpackageFiles],
- * with the classpath the launcher's .cfg among [classpaths] names, in its order:
- * jpackage puts every JAR of its input on each launcher's, the launcher's own first.\
+ * Writes into [destination] the .cfg of each launcher in the app folder of [image],
+ * a Windows app image as jpackage made it from [WindowsJpackageFiles],
+ * with the classpath that the launcher's .classpath among [classpaths] names, in its order,
+ * instead of jpackage's, which puts every JAR of its input on each launcher's classpath, the launcher's own first.\
  * The scripts in tools copy them over jpackage's.\
- * Beside them [license] and [notices], which the scripts copy into the image's folder.
+ * Next to them go [license] and [notices], which the scripts copy into the image's folder.
  */
 abstract class WindowsLauncherConfigs : DefaultTask() {
     @get:Internal
