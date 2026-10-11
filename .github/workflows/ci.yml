@@ -1,9 +1,12 @@
-# The checks on Linux and the Linux packages, installed, upgraded and removed,
-# and every artifact Linux builds, built at once on a fresh tree;
-# on Windows what Linux cannot show: the windows' GL contexts, ANGLE's and WGL's,
-# the one MSI of both windows, the command line and the web page,
-# built with WiX and installed, upgraded and removed,
-# and the command line's zip, built with jpackage and run.
+# On Linux:
+# - the checks;
+# - the Linux packages, installed, upgraded and removed;
+# - every artifact Linux builds, built at once on a fresh tree.
+# On Windows, what Linux cannot show:
+# - the GL contexts of the desktop windows, under ANGLE and WGL;
+# - the single MSI of both windows, the command line and the web page,
+#   built with WiX and installed, upgraded and removed;
+# - the command line's zip, built with jpackage and run.
 name: CI
 
 on:
@@ -38,8 +41,8 @@ jobs:
           tasks=(:packaging:packageDeb :packaging:packageRpm)
           ./gradlew "${tasks[@]}"
           ./gradlew "${tasks[@]}" -PappVersion=0.1.1
-      # Every deb held to lintian's errors and warnings,
-      # but those each deb overrides, each with its reason.
+      # Every deb must pass lintian with no errors or warnings,
+      # except those each deb overrides, each with its reason.
       - name: Hold the debs to lintian
         if: (success() || failure()) && steps.packages.outcome == 'success'
         run: |
