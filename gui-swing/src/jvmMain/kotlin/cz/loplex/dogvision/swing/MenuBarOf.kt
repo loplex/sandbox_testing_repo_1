@@ -7,8 +7,8 @@ import cz.loplex.dogvision.texts.shownOf
 import javax.swing.JFrame
 
 /**
- * The menu bar of [frame], built again only when what its menus show changes, which would close a menu open,
- * and shown in the frame or laid over it as [TopEdgeMenuBar] has it.
+ * The menu bar of [frame], rebuilt only when what its menus show changes, since rebuilding closes an open menu,
+ * and shown in the frame or laid over it, as [TopEdgeMenuBar] arranges.
  */
 internal class MenuBarOf(frame: JFrame) : AutoCloseable {
     /** The menus shown last, which the window's keys press. */
