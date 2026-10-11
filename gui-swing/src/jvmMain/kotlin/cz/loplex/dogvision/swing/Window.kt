@@ -197,10 +197,10 @@ private fun openFromDialog(frame: JFrame, dialog: OpenDialog, session: LiveSessi
 }
 
 /**
- * Presses the [menus] with their keys anywhere in the window [root] is of,
- * as the Compose window's onKeyEvent, but for while a list is dropped down, which then takes the key.\
- * A menu's key is taken here even then,
- * so that the menu bar's accelerator, which Swing would give it next, does not act on it.
+ * Presses the [menus] when their keys are pressed anywhere in [root]'s window,
+ * as the Compose window's onKeyEvent does, except while a list is dropped down, which then takes the key.\
+ * Even then, a menu's key is consumed here,
+ * so that the menu bar's accelerator, which Swing would hand it to next, does not act on it.
  */
 private fun keys(root: JComponent, menus: () -> List<Menu>) {
     for (key in MenuKey.entries) {
