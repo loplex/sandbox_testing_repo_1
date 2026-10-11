@@ -22,8 +22,8 @@ private fun awaitFrames(video: HTMLVideoElement, wanted: () -> Boolean, shown: I
         return
     }
     // Checked once per frame of the page, which may come twice as often as the video's.
-    // A live video's time runs on with the clock, not frame by frame; its count of frames does,
-    // where the browser keeps one: Firefox 156 keeps it at 0, and each frame of the page is then handed over.
+    // A live video's time advances with the clock, not frame by frame; its frame count advances frame by frame,
+    // where the browser keeps one: Firefox 156 keeps it at 0, in which case every frame of the page is handed over.
     window.requestAnimationFrame {
         if (wanted()) {
             val frames = video.asDynamic().getVideoPlaybackQuality?.call(video)?.totalVideoFrames as Int? ?: 0

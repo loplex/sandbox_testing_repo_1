@@ -14,9 +14,10 @@ private const val MAX_TOP_BOXES = 64
 private const val MAX_MOVIE_BYTES = 64 * 1024 * 1024
 
 /**
- * Reads the degrees clockwise the video of [file], an MP4 or a QuickTime movie, is to be turned to stand upright,
- * as a phone held upright records it: 0, 90, 180 or 270, from its video track's header, and calls [onRead] with them.\
- * A file of another format, or one it cannot read, is taken to need no turn.
+ * Reads how many degrees clockwise the video of [file], an MP4 or a QuickTime movie, must be rotated
+ * to stand upright, as a phone held upright records it: 0, 90, 180 or 270, from its video track's header,
+ * and calls [onRead] with them.\
+ * A file of another format, or one it cannot read, is taken to need no rotation.
  *
  * Only the movie box is read, wherever it is in the file, and not the media before or after it.
  */
