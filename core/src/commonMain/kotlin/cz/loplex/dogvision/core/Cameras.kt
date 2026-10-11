@@ -16,13 +16,13 @@ enum class Facing { FRONT, BACK, UNKNOWN }
 data class CameraOption(val id: String, val name: String?, val facing: Facing)
 
 /**
- * The cameras there are, the one [shown], null while none is, and the [mirroring] chosen,
- * one for whichever camera is shown: Automatic follows a switch from the front camera to the back one.
+ * The [cameras] available, the one [shown] or null while none is, and the [mirroring] chosen,
+ * one choice for whichever camera is shown: Automatic follows a switch from the front camera to the back one.
  *
  * Automatic mirrors the image unless the camera faces away, as the Android app and the web page have mirrored it:
  * a camera of unknown facing is most likely a webcam facing the viewer.\
- * Where the camera shown does not say where it faces, Automatic cannot be chosen,
- * and a choice of it shows and acts as Mirror, until a camera that says is shown.
+ * When the camera shown does not report which way it faces, Automatic cannot be chosen,
+ * and Automatic, chosen or the default, shows and acts as Mirror, until a camera that reports its direction is shown.
  */
 data class CameraChoice(
     val cameras: List<CameraOption> = emptyList(),
