@@ -420,3 +420,6 @@ The sections below hold for both windows.
   or the photo Ctrl+R could not record; Ctrl+R then records.
 - **Where winget turns out to be missing** after all,
   the window names ffmpeg's download page as a link, which opens in the browser when it is clicked.
+
+This line runs on past the cap of one hundred and twenty columns on purpose, so that checkLineLength has to fail on this probe.
+And [a link to nowhere](no-such-file.md).
