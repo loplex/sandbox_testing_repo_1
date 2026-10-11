@@ -25,20 +25,20 @@ import cz.loplex.dogvision.packaging.windows.windowsAppImage
 import cz.loplex.dogvision.packaging.windows.windowsMsi
 import cz.loplex.dogvision.packaging.windows.windowsRuntimeImage
 
-// Packages made apart from the modules they hold:
+// The packages, made apart from the modules they hold:
 // - the deb and the rpm of the JARs the command line runs on, which both windows run on as well,
-//   and of the Compose window, the Swing window and the command line, on the system's Java,
-//   each of the JARs its module runs on, which jvmRuntimeOf takes, less the shared ones;
-// - the deb and the rpm of the web page, the folder web hands this module through webPage,
+//   and those of the Compose window, the Swing window and the command line, on the system's Java,
+//   each with the JARs its module runs on, which jvmRuntimeOf takes, except the shared ones;
+// - the deb and the rpm of the web page, the folder that web hands this module through webPage,
 //   opened in the system's browser, and those of its script's source map;
-// - the deb and the rpm dog-vision, of all of those but the source map's in one, which conflict with each of theirs;
-// - the tar.gz of each window,
-//   its app image with a runtime of its own and dog-vision-cli's launcher beside the window's;
-// - the MSI for Windows on x86-64, of the Compose window, the Swing window and the command line,
-//   each a launcher of one app image, on one runtime, and of the web page;
-//   and the command line's zip, of its launcher alone.
-//   Each of the windows' modules and cli hands this one its launcher through windowsLauncher.
-//   The scripts in tools run jpackage and WiX over what this module writes.
+// - the deb and the rpm dog-vision, with all of those but the source map in one,
+//   which conflict with each of those packages;
+// - the tar.gz of each window: its app image with its own runtime and dog-vision-cli's launcher next to the window's;
+// - the MSI for Windows on x86-64, with the Compose window, the Swing window and the command line,
+//   each a launcher in one app image, on one runtime, and with the web page;
+//   and the command line's zip, with its launcher alone.
+//   Each of the windows' modules and cli hands this module its launcher through windowsLauncher.
+//   The scripts in tools run jpackage and WiX on what this module writes.
 plugins {
     base
     // The toolchains, for the JDK whose jlink links the runtime.
@@ -111,8 +111,8 @@ val windowsLicences = thirdPartyLicenses("windowsLicences", emptyList()) {
     notes.add(windowsRuntimeNote)
 }
 
-// One runtime of every module a launcher needs, and dog-vision-compose.exe the image's main launcher,
-// whose name the image's folder has.
+// One runtime with every module a launcher needs, and dog-vision-compose.exe as the image's main launcher,
+// after which the image's folder is named.
 windowsAppImage(
     packageName = "dog-vision-compose",
     description = "How a dog or another animal sees a photo, a video or the camera",
@@ -125,8 +125,8 @@ windowsAppImage(
     notices = windowsLicences.flatMap { it.notices },
 )
 
-// What jpackage makes the app image of the command line's zip for Windows on x86-64 of,
-// as the scripts in tools hand it: the command line alone, on a runtime of its own, from the files cli hands over.
+// The input from which jpackage makes the app image of the command line's zip for Windows on x86-64,
+// as the scripts in tools hand it over: the command line alone, on its own runtime, from the files cli hands over.
 val cliLauncherFiles = launcherFiles.get().incoming.artifactView {
     componentFilter { it is ProjectComponentIdentifier && it.projectPath == ":cli" }
 }.files
@@ -249,10 +249,10 @@ val packageCommonRpm = tasks.register<RpmPackage>("packageDogVisionCommonRpm") {
 artifact(packageCommonRpm)
 
 /**
- * The lintian tags a deb of [packageName] overrides, each after why:
- * of what it bundles as the makers ship it, LWJGL's JARs and natives,
- * in the folders of [lwjglIn], and, with [composeIn], Compose's JARs and skiko's library there;
- * and of a package of one architecture that its JARs are most of.
+ * The lintian tags a deb of [packageName] overrides, each after the reason:
+ * tags on what it bundles as its makers ship it, LWJGL's JARs and natives in the folders of [lwjglIn],
+ * and, with [composeIn], Compose's JARs and skiko's library there.\
+ * It also overrides the tag on a package of one architecture that is mostly JARs.
  */
 fun lintianOverrides(packageName: String, lwjglIn: String, composeIn: String? = null): String = buildString {
     appendLine("# LWJGL's JAR holds a module descriptor of Java 25, class file version 69, unknown to lintian.")
@@ -454,12 +454,12 @@ val packageCliRpm = tasks.register<RpmPackage>("packageDogVisionCliRpm") {
     architecture = "noarch"
     summary = cliSummary
     longDescription = cliDescription
-    // No one name that every rpm JRE of 17 or newer provides, and no older one:
-    // jre-headless >= 17 would take Fedora's and Rocky's Java 8,
+    // No single name is provided by every rpm JRE of 17 or newer and by no older one:
+    // jre-headless >= 17 would accept Fedora's and Rocky's Java 8,
     // which provides it at epoch 1 and so above any version at epoch 0,
     // and Temurin's 8 and 11, which provide it with no version at all.
     // A new LTS joins the list when a distribution makes it its default.
-    // The JARs of its own version, as the deb's.
+    // The rpm also requires the shared JARs' package of its own version, as the deb does.
     requires = version.zip(release) { version, release ->
         val java = "(jre-17-headless or jre-21-headless or jre-25-headless)"
         listOf("/bin/sh", java, "$commonPackage = $version-$release")
@@ -611,8 +611,8 @@ val allInOneTree = tasks.register<Sync>("dogVisionTree") {
         heldPackages.joinToString(", ") + "."
     into(layout.buildDirectory.dir("linux/$allInOnePackage/tree"))
     from(commonTree, cliTree, composeTree, swingTree, webTree)
-    // Each package's files are in folders or under names of its own, so none is two packages';
-    // were one to be, the build fails rather than install either.
+    // Each package's files are in folders or under names of its own, so no file belongs to two packages;
+    // if one did, the build would fail rather than install either copy.
     duplicatesStrategy = DuplicatesStrategy.FAIL
 }
 
