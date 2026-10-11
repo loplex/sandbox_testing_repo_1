@@ -26,12 +26,12 @@ import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
- * Runs the conversion [Conversions] hands it,
- * in the foreground, with a notification of how far it has got and a button that cancels it;
- * once it ends, a notification of its own says how, as the app's message does.
+ * Runs the conversion that [Conversions] hands it,
+ * in the foreground, with a notification of its progress and a button that cancels it;
+ * once it ends, a notification of its own says how it ended, as the app's message does.
  *
- * The service is of the type Android gives media processing from Android 15,
- * with six hours to finish, and data sync's before, whose type it takes from Android 10.
+ * From Android 15 the service has the media processing type, which gives it six hours to finish;
+ * before that, from Android 10 on, it has the data sync type.
  */
 class ConversionService : Service() {
     private val scope = MainScope()
@@ -86,9 +86,11 @@ class ConversionService : Service() {
                 throw cancelled
             } finally {
                 Conversions.ended()
-                // The ending is a notification of its own:
-                // on a Redmi, the service's notification detached and updated at once kept its progress, ongoing.
-                // The progress is cancelled as well, should an update of it come after the service's is removed.
+                // The ending gets a notification of its own:
+                // on a Redmi, the service's notification, detached and updated at once,
+                // kept its progress bar and stayed ongoing.
+                // The progress notification is cancelled as well,
+                // in case an update of it arrives after stopForeground has removed it.
                 ServiceCompat.stopForeground(this@ConversionService, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 notifications.cancel(PROGRESS)
                 ended?.let { show(ENDED, notification(it, done = null)) }
@@ -125,9 +127,9 @@ class ConversionService : Service() {
 
     /**
      * The notification of [message]:
-     * with the share [done], in percent, and the button that cancels the conversion while it runs;
-     * one that can be swiped away once it has ended, for null.\
-     * Either opens the app.
+     * while the conversion runs, with the share [done], in percent, and a button that cancels it;
+     * when [done] is null, the conversion has ended, and the notification can be swiped away.\
+     * Tapping either opens the app.
      */
     private fun notification(message: String, done: Int?): Notification {
         val open = PendingIntent.getActivity(
