@@ -4,8 +4,8 @@
 # the command line's with none but the installation folder on the system's PATH,
 # and the web page with a shortcut in the Start menu to its index.html,
 # without its script's source map, which is not installed by default.
-# The MSI also removes the folder ffmpeg is downloaded into, %ProgramData%\<the app's name>,
-# which the script makes before the upgrade, as a window would, and which has to stay over that.
+# The MSI also removes the folder that ffmpeg is downloaded into, %ProgramData%\<the app's name>,
+# which the script creates before the upgrade, as a window would, and which must survive the upgrade.
 #
 # Then it installs one part alone, the Feature SwingGui, by ADDLOCAL naming it without its parent DogVision,
 # which Windows Installer installs with it, into a folder of its own (INSTALLDIR);
@@ -79,7 +79,7 @@ function Invoke-Msiexec([string]$Log, [string[]]$Arguments) {
     return $process.ExitCode -in @(0, 3010)
 }
 
-# The products of the product's name in the list of installed programs, as Windows Installer registers them.
+# The entries with the product's name in the list of installed programs, as Windows Installer registers them.
 function Get-Installed {
     @(
         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
@@ -94,7 +94,7 @@ function Test-Ice([string]$Package) {
     Test-Check "$(Split-Path -Leaf $Package) passes ICE validation" ($LASTEXITCODE -eq 0)
 }
 
-# How often the installation folder is on the system's PATH, as the registry holds it for the processes started after.
+# How many times the installation folder is on the system's PATH, as the registry holds it for processes started later.
 function Get-OnPath {
     $entries = [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";"
     @($entries | Where-Object { $_.TrimEnd("\") -eq $installDir }).Count
