@@ -180,8 +180,8 @@ class Page(private var texts: Texts) {
             // a recording needs no camera, so it stops where the browser offers none as well.
             if (document.asDynamic().hidden as Boolean) stopRecording()
             val camera = camera ?: return@addEventListener
-            // Started again whatever stopped it meanwhile: this page, or the system,
-            // which may end a hidden browser's camera itself before the page is told it is hidden.
+            // The camera is restarted, whatever stopped it meanwhile: this page, or the system,
+            // which may stop a hidden browser's camera before the page is told it is hidden.
             if (document.asDynamic().hidden as Boolean) {
                 camera.stop()
             } else if (onCamera && !camera.running) {
@@ -328,8 +328,8 @@ class Page(private var texts: Texts) {
     }
 
     /**
-     * Plays [file], which is shown in place of what was shown once its first frame can be;
-     * that stays if the browser cannot play it.
+     * Plays [file], showing it in place of what was shown once its first frame can be shown;
+     * what was shown stays if the browser cannot play it.
      */
     private fun openVideo(file: File) {
         var ready = false
@@ -559,10 +559,11 @@ class Page(private var texts: Texts) {
 
     /**
      * Runs [render], which uses the canvas's context;
-     * where it fails because the context renders into nothing, though it says it is not lost,
-     * the canvas is made anew with a context of its own.
-     * Firefox on Android leaves a page's context so after its GPU process was killed,
-     * with no `webglcontextlost`, and `checkFramebufferStatus` 0, which only an error or a lost context gives.
+     * if it fails because the context renders into nothing, though it says it is not lost,
+     * the canvas is recreated with a new context.\
+     * Firefox on Android leaves a page's context in that state after its GPU process was killed,
+     * with no `webglcontextlost`, and with `checkFramebufferStatus` returning 0,
+     * which only an error or a lost context gives.
      */
     private fun rendering(render: () -> Unit) {
         try {

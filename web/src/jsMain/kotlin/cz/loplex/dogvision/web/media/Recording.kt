@@ -27,8 +27,8 @@ private const val HANDED_OVER_EVERY = 1000
 private val TYPES = listOf("video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm")
 
 /**
- * A recording of the view, as the Android app's: its images,
- * at the size of the frame and in the arrangement they had when it started, without captions or sound.
+ * A recording of the view, like the Android app's: its images, at the size of the frame
+ * and in the arrangement they had when the recording started, without captions or sound.
  *
  * WebGL draws into its own canvas only, so the images are rendered a second time,
  * by passes of their own in a WebGL 2 context of their own, from the same frames,
@@ -71,7 +71,8 @@ internal class Recording private constructor(
 
     /**
      * Renders the images of [view] of the frame uploaded last, which are recorded from then on;
-     * nothing before a frame is, as a camera's or a video's comes a moment after the recording starts.
+     * nothing is rendered before a frame is uploaded,
+     * as a camera's or a video's first frame comes a moment after the recording starts.
      */
     fun compose(view: View) {
         if (passes.frameWidth > 0) passes.composeImages(view)

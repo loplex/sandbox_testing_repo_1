@@ -26,17 +26,20 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * The page's rendering of a photo or of a video's or a camera's frames:
- * gl's [ViewPasses], as the Android app runs them, over WebGL 2.\
- * The passes compile when this is made, and throw IllegalStateException if the GPU's driver cannot compile or link one.
+ * Renders the page's view of a photo, a video or a camera with gl's [ViewPasses],
+ * as the Android app does, over WebGL 2.\
+ * The passes are compiled when this is created;
+ * creating it throws IllegalStateException if the GPU driver cannot compile or link one.
  *
- * A photo comes upright, as the browser decodes it,
- * and is turned upright once all the same, as the app turns every frame.\
- * It does not change while it is shown, so the share of pixels its map of differences marks is counted at once.\
- * A camera's or a video's frame comes upright too,
- * the browser having turned it as the display is or as the video's rotation says,
- * unless [upload] finds the browser cannot, and is mirrored if need be;
- * its share is counted without waiting for the GPU, and handed over a frame or two later, as in the app.
+ * A photo arrives upright, since the browser decodes it that way,
+ * and still goes through the turn-upright pass once, just as the app passes every frame through it.\
+ * It does not change while it is shown,
+ * so the share of pixels marked in its map of differences is counted right away.\
+ * A camera's or a video's frame arrives upright too,
+ * as the browser rotates it to match the display or as the video's rotation says,
+ * unless [upload] finds that the browser cannot.\
+ * The frame is mirrored if need be.\
+ * Its share is counted without waiting for the GPU, and handed over a frame or two later, as in the app.
  */
 internal class Passes(private val gl: WebGL2RenderingContext) {
     private val webGl = WebGl(gl)
@@ -69,14 +72,14 @@ internal class Passes(private val gl: WebGL2RenderingContext) {
 
     /**
      * Makes the frame [video] shows the one to render,
-     * scaled down to [PREVIEW_LONGEST_SIDE] as a photo is and mirrored if [mirrored];
-     * false, with nothing changed, while the video has no frame yet.
+     * scaled down to [PREVIEW_LONGEST_SIDE] like a photo, and mirrored if [mirrored];
+     * returns false, changing nothing, while the video has no frame yet.
      *
-     * A video whose file says to turn it by [rotation] degrees clockwise, as a phone held upright records it,
-     * is drawn into a 2D canvas first, as one to scale down is: Firefox 156 turns such a frame there,
-     * but uploads it to WebGL as it is stored, at the size it gives as the turned one's.\
-     * Firefox 156 on Android draws a video into a 2D canvas as transparent black, though;
-     * there the frame is uploaded as stored, scaled down bilinearly on the GPU, and turned by the passes.
+     * A video whose file says to rotate it by [rotation] degrees clockwise, as a phone held upright records it,
+     * is drawn into a 2D canvas first, as a video that needs scaling down is: Firefox 156 rotates such a frame there,
+     * but uploads it to WebGL as it is stored, at the size it reports for the rotated frame.\
+     * Firefox 156 on Android, though, draws a video into a 2D canvas as transparent black;
+     * there the frame is uploaded as stored, scaled down bilinearly on the GPU, and rotated by the passes.
      */
     @Suppress("MagicNumber", "ReturnCount")
     fun upload(video: HTMLVideoElement, mirrored: Boolean, rotation: Int = 0): Boolean {
