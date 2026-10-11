@@ -87,8 +87,8 @@ abstract class DebPackage : DefaultTask() {
     abstract val license: RegularFileProperty
 
     /**
-     * The date of the version, as the changelog has it, RFC 5322's:
-     * the last commit's, so that a deb built again of the same commit is the same.
+     * The date of the version in the changelog, in RFC 5322's format:
+     * the last commit's date, so that a deb built again from the same commit is identical.
      */
     @get:Input
     abstract val changelogDate: Property<String>

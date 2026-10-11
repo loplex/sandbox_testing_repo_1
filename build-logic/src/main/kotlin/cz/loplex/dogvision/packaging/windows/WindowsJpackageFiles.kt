@@ -18,14 +18,15 @@ import java.nio.file.Files
 import java.util.Properties
 
 /**
- * Writes in [destination] what jpackage makes a Windows app image of,
- * which tools/package_app_image_on_linux.sh hands it under Wine and tools/package_msi_on_windows.ps1
+ * Writes into [destination] the input jpackage makes a Windows app image from,
+ * which tools/package_app_image_on_linux.sh hands it under Wine, and tools/package_msi_on_windows.ps1
  * and tools/package_cli_zip_on_windows.ps1 on Windows, so that both make the same image:
  *
  * - arguments: the package's name, version, vendor, description and icon; the folder of the JARs,
  *   the main launcher's JAR, class, Java options and console, [runtime], and every other launcher.
- * - input, the folder of the launchers' JARs alone, as jpackage takes every file in its --input into the application.\
- *   A JAR on more than one launcher's classpath is there once: JARs of one name have to be the same bytes.
+ * - input: the folder of the launchers' JARs and nothing else,
+ *   as jpackage takes every file in its --input into the application.\
+ *   A JAR on more than one launcher's classpath is there only once, so JARs of one name must have the same bytes.
  *
  * The launchers are [launchers]' files as [WindowsLauncherFiles] writes them:
  * the one named [packageName] is the main launcher, and each other one an --add-launcher.\
@@ -34,11 +35,11 @@ import java.util.Properties
  *
  * The arguments file is UTF-8, each argument in double quotes,
  * in which a backslash and a quote are escaped with a backslash, as jpackage reads @files:
- * within quotes, \n, \r, \t and \f are taken for control characters, which a Windows path holds.\
+ * within quotes, \n, \r, \t and \f are read as control characters, and a Windows path contains such sequences.\
  * JDK 17's jpackage reads a file in its default charset, which before JDK 18 is the system's,
  * so tools/package_app_image_on_linux.sh runs it with -J-Dfile.encoding=UTF-8.\
- * Paths in the file are Windows's, under Wine, where the build does not run on Windows,
- * as Wine sees them through its drive Z:, which it maps to the root.
+ * Paths in the file are Windows paths; where the build does not run on Windows,
+ * they are the paths Wine sees through its drive Z:, which it maps to the root.
  */
 abstract class WindowsJpackageFiles : DefaultTask() {
     /** The name of the image's folder, and of its main launcher. */
