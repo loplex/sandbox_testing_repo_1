@@ -58,3 +58,5 @@ by Leon Brooks, released into the public domain.
 This port of dog-vision is free software under the GNU General Public License, version 3 or any
 later version (`GPL-3.0-or-later`); the full text is in
 [`LICENSE`](LICENSE).
+
+See [nowhere](docs/no-such-file.md).

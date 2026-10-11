@@ -57,3 +57,5 @@ data class CameraChoice(
     val next: CameraOption?
         get() = cameras.getOrNull((cameras.indexOf(shown) + 1) % cameras.size.coerceAtLeast(1))
 }
+
+fun broken( {
