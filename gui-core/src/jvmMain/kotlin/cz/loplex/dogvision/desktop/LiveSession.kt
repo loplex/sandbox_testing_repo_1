@@ -43,22 +43,24 @@ import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
 /**
- * What a desktop window shows and does, in no toolkit:
+ * What a desktop window shows and does, independent of any toolkit:
  * the source, the cameras and their mirroring, the view, the language, what failed, and the pictures [renderer] draws;
  * each window only lays it out, so that the Compose window and the Swing one cannot drift apart.
  *
  * Its methods are called on the AWT event thread, and its flows change only there, through [post]:
  * Compose Desktop composes on that thread, and Swing collects on it.\
- * It starts on what [arguments] ask for, as the window does.
+ * It starts with what [arguments] ask for, as the window does.
  *
- * The renderer is made by [makeRenderer] once,
- * the feed of each source by [feed], the cameras listed by [cameraLister] through [inBackground],
- * ffmpeg downloaded by [ffmpegDownloader] and installed through winget by [ffmpegInstaller],
- * which [canInstallFfmpeg] says whether to offer where it is missing,
- * and [wingetFound] whether to offer winget as well,
- * the output folder, where none is named or chosen, by [defaultOutputDir],
- * and whether ffmpeg, which a recording needs, can be run by [ffmpegFound];
- * the tests give their own of each, and a [post] that runs what it is given there and then.
+ * Its collaborators are passed in:
+ * - [makeRenderer] makes the renderer, once, and [feed] the feed of each source;
+ * - [cameraLister] lists the cameras, through [inBackground];
+ * - [ffmpegDownloader] downloads ffmpeg, and [ffmpegInstaller] installs it through winget;
+ * - [canInstallFfmpeg] says whether to offer either when ffmpeg is missing;
+ * - [wingetFound] says whether to offer winget as well;
+ * - [defaultOutputDir] gives the output folder when none is named or chosen;
+ * - [ffmpegFound] says whether ffmpeg, which a recording needs, can be run.
+ *
+ * The tests pass their own version of each, and a [post] that runs its block there and then.
  */
 @Suppress("LongParameterList", "TooManyFunctions")
 class LiveSession<I>(
@@ -234,8 +236,8 @@ class LiveSession<I>(
     }
 
     /**
-     * Shows [camera] in place of what is shown, one of those [State.camera] offers;
-     * null turns the camera off, and does nothing while a file is shown, which is shown with the camera off already.
+     * Shows [camera], one of those [State.camera] offers, in place of what is shown.\
+     * Null turns the camera off, and does nothing while a file is shown, since the camera is already off then.
      */
     override fun chooseCamera(camera: CameraOption?) {
         if (recorder != null) return
@@ -436,13 +438,13 @@ class LiveSession<I>(
     private var findingFfmpeg = false
 
     /**
-     * Starts recording the view into the output folder, named as a snapshot is but for its .mp4,
-     * or stops the recording under way, which is then finished in the background, as the recording status says.\
-     * A recording starts once ffmpeg is found, in the background;
-     * where it cannot be run, nothing is recorded, and the window says so in place of the images,
-     * and offers it as where a video cannot be shown without it.\
-     * Found once that was said, as where it was installed outside the window since,
-     * the source is started again, as getting it in the window does.
+     * Starts recording the view into the output folder, named like a snapshot but ending in .mp4,
+     * or stops the recording in progress, which then finishes in the background, as the recording status shows.\
+     * A recording starts once ffmpeg is found; the search runs in the background.\
+     * If ffmpeg cannot be run, nothing is recorded, and the window says so in place of the images
+     * and offers to get ffmpeg, as the window does when a video cannot be shown without it.\
+     * If ffmpeg is found after that message, for example because it was installed outside the window meanwhile,
+     * the source is started again, as getting ffmpeg in the window does.
      */
     fun toggleRecording() = if (recorder == null) findFfmpegAndRecord() else stopRecording()
 
@@ -647,7 +649,7 @@ class LiveSession<I>(
 
     /**
      * Changes the camera choice,
-     * and, if [mirrorShown], mirrors the camera's frame shown at once where that changes whether it is.
+     * and, if [mirrorShown], mirrors or unmirrors the camera frame shown at once when the change flips its mirroring.
      */
     private fun changeCamera(mirrorShown: Boolean = true, change: CameraChoice.() -> CameraChoice) {
         val before = mutableState.value.camera.mirrored

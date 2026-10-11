@@ -28,9 +28,9 @@ sealed interface Source {
 }
 
 /**
- * Why nothing is shown, worded when it is shown, in the language chosen then;
- * [ffmpegMissing] if it is that ffmpeg cannot be run, which the window offers to install on Windows;
- * [link], an address in the words that the window shows as a link, which opens it in the browser when it is clicked.
+ * Why nothing is shown, worded by [words] when it is shown, in the language chosen then;
+ * [ffmpegMissing] if the reason is that ffmpeg cannot be run, which the window offers to install on Windows;
+ * [link], an address in the words, which the window shows as a link that opens in the browser when clicked.
  */
 class Failure(val ffmpegMissing: Boolean = false, val link: String? = null, val words: (Texts) -> String)
 
