@@ -30,10 +30,11 @@ media3 = "1.11.1"
 # the newest build of it, which brings the branch's fixes;
 # a later branch is taken by hand, once the windows are tried with it.
 ffmpeg-windows = "9.0"
-# Temurin's feature release the packages' runtimes are of:
-# the JDK the build packages with, Gradle's toolchain of it, is the tar.gzs' runtime, and the jmods for Windows,
-# which each MSI's and the command line's zip's runtime is linked from, are of that JDK's release exactly.
-# It is an LTS one, as the packages ship the runtime to users.
+# The Temurin feature release that the packages' runtimes come from:
+# the JDK the build packages with, Gradle's toolchain for it, becomes the tar.gzs' runtime,
+# and the Windows jmods, which the runtimes of each MSI and of the command line's zip are linked from,
+# are of exactly the same release as that JDK.
+# It is an LTS release, as the packages ship the runtime to users.
 # build-logic looks it up by its name.
 # noinspection UnusedVersionCatalogEntry
 temurin = "25"
