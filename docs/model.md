@@ -131,7 +131,8 @@ A trichromat has two, and for it `fixed` leaves the image as it is, since nothin
 - **RNL needs each cone's noise as a Weber fraction**, and that is measured for almost no mammal.
   Taking the same value for animal and human makes it cancel, so none has to be chosen;
   the assumption is that it is the same.
-- **Some S-cone shares are assumed**, marked with a star in the [species table](#species), and every trichromat's L:M ratio is.
+- **Some S-cone shares are assumed**, marked with a star in the [species table](#species),
+  and every trichromat's L:M ratio is assumed too.
 - **RNL is a threshold model.** It is matched near grey; strongly saturated colours are extrapolated.
 - **Monochromats** have no chromatic axis, so both scales give the same grey image.
 
