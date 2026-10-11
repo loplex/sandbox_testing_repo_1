@@ -60,7 +60,8 @@ expect fun formatSignificant(value: Double, digits: Int, decimalSeparator: Char)
 
 /**
  * A number with [decimals] digits after the point,
- * as C's printf %f of that precision, rounded as formatSignificant and, as it, without a negative zero.
+ * like C's printf %f at that precision, rounded the way formatSignificant rounds,
+ * and, like it, never giving a negative zero.
  */
 expect fun formatFixed(value: Double, decimals: Int, decimalSeparator: Char): String
 
