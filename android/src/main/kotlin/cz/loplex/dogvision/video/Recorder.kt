@@ -189,8 +189,8 @@ class Recorder(private val output: File, private val onFinished: (Result<Written
 }
 
 /**
- * An encoder that takes frames from a surface, and the size it takes of [width] x [height]:
- * that one, or the largest of the same shape it does.\
+ * An encoder that takes frames from a surface, and the size it accepts for [width] x [height]:
+ * [width] x [height], rounded down to the encoder's alignment, or else the largest of the same shape that it accepts.\
  * Hardware encoders come first, as only they keep up with the view, and among them H.265 before H.264.
  */
 private fun chooseEncoder(width: Int, height: Int): Triple<MediaCodecInfo, String, Pair<Int, Int>> {

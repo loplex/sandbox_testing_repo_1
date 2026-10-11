@@ -89,8 +89,9 @@ class FrameExchange {
     var onPublish: (() -> Unit)? = null
 
     /**
-     * Makes a filled frame of the source of [generation] the newest; the one it replaces, if not drawn yet, is dropped,
-     * and so is the frame itself if another source has opened since.
+     * Makes [frame], filled from the source of [generation], the newest frame;
+     * the frame it replaces is dropped if it has not been drawn yet,
+     * and [frame] itself is dropped if another source has opened since.
      */
     fun publish(frame: Frame, generation: Int) {
         synchronized(this) {

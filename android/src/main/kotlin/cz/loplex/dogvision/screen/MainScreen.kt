@@ -339,11 +339,12 @@ private fun WhileRecording(model: MainViewModel, recording: Boolean) {
  * [images] with the controls beside them on a wide screen and under them on a tall one,
  * where they take at most [CONTROLS_SHARE] of the height.\
  * [buttons] go over the images' top right corner, followed by one that hides or shows the controls.\
- * On a tall screen, the room that hiding them gives the images can turn them from side by side to one above another,
- * as layOut shows them larger.
+ * On a tall screen, the room the images gain when the controls are hidden
+ * can move them from side by side to one above another, as layOut picks the arrangement that shows them larger.
  *
- * The images move between the two as the screen turns, rather than being made anew:
- * made anew, the camera would start again, and the surface would lose its GL context and the frames with it.
+ * The images move between the two layouts, controls beside and under, as the screen turns,
+ * rather than being recreated:
+ * if they were, the camera would start again, and the surface would lose its GL context, and the frames with it.
  */
 @Composable
 private fun WithControls(
@@ -517,7 +518,7 @@ private fun Images(model: MainViewModel) {
 }
 
 /**
- * The model's changes of what the panel shows, which the menu changes too;
+ * The model's actions that change what the panel shows, which the menu also uses;
  * the language is the app's, as Android keeps it.
  */
 private class PanelActionsOf(private val model: MainViewModel) : PanelActions {

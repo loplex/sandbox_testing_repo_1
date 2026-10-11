@@ -10,15 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The one conversion of a photo or a video at its full size there is,
+ * The conversion of a photo or a video at full size, at most one at a time,
  * run by [ConversionService] rather than in the screen's ViewModel, whose scope Android ends with the screen:
- * it goes on while the app is in the background, or swiped away from the recent apps,
- * and its notification shows how far it has got and cancels it.
+ * it carries on while the app is in the background or swiped away from the recent apps,
+ * and its notification shows its progress and can cancel it.
  *
  * It is [running] from [start] until its work returns, fails or is cancelled.\
- * [message] is what it is at, "Converting: 42%", then the message its work returns; null once it is cancelled.\
- * [sdrOfferedWith] is that last message where it says a video's HDR could not be tone-mapped,
- * which the screen then offers to convert as SDR.
+ * [message] is its progress, such as "Converting: 42%", then the message its work returns; null once it is cancelled.\
+ * [sdrOfferedWith] is that last message if it says a video's HDR could not be tone-mapped,
+ * in which case the screen offers to convert the video as SDR.
  */
 object Conversions {
     /** What a conversion does, on [dispatcher]: [run] reports the share done and returns the message it ends with. */
