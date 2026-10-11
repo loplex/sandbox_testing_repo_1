@@ -42,18 +42,18 @@ internal class Camera(
     val running: Boolean get() = stream != null
 
     /**
-     * Stops the stream running, if any, and starts the camera whose device id is [id],
-     * or the back one where the device tells them apart for null.\
-     * [onStarted] is handed the camera started, before its first frame, and the cameras are listed again;
-     * or [onFailed] is handed the name and the message of the DOMException getUserMedia rejected with.
+     * Stops the running stream, if any, and starts the camera whose device id is [id],
+     * or, for null, the back camera if the device tells its cameras apart.\
+     * [onStarted] is given the camera started, before its first frame, and the cameras are listed again;
+     * or [onFailed] is given the name and the message of the DOMException that getUserMedia rejected with.
      */
     fun start(id: String?, onStarted: (CameraOption) -> Unit, onFailed: (name: String, message: String) -> Unit) {
         stop()
         val generation = generation
         val constraints = js("({ audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } })")
-        // Asked for as the Android app asks for its frames,
-        // 1280 x 720, whichever camera it gets, at a size the camera itself has:
-        // Firefox 156 on Android, held upright, crops 1280 x 720 turned to the middle 720 x 720 otherwise.
+        // 1280 x 720 is asked for, whichever camera the page gets, as the Android app asks for its frames,
+        // at a size the camera itself has: otherwise Firefox 156 on Android, held upright,
+        // crops the rotated 1280 x 720 to the middle 720 x 720.
         constraints.video.resizeMode = "none"
         if (id == null) {
             constraints.video.facingMode = "environment"
