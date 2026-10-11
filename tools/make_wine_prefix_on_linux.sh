@@ -77,8 +77,8 @@ mkdir -p "$(dirname "$WINEPREFIX")"
 export WINEARCH="${WINEARCH:-win64}" WINEDEBUG="${WINEDEBUG:--all}"
 # Wine's menu builder would write shortcuts of what the installers install into the home.
 overrides="winemenubuilder.exe=d${WINEDLLOVERRIDES:+;$WINEDLLOVERRIDES}"
-# Without Mono and Gecko, whose installers wineboot otherwise looks for.
-# For wineboot alone, as mscoree disabled would keep Mono from running.
+# Disable mscoree and mshtml so that wineboot does not look for the Mono and Gecko installers.
+# The override applies to wineboot alone, as disabling mscoree would keep Mono from running.
 WINEDLLOVERRIDES="mscoree,mshtml=;$overrides" wineboot --init
 wineserver -w
 test -f "$WINEPREFIX/drive_c/windows/system32/kernel32.dll"

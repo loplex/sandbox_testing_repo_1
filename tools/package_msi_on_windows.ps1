@@ -3,14 +3,14 @@
 # the same MSI as tools/package_msi_on_linux.sh builds through Wine,
 # but with the jpackage of the JDK this runs on, and with light.exe's validation (ICE), which fails under Wine.
 #
-# jpackage makes the app image, into tools\build\app-image\dog-vision-compose,
-# of the arguments that :packaging's windowsJpackage task writes: the Compose window's dog-vision-compose.exe,
+# jpackage makes the app image in tools\build\app-image\dog-vision-compose,
+# from the arguments that :packaging's windowsJpackage task writes: the Compose window's dog-vision-compose.exe,
 # the Swing window's dog-vision-swing.exe and the command line's dog-vision-cli.exe,
 # with their JARs and the runtime that its windowsRuntime task links.
 # jpackage puts every JAR on each launcher's classpath,
 # so this then copies the launchers' .cfg that the windowsLauncherConfigs task writes, each with its own classpath.
-# WiX Toolset 3's candle.exe and light.exe make the MSI of what the windowsWix task writes of the image:
-# packaging\windows\dog-vision.wxs, which says what the MSI does, and the image's files.
+# WiX Toolset 3's candle.exe and light.exe make the MSI from what the windowsWix task writes for the image:
+# packaging\windows\dog-vision.wxs, which defines what the MSI does, and files.wxs, which lists the image's files.
 #
 # Needs:
 # - PowerShell 7 (pwsh), which reads this file as UTF-8.
@@ -48,10 +48,10 @@ if (-not $env:JAVA_HOME) {
 $gradlew = Join-Path $root "gradlew.bat"
 
 
-# The app image, of the arguments that windowsJpackage writes,
-# which jpackage reads in its default charset, UTF-8 from JDK 18 on:
-# Java reads its command line in the system's ANSI code page,
-# which on an English Windows, 1252, has no ř for the vendor's name.
+# The app image, from the arguments file that windowsJpackage writes.
+# jpackage reads that file in its default charset, UTF-8 from JDK 18 on.
+# The arguments go through a file because Java reads its command line in the system's ANSI code page,
+# which on an English Windows (1252) has no ř for the vendor's name.
 
 $properties = Get-Content (Join-Path $root "gradle.properties") -Raw
 if ($properties -notmatch '(?m)^appVersion=(.+?)\r?$') {
