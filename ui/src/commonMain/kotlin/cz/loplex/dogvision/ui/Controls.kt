@@ -214,9 +214,9 @@ private fun LanguageChoice(current: String, onChoose: (String) -> Unit) {
 }
 
 /**
- * The camera [choice] offers, Off first, which a choice hands to [onCamera] while [enabled],
- * and the mirroring of its image, which a choice hands to [onMirroring]:
- * Automatic, worded with where the camera faces, only where that is known.\
+ * The camera section: the cameras [choice] offers, Off first, each passed to [onCamera] when chosen while [enabled],
+ * and the mirroring choices for the camera's image, passed to [onMirroring].\
+ * Automatic, named with the direction the camera faces, can be chosen only where that direction is known.\
  * [onOpened] is called as the list of cameras drops down.
  */
 @Composable
