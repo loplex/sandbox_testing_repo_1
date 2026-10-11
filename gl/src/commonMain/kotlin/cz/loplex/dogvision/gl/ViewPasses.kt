@@ -44,9 +44,9 @@ class ViewPasses(private val gl: Gl) {
     private var vertexArray = 0
 
     /**
-     * The count of the map's noticeable pixels under way: the buffer the GPU reads it back into,
-     * the fence it signals when it has, and how many blocks and pixels the map had.\
-     * [countWanted] asks for a count of the map composed last, started once none is under way.
+     * The count of the map's noticeable pixels in progress: the buffer the GPU reads it back into,
+     * the fence the GPU signals when it has done so, and how many blocks and pixels the map had.\
+     * [countWanted] asks for a count of the map composed last; the count starts once no other count is in progress.
      */
     private var countBuffer = 0
     private var countFence = 0L
@@ -156,8 +156,8 @@ class ViewPasses(private val gl: Gl) {
     }
 
     /**
-     * Draws the first images composed into [boxes], one each, of the framebuffer bound, [width] x [height],
-     * measured from its top left corner as the top of an image is seen.
+     * Draws the first composed images into [boxes], one per box, in the bound framebuffer of [width] x [height],
+     * with the boxes measured from the framebuffer's top left corner, where an image's top appears.
      */
     fun draw(boxes: List<Box>, width: Int, height: Int) = drawing {
         gl.viewport(0, 0, width, height)
