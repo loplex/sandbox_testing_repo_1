@@ -5,8 +5,8 @@ package cz.loplex.dogvision.common
 
 /**
  * The EXIF orientation a JPEG's APP1 segment gives,
- * 1 to 8 as TIFF numbers them, or 1, upright, where [bytes] are no JPEG, have no EXIF or give none.\
- * The JDK's ImageIO reads no EXIF, while image viewers turn a photo as it says; this is the one tag that needs.
+ * 1 to 8 as TIFF numbers them, or 1, upright, if [bytes] are not a JPEG, have no EXIF, or give no orientation.\
+ * The JDK's ImageIO reads no EXIF, while image viewers rotate a photo as it says; this tag is the only one needed.
  */
 @Suppress("ReturnCount")
 fun exifOrientation(bytes: ByteArray): Int {
