@@ -20,8 +20,8 @@ fun snapshotName(view: View, time: ClockTime, suffix: String = "", extension: St
 }
 
 /**
- * The species [view] shows, as the name of what is saved of it says them:
- * cat, or horse-vs-cat where it shows a horse beside a cat.
+ * The species [view] shows, as the names of files saved from it spell them:
+ * cat, or horse-vs-cat when it shows a horse beside a cat.
  */
 fun shownName(view: View): String =
     view.compare?.takeIf { view.sideBySide }?.let { "${it.id}-vs-${view.params.species.id}" } ?: view.params.species.id

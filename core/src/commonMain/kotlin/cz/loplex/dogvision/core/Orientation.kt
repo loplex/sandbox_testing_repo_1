@@ -4,8 +4,9 @@
 package cz.loplex.dogvision.core
 
 /**
- * The rotation clockwise and the mirroring after it
- * that an EXIF [orientation], 1 to 8 as TIFF numbers them, asks for; any other number is upright.\
+ * The clockwise rotation, and the mirroring after it,
+ * that an EXIF [orientation], 1 to 8 as TIFF numbers them, asks for;
+ * any other number means upright.\
  * Android's `ExifInterface` names the same numbers.
  */
 fun exifTurn(orientation: Int): Pair<Int, Boolean> = when (orientation) {
