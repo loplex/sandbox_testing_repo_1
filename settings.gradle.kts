@@ -2,7 +2,8 @@
 
 pluginManagement {
     // The tasks the packages are made with, the natives the desktop modules share,
-    // ktlint and detekt as the modules apply them, and where the Kotlin/JS modules get Node.js.
+    // ktlint and detekt as the modules apply them, where the Kotlin/JS modules get Node.js,
+    // and what the root's checkLayout holds the prose to.
     includeBuild("build-logic")
     repositories {
         google {
