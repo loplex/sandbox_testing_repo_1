@@ -94,9 +94,9 @@ val checkLayout = tasks.register("checkLayout") {
 
 // docs/developing.md shows which module uses which in Graphviz's graphs,
 // each drawn from its source in docs/modules, split so that fewer lines cross.
-// Together they are held here to the dependencies the modules declare on each other, in `check`:
+// Here `check` fails if they, taken together, differ from the dependencies the modules declare on each other:
 // a dependency is `api`, `implementation`, or `tests` when only tests have it.
-// The modules' dependencies are read once all of them are evaluated.
+// The modules' dependencies are read once all the modules are evaluated.
 val moduleUses = objects.setProperty<String>()
 // A graph's bold modules are the programs it draws:
 // the modules whose build makes something to run, an APK, a desktop package or a web page.
@@ -300,11 +300,11 @@ val checkModuleGraph = tasks.register("checkModuleGraph") {
 }
 
 // docs/building.md's table in "Every artifact at once" says which folder each artifact lands in;
-// it is held here to the outputs that the tasks packageAll runs declare, in `check`:
-// each output is a folder of the table or lies directly in one, and each folder holds one.
-// A folder `…/rpm` is beside the one before it in its cell.
-// The tasks' outputs are read once every module is evaluated, by task,
-// but for the work files in build/intermediates, Android's plugin's, and in build/tmp, Gradle's.
+// here `check` fails if it differs from the outputs that the tasks packageAll runs declare:
+// each output is a folder of the table or lies directly in one, and each folder holds at least one.
+// In a cell, `…/rpm` is a sibling of the cell's first folder.
+// The tasks' outputs are read once every module is evaluated, keyed by task,
+// leaving out work files: the Android plugin's in build/intermediates and Gradle's in build/tmp.
 val artifactOutputs = objects.mapProperty<String, List<String>>()
 gradle.projectsEvaluated {
     artifactOutputs.set(
