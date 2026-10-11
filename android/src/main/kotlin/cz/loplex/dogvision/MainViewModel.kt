@@ -208,9 +208,9 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
     }
 
     /**
-     * Shows [camera] in place of what is shown, or turns the camera off for null, which then shows nothing;
-     * not while recording, as the source's size would change the video's.\
-     * Off does nothing while a photo or a video is shown, which is shown with the camera off already.
+     * Shows [camera] in place of what is shown, or, for null, turns the camera off, which then shows nothing;
+     * not while recording, as the new source's size would change the video's.\
+     * Off does nothing while a photo or a video is shown, since the camera is already off then.
      */
     fun chooseCamera(camera: CameraOption?) {
         if (_recorder.value != null) return
@@ -261,8 +261,9 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
     val converting: StateFlow<Boolean> = Conversions.running
 
     init {
-        // What the conversion says from now on is the message; what it said last, before this model, is not,
-        // unless it still runs, as when the app is opened again from its notification.
+        // From now on, what the conversion says is the message;
+        // what it said last, before this model was created, is not,
+        // unless the conversion still runs, as when the app is opened again from its notification.
         val said = if (Conversions.running.value) Conversions.message else Conversions.message.drop(1)
         viewModelScope.launch { said.collect { _message.value = it } }
     }
@@ -275,7 +276,7 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
 
     /**
      * Saves the photo shown to Pictures at its full size, as the view shows it now,
-     * on the CPU with core's pipeline; what the conversion is at is told as a message.
+     * on the CPU with core's pipeline; messages tell how far the conversion has got.
      */
     fun convertPhoto() {
         val photo = source.value as? Source.Photo ?: return
@@ -310,9 +311,9 @@ class MainViewModel(application: Application, state: SavedStateHandle) : Android
 
     /**
      * Saves the video shown to Movies at its full size and with its sound, as the view shows it now;
-     * what the conversion is at, and how the video was written, are told as messages.\
-     * An HDR video is tone-mapped to SDR, or, [asSdr], taken as SDR as it is,
-     * its colours flat, which the message offers where the GPU cannot tone-map it.
+     * messages tell how far the conversion has got and how the video was written.\
+     * An HDR video is tone-mapped to SDR, or, if [asSdr], taken as SDR as it is, with flat colours;
+     * the message offers that when the GPU cannot tone-map it.
      */
     fun convertVideo(asSdr: Boolean = false) {
         val video = source.value as? Source.Video ?: return
