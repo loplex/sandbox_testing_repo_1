@@ -23,8 +23,8 @@ import java.io.IOException
  * which the view's images are drawn into as they are drawn to the screen.
  *
  * The recording's frames lie on a grid of [RECORDING_FPS] a second.
- * A frame drawn is recorded at the point of the grid it falls after, unless that point has a frame already;
- * a frame not recorded leaves the one before it shown longer, and so does a point no frame fell after.\
+ * A drawn frame is recorded at the last grid point before it, unless that point already has a frame;
+ * a frame that is not recorded leaves the previous one shown longer, and so does a grid point that gets no frame.\
  * The images keep the arrangement they had when the recording started, whatever the screen's layout does after.
  */
 internal class Recording private constructor(

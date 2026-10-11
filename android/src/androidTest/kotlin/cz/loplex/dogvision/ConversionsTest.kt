@@ -21,8 +21,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * A conversion runs in ConversionService, apart from any screen:
- * its notification shows how far it has got and cancels it, and once it ends, says how, as its message does.
+ * A conversion runs in ConversionService, independent of any screen:
+ * its notification shows the progress and can cancel it,
+ * and once the conversion ends, a notification says how it ended, as its message does.
  */
 @RunWith(AndroidJUnit4::class)
 class ConversionsTest {

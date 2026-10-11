@@ -69,8 +69,8 @@ class ViewRenderer(private val frames: FrameExchange, private val onDrawn: (Draw
     private var shown: Frame? = null
 
     /**
-     * The view the images were composed for last, and the share of their pixels that differs,
-     * counted a frame or two after they were composed: the share of the map counted last.
+     * The view the images were composed for last, and the share of their pixels that differ,
+     * counted a frame or two after they were composed, so it is the share of the map counted last.
      */
     private var composed: View? = null
     private var share: Double? = null
