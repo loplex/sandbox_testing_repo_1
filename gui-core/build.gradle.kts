@@ -48,7 +48,7 @@ tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }
 
-// The windows' icon, the packages' own, as a resource beside windowIcon, so that the file is kept in one place.
+// The windows' icon, the same file the packages use, as a resource next to windowIcon, so that it is kept in one place.
 tasks.named<ProcessResources>("jvmProcessResources") {
     from(rootProject.layout.projectDirectory.file("gui-compose/packaging/dog-vision.png")) {
         into("cz/loplex/dogvision/desktop")

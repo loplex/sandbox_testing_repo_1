@@ -74,7 +74,8 @@ class WglContext : GlContext {
 
     /**
      * Whether GL renders in software, on the CPU,
-     * as Mesa's llvmpipe does, where Wine runs on it, and Windows's own GL 1.1, which no 3.3 context gets, does.
+     * as Mesa's llvmpipe does where Wine runs on it,
+     * and as Windows's own GL 1.1 does, which a 3.3 context never gets.
      */
     override val software: Boolean get() = listOf("llvmpipe", "GDI Generic").any { it in renderer }
 

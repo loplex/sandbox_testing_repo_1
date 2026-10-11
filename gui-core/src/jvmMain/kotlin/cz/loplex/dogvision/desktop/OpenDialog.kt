@@ -125,8 +125,8 @@ internal fun runDialog(command: List<String>): String? {
 }
 
 /**
- * Swing's dialog for a folder over [parent],
- * titled [title], in the folder [shown], if any, worded in [texts], and the one picked.
+ * Shows Swing's folder dialog over [parent], titled [title], opened in the folder [shown], if any,
+ * with its texts from [texts], and returns the folder picked.
  */
 private fun swingFolderDialog(parent: Frame?, title: String, shown: File?, texts: Texts): File? {
     val chooser = folderChooser(title, shown, texts)
@@ -134,7 +134,7 @@ private fun swingFolderDialog(parent: Frame?, title: String, shown: File?, texts
     return chooser.selectedFile.takeIf { picked }
 }
 
-/** Swing's chooser of a folder, titled [title], in the folder [shown], if any, worded in [texts]. */
+/** Swing's folder chooser, titled [title], opened in the folder [shown], if any, with its texts from [texts]. */
 internal fun folderChooser(title: String, shown: File?, texts: Texts): JFileChooser {
     for ((key, value) in fileChooserWords(texts)) UIManager.put(key, value)
     return JFileChooser(shown).apply {
@@ -152,12 +152,12 @@ private fun awtDialog(parent: Frame?, title: String, shown: File?): File? {
 }
 
 /**
- * UIManager's keys that word Swing's file chooser, each with its words in [texts],
- * which a chooser made afterwards shows: the JDK words it in English and a few other languages, Czech not among them.\
- * They are all a chooser of a folder shows in Metal's, FlatLaf's and Windows's look,
- * its menu, the columns of its details and its errors among them,
- * and a label's text and the key of the letter an & marks in it, which focuses its field with Alt;
- * GTK's look reads keys of its own, which stay as the JDK words them.
+ * The UIManager keys that hold the texts of Swing's file chooser, each with its text from [texts],
+ * which a chooser created afterwards shows: the JDK has these texts in English and a few other languages, not Czech.\
+ * They cover every text a folder chooser shows in the Metal, FlatLaf and Windows looks,
+ * among them its menu, the columns of its details view and its errors,
+ * and, for a label, its text and the key of the letter an & marks in it, which focuses its field with Alt.\
+ * The GTK look reads keys of its own, which keep the JDK's texts.
  */
 internal fun fileChooserWords(texts: Texts): Map<String, Any> {
     val labels = LABELS.flatMap { (key, str) ->
