@@ -22,11 +22,12 @@
 # that the image's windowsLauncherConfigs or windowsCliLauncherConfigs task writes, each with its own classpath.
 # An app image needs neither WiX nor .NET.
 #
-# The JDK is a 17, as Wine 11.18's TransmitFile,
-# handed a file where Windows expects a socket, fails with another error than Windows's WSAENOTSOCK,
-# which the JDK from 18 on takes for a failed copy ("transfer failed"), and JDK 17's jpackage copies files without it.
-# The runtime is no JDK 17's: windowsRuntime or windowsCliRuntime links it
-# from Temurin's jmods for Windows of the release in gradle/libs.versions.toml.
+# jpackage comes from JDK 17 because Wine 11.18's TransmitFile, when handed a file where Windows expects a socket,
+# fails with an error other than Windows's WSAENOTSOCK,
+# which JDK 18 and later take for a failed copy ("transfer failed");
+# JDK 17's jpackage copies files without TransmitFile.
+# The runtime is not JDK 17's: windowsRuntime or windowsCliRuntime links it
+# from Temurin's Windows jmods of the release set in gradle/libs.versions.toml.
 #
 # Needs:
 # - Wine.
