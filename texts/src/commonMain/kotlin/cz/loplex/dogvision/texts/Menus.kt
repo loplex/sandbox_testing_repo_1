@@ -82,8 +82,8 @@ sealed interface MenuEntry {
 data class Menu(val label: String, val entries: List<MenuEntry>)
 
 /**
- * Does what the entry [key] is shown beside does,
- * if one of these menus has it and it is enabled, as a menu's key does; returns whether it did.
+ * Runs the entry that [key] is shown next to, if one of these menus has it and it is enabled,
+ * as pressing a menu's key does; returns whether it ran one.
  */
 fun List<Menu>.press(key: MenuKey): Boolean {
     fun press(entries: List<MenuEntry>): Boolean = entries.any { entry ->
@@ -98,8 +98,8 @@ fun List<Menu>.press(key: MenuKey): Boolean {
 }
 
 /**
- * What [menus] show, without what their entries do,
- * so that the bar is built again only when that changes and not, closing a menu open, whenever the state does.
+ * What [menus] show, leaving out what their entries do,
+ * so that the bar is rebuilt only when that changes, not whenever the state changes, which would close an open menu.
  */
 fun shownOf(menus: List<Menu>): List<Any> = menus.map { it.label to entriesShown(it.entries) }
 
