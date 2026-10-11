@@ -137,12 +137,12 @@ const val OWN_SPDX = "GPL-3.0-or-later"
 private const val OWN_DEBIAN = "GPL-3+"
 
 /**
- * Registers [name], a [ThirdPartyLicenses] of the libraries [jars] resolve
- * but those [leftOut] resolves at the same version, which another package holds, with the POM of each.\
- * The JARs' names are those they are installed under,
- * where [installedJarNames] renames them in a configuration's folder, as the copyright matches files by name;
- * where [unpacksNatives], a JAR of natives alone is not installed but its natives are, as a Linux package has them.\
- * Project modules are this project's own, and left out: so the lists are read without building them.
+ * Registers [name], a [ThirdPartyLicenses] of the libraries [jars] resolve, with the POM of each,
+ * except those that [leftOut] resolves at the same version, which another package holds.\
+ * The JARs are listed by their installed names, which [installedJarNames] changes in a configuration's folder
+ * where needed, as the copyright file matches files by name.\
+ * If [unpacksNatives], a JAR of only natives is not installed but its natives are, as in a Linux package.\
+ * The project's own modules are left out, so that the lists are read without building them.
  */
 fun Project.thirdPartyLicenses(
     name: String,

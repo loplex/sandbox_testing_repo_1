@@ -13,12 +13,12 @@ import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 
 /**
- * Registers windowsRuntime, which links in build/windows/runtime [what],
+ * Registers windowsRuntime, which links [what] into build/windows/runtime,
  * the runtime for Windows on x86-64 that the scripts in tools hand jpackage:
- * [modules] and those [moduleLists] name alone, with [packagingJdk]'s jlink,
- * from Temurin's jmods for Windows of [temurinRelease], which windowsJmods unpacks into build/windows/jmods.
- * So it is the same runtime on Windows and on Linux, where jpackage runs under Wine, whatever JDK either runs on.\
- * [name] is the image's, as windowsAppImage takes it:
+ * only [modules] and those that [moduleLists] name, with [packagingJdk]'s jlink,
+ * from Temurin's Windows jmods of [temurinRelease], which windowsJmods unpacks into build/windows/jmods.
+ * So the runtime is the same on Windows and on Linux, where jpackage runs under Wine, whatever JDK either runs on.\
+ * [name] names the image, as in windowsAppImage:
  * with Cli, windowsCliRuntime links build/windows/cli/runtime, from the same jmods.
  */
 fun Project.windowsRuntimeImage(

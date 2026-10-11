@@ -6,11 +6,11 @@ import org.gradle.api.file.CopySpec
 import org.gradle.api.provider.Provider
 
 /**
- * The names a package installs JARs of [artifacts] under,
- * side by side in one folder, where a JAR's own name will not do, keyed by the JAR's path:
- * where two JARs have the same name, each of them with its module's group before it.
- * `org.jetbrains.compose.runtime`'s runtime-desktop is one,
- * a shim of `androidx.compose.runtime`'s of the same name and version.\
+ * The names under which a package installs JARs of [artifacts] side by side in one folder,
+ * for the JARs whose own name will not do, keyed by the JAR's path:
+ * where two JARs have the same name, each gets its module's group in front of its name.
+ * `org.jetbrains.compose.runtime`'s runtime-desktop is one such JAR,
+ * a shim for `androidx.compose.runtime`'s JAR of the same name and version.\
  * A JAR the map has no key for keeps its own name.
  */
 fun installedJarNames(artifacts: Set<ResolvedArtifactResult>): Map<String, String> =

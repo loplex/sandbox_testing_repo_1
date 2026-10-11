@@ -22,18 +22,18 @@ private fun Project.builtAppImage() = layout.dir(providers.gradleProperty("windo
 internal fun windowsFolder(name: String) = if (name.isEmpty()) "windows" else "windows/${name.lowercase()}"
 
 /**
- * Registers what the Windows app image [packageName] is made of,
- * [launchers] on [runtime], the launcher [packageName] the main one.\
- * [name] is the image's in the tasks' names and their folders', where a module makes more than one image:
+ * Registers the tasks that write what the Windows app image [packageName] is made of:
+ * [launchers] on [runtime], with the launcher [packageName] as the main one.\
+ * [name] names the image in the tasks' names and their folders, where a module makes more than one image:
  * with Cli, windowsCliJpackage writes build/windows/cli/jpackage.
- * Without it:
+ * Without a name, the tasks are:
  *
- * - windowsJpackage: build/windows/jpackage, what jpackage makes the image of, as [WindowsJpackageFiles] says.
+ * - windowsJpackage: build/windows/jpackage, the input jpackage makes the image from, as [WindowsJpackageFiles] says.
  * - windowsLauncherConfigs: build/windows/launchers,
- *   the .cfg of the launchers of the image that -PwindowsAppImage names,
+ *   the .cfg of each launcher of the image that -PwindowsAppImage names,
  *   each with the classpath its launcher's .classpath names, as [WindowsLauncherConfigs] says,
- *   which the scripts copy into the image; and LICENSE and [notices],
- *   what the image holds that is not this project's own, which they copy into the image's folder.
+ *   for the scripts to copy into the image; and LICENSE and [notices],
+ *   what the image holds that is not this project's own, for the scripts to copy into the image's folder.
  */
 fun Project.windowsAppImage(
     packageName: String,
