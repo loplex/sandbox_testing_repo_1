@@ -16,10 +16,10 @@
   Each of the four is a Feature of its own, which the installer's tree offers,
   and the web page's script's source map one under the web page's.
 
-  Each component's GUID stays as it is, as Windows Installer counts the installations of a component by it.
-  A component needs a key path, which a shortcut, an Environment or a RemoveFolderEx cannot be:
-  a registry value of its own is, under HKCU for a shortcut,
-  which ICE38 asks of a component in a user's profile, as the Start menu and the desktop are to it.
+  Each component's GUID stays the same, since Windows Installer counts a component's installations by its GUID.
+  A component needs a key path, and a shortcut, an Environment or a RemoveFolderEx cannot be one:
+  a registry value of its own can, under HKCU for a shortcut,
+  since ICE38 requires that of a component in a user's profile, and it counts the Start menu and the desktop as such.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <?include variables.wxi ?>
@@ -141,7 +141,7 @@
       which a Level above INSTALLLEVEL's 1 leaves out until the tree or ADDLOCAL names it; ADDLOCAL names fewer.
       A later version keeps the parts installed, as MajorUpgrade migrates the Features by default.
       DogVision cannot be left out: the runtime the others run on, and what removes the app's folders;
-      the folder to install into is its, which the tree's Browse changes.
+      the folder to install into is DogVision's, and the tree's Browse button changes that folder.
     -->
     <Feature Id="DogVision" Title="$(var.ProductName)"
              Description="The runtime the GUIs and the command line run on. It is always installed."
