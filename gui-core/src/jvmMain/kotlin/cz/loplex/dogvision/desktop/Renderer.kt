@@ -15,8 +15,8 @@ import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 
 /**
- * The images of [view] drawn into [layout]'s boxes on a transparent [image] of the area,
- * as the window shows an image, and the share it counted.
+ * The images of [view], drawn into [layout]'s boxes on a transparent [image] of the area,
+ * as the window shows an image, and the [differenceShare] counted for them.
  */
 class Picture<I>(val image: I, val layout: ScreenLayout, val view: View, val differenceShare: Double?)
 
@@ -36,8 +36,8 @@ data class Area(val width: Int, val height: Int, val captionHeight: Int, val gap
 interface Renderer : AutoCloseable {
     /**
      * Makes [frame] the one to render, copying it, so that its buffer can be reused as soon as this returns,
-     * and mirrored if [mirrored], as a camera's is where the controls choose so;
-     * a [live] frame is a video's or a camera's, followed by others, a frame that is not is a photo's.
+     * and mirrored if [mirrored], as a camera's frame is when the controls choose mirroring;
+     * a [live] frame comes from a video or a camera and more follow it; a frame that is not live is a photo's.
      */
     fun show(frame: Frame, live: Boolean, mirrored: Boolean = false)
 
@@ -59,8 +59,8 @@ interface Renderer : AutoCloseable {
 
     /**
      * Hands [onImages] the images of the view, as [readImages] reads them,
-     * at once and each time the view is composed anew, on the renderer's thread, until it is set to null:
-     * what a recording records.
+     * at once and each time the view is composed anew, on the renderer's thread, until it is set to null.\
+     * This is what a recording records.
      */
     fun record(onImages: ((List<Image>) -> Unit)?)
 }
@@ -175,7 +175,7 @@ class GlRenderer<I>(
     }
 
     /**
-     * An area drawn and being read back, with what its picture says of it,
+     * An area that was drawn and is being read back, with the layout, view and share its picture will carry,
      * and how many times the frame had been cleared when it was drawn.
      */
     private class Drawn(val layout: ScreenLayout, val view: View, var share: Double?, val area: Area, val clears: Int)

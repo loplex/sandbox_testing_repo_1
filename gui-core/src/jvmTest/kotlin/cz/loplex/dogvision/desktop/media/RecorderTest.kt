@@ -111,8 +111,8 @@ class RecorderTest {
         settle()
         now.set(SECOND)
         recorder.finish()
-        // Shown all at once, each replaces the one before;
-        // the last the queue kept, 8 behind the first, fills the second.
+        // All shown at the same instant, each frame replaces the one before;
+        // the last one the queue kept, frame 8, fills the whole second.
         assertEquals(List(30) { 8 }, written.toList())
     }
 

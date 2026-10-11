@@ -9,11 +9,11 @@ import java.io.IOException
 
 /**
  * Where snapshots and recordings go while no folder is named or chosen:
- * the user's pictures, where the system keeps them, rather than the folder the window started in,
- * which for a shortcut may be one it cannot write to, as C:\Program Files is.\
+ * the user's pictures folder, wherever the system keeps it, rather than the folder the window started in,
+ * which for a shortcut may be one it cannot write to, such as C:\Program Files.\
  * That is the Pictures known folder on Windows, which [knownFolder] asks Windows for, ~/Pictures on macOS,
- * and elsewhere XDG_PICTURES_DIR as user-dirs.dirs sets it in $XDG_CONFIG_HOME, else in ~/.config;
- * the home where the system names none.
+ * and elsewhere XDG_PICTURES_DIR as user-dirs.dirs sets it, in $XDG_CONFIG_HOME or else in ~/.config;
+ * the home folder if the system names none.
  */
 fun picturesFolder(
     environment: Map<String, String> = System.getenv(),
