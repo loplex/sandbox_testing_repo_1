@@ -17,14 +17,15 @@ import cz.loplex.dogvision.gl.texture
 import java.nio.ByteBuffer
 
 /**
- * The window's rendering of a photo or a video's or a camera's frames: gl's [ViewPasses],
- * as the Android app and the web page run them, over [gl] in the context current on this thread,
- * drawn into a framebuffer of the window's area and read back to be shown.\
- * The passes compile when this is made, and throw IllegalStateException if the GPU's driver cannot compile or link one.
+ * Renders the window's view of a photo, a video or a camera with gl's [ViewPasses],
+ * as the Android app and the web page do, over [gl] in the context current on this thread,
+ * into a framebuffer the size of the window's area, which is read back to be shown.\
+ * The passes are compiled when this is created;
+ * creating it throws IllegalStateException if the GPU driver cannot compile or link one.
  *
- * A frame comes upright, as ffmpeg turns a video and as a photo is turned when it is read,
- * so it is turned upright as it is, as the app turns every frame,
- * and mirrored if it is to be, as the app mirrors its front camera's.
+ * A frame arrives upright, because ffmpeg rotates a video and a photo is rotated when it is read.\
+ * It still goes through the turn-upright pass, with no rotation, just as the app passes every frame through it,
+ * and is mirrored there if it should be, just as the app mirrors its front camera's frames.
  */
 internal class Passes(private val gl: DesktopGl) {
     private val viewPasses = ViewPasses(gl).apply { create() }
@@ -67,8 +68,8 @@ internal class Passes(private val gl: DesktopGl) {
 
     /**
      * Renders every image of [view] of a photo,
-     * and returns the share of pixels its map of differences marks if it shows one,
-     * counted at once as a photo that does not change can wait for.
+     * and returns the share of pixels its map of differences marks, if it shows one,
+     * counted right away, since a photo, which does not change, can wait for the count.
      */
     fun compose(view: View): Double? {
         viewPasses.compose(view)

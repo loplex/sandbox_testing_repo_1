@@ -87,10 +87,10 @@ fun runWindow(
 }
 
 /**
- * Says [text] where a window's user reads it:
- * on the terminal on Linux, the usage on the standard output and a mistake on the standard error;
+ * Shows [text] where a window's user will read it:
+ * on Linux, on the terminal: the usage on standard output and a mistake on standard error;
  * on Windows, where a window's launcher has no console, in a dialog titled [command],
- * its text there to be selected and copied.
+ * whose text can be selected and copied.
  */
 fun sayFromWindow(command: String, text: String, mistake: Boolean) {
     if (!onWindows) {
