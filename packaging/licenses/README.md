@@ -1,10 +1,11 @@
 # The licences of what the packages bundle
 
-The texts the packages carry beside the project's own licence, each word for word from its source.\
-[`ThirdParty.kt`](../../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/licenses/ThirdParty.kt) says which part of which package each is the licence of.
+This folder holds the licence texts that the packages carry in addition to the project's own licence,
+each copied word for word from its source.\
+[`ThirdParty.kt`](../../build-logic/src/main/kotlin/cz/loplex/dogvision/packaging/licenses/ThirdParty.kt) says which part of which package each text covers.
 
 A text is fetched again when its library changes version: skiko's Skia, LWJGL, ANGLE, webpack.\
-The versions are those the build bundled when the text was taken.
+The versions in the table are those the build bundled when each text was fetched.
 
 | File                       | Licence of                                 | From                                                                                                                                                   |
 |----------------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -28,7 +29,8 @@ The versions are those the build bundled when the text was taken.
 | `webpack.txt`              | webpack 5.108.1's runtime, in the page     | https://github.com/webpack/webpack/blob/v5.108.1/LICENSE                                                                                               |
 | `zlib.txt`                 | zlib, in skiko                             | https://chromium.googlesource.com/chromium/src/third_party/zlib/+/646b7f569718921d7d4b5b8e22572ff6c76f2596/LICENSE                                     |
 
-Skia's libraries are those of its DEPS at skiko's Skia, and which of them a native holds was measured in the native:
+Skia's libraries are at the versions pinned in the DEPS file of the Skia revision that skiko uses.\
+Which of them each native library contains was checked in the library itself:
 the Linux one has FreeType, the DNG SDK and piex,
-the Windows one SPIRV-Cross and D3D12MemoryAllocator, which Skia's Direct3D needs.\
-piex, Wuffs, SPIRV-Cross and Abseil, the last in ANGLE, are under Apache-2.0 and take its text.
+and the Windows one has SPIRV-Cross and D3D12MemoryAllocator, which Skia's Direct3D needs.\
+piex, Wuffs, SPIRV-Cross and Abseil (in ANGLE) are under Apache-2.0, so `Apache-2.0.txt` covers them.
