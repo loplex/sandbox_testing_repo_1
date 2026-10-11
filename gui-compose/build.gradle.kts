@@ -134,9 +134,11 @@ val windowsUberJar = tasks.register<Jar>("windowsUberJar") {
 }
 artifact(windowsUberJar)
 
-// dog-vision-compose.exe, the MSI's main launcher, which :packaging takes, on the JARs windowsUberJar merges,
-// and on a runtime of the modules the app image's has: Compose's own and those added above.
-// Compose's launchers pass the Java option, with which its application gives Swing the system's look.
+// dog-vision-compose.exe, the MSI's main launcher, which :packaging picks up.
+// It runs on the JARs windowsUberJar merges,
+// and on a runtime with the same modules as Compose's app image: Compose's own and those added above.
+// It passes the Java option that Compose's own launchers pass,
+// with which Compose's `application` gives Swing the system's look.
 windowsLauncher(
     name = "dog-vision-compose",
     ownJar = windowJar,
