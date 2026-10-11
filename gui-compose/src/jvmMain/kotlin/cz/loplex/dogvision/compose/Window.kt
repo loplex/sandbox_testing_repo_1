@@ -298,7 +298,7 @@ private fun droppedFiles(event: DragAndDropEvent): List<File> =
 
 /**
  * The images laid out as [picture] has them, with their captions, or why there are none,
- * and where [state] offers it an offer to download ffmpeg, which [onDownloadFfmpeg] starts,
+ * and, if [state] calls for one, an offer to download ffmpeg, which [onDownloadFfmpeg] starts,
  * or to install it through winget, which [onInstallFfmpeg] starts.
  */
 @Composable
@@ -347,9 +347,9 @@ private fun Preview(
 }
 
 /**
- * A button that downloads ffmpeg, which [onDownload] starts, beside one that installs it through winget,
- * which [onInstall] starts, where [state] offers winget, and what came of either, as [state] has it;
- * where winget is missing, that names ffmpeg's download page as a link.
+ * A button that downloads ffmpeg through [onDownload], and next to it, if [state] offers winget,
+ * one that installs ffmpeg through winget with [onInstall]; then the outcome of either, as [state] has it.\
+ * If winget is missing, the outcome names ffmpeg's download page as a link.
  */
 @Composable
 private fun FfmpegOffer(state: LiveSession.State, onDownload: () -> Unit, onInstall: () -> Unit) {
