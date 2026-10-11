@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Deletes everything the build has made in the repository, so that the next build starts over:
-# each module's build directory, build-logic's too, which the root build's clean leaves,
-# as it is a build of its own, and in both builds .gradle, Gradle's project cache,
-# with the configuration cache, for which Gradle has no task, and .kotlin, the Kotlin daemon's session files.
-# Gradle makes .gradle again on the next build.
-# tools/build too, what the scripts in tools build, which no Gradle task owns;
-# tools/cache, what they download, it leaves.
+# every module's build directory, and build-logic's too, which the root build's clean leaves alone
+# because build-logic is a separate build;
+# in both builds, .gradle, Gradle's project cache, which holds the configuration cache that no Gradle task clears,
+# and .kotlin, the Kotlin daemon's session files.
+# Gradle recreates .gradle on the next build.
+# It also deletes tools/build, where the scripts in tools put what they build, which no Gradle task owns,
+# but leaves tools/cache, where those scripts keep their downloads.
 #
-# It leaves Gradle's build cache in the home,
-# from which the next build takes back each task's outputs; --no-build-cache or --rerun-tasks
-# on that build runs the tasks all the same.
+# It leaves Gradle's build cache in the home directory, and the next build restores each task's outputs from it;
+# pass --no-build-cache or --rerun-tasks to that build to run the tasks anyway.
 # It leaves the downloaded dependencies and JDKs there as well.
 #
 # Run it from anywhere.

@@ -23,10 +23,10 @@
 # Each check says whether it held, and every check runs, so that one failing does not hide the others;
 # the script fails if any did.
 #
-# A deb of the project's that the deb depends on at its own version,
-# as dog-vision-web-sourcemap does on dog-vision-web and the command line and both windows on dog-vision-common,
-# which no repository has, is installed with it from the deb's own folder,
-# and so is the later one's from the later deb's, and with --switch the other one's from the other deb's.
+# Some of the project's debs depend on another of its debs at their own version:
+# dog-vision-web-sourcemap on dog-vision-web, and the command line and both windows on dog-vision-common.
+# No repository has those, so the dependency is installed with the deb from the deb's own folder,
+# and, for the upgrade, from the later deb's folder, and for --switch, from the other deb's.
 #
 # The command line converts test_photo.jpg, beside this script, and both windows show it.
 # ffmpeg made it:

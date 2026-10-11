@@ -9,11 +9,11 @@
 #
 # The tools directory is tools/cache, which git ignores, unless --tools names another.
 # What is in it already stays, so a second run downloads nothing.
-# Each download is unpacked or written beside its place first and renamed into it once whole,
+# Each download is unpacked or written beside its destination first, and renamed to it once complete,
 # so that one stopped halfway is downloaded again on the next run.
 #
-# The runtime is no download of this script's: :packaging's windowsRuntime and windowsCliRuntime tasks link it,
-# from Temurin's jmods for Windows, which Gradle downloads.
+# This script does not download the runtime: :packaging's windowsRuntime and windowsCliRuntime tasks link it
+# from Temurin's Windows jmods, which Gradle downloads.
 #
 # Needs curl and unzip.
 #
