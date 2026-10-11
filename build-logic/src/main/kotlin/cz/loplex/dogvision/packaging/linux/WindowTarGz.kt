@@ -21,21 +21,21 @@ import java.util.concurrent.Callable
 /**
  * Registers package<Package>TarGz, which packs into build/distributions <[packageName]>-<version>-linux-x64.tar.gz:
  * jpackage's app image of the window [packageName],
- * with a runtime of its own, and dog-vision-cli's launcher beside the window's,
- * to unpack and run anywhere on Linux on x86-64 without installing it.
- * The window's module cannot hold the command line's launcher, as one program does not use another:
+ * with its own runtime, and dog-vision-cli's launcher next to the window's,
+ * to unpack and run anywhere on Linux on x86-64 without installing it.\
+ * The window's module cannot hold the command line's launcher, since neither program depends on the other:
  * this module, which takes both, makes the image.
  *
- * The JARs are those [jars] and [cliJars] resolve, a JAR of both once,
- * under the names [installedJarNames] gives them; jpackage puts every one on each launcher's classpath.\
- * The natives of the JARs whose names start with one of [nativesBeside] are unpacked beside them too,
- * as Compose's app image has skiko's, which a Java option then points to as $APPDIR,
- * so that it does not unpack them into the user's home.\
+ * The JARs are those [jars] and [cliJars] resolve, a JAR in both only once,
+ * under the names [installedJarNames] gives them; jpackage puts every one of them on each launcher's classpath.\
+ * The natives of the JARs whose names start with one of [nativesBeside] are unpacked next to them too,
+ * as Compose's app image does with skiko's, which a Java option then points to through $APPDIR,
+ * so that skiko does not unpack them into the user's home.\
  * The window's launcher starts [mainClass] from [module]'s JAR
- * with LWJGL's options, [LWJGL_JAVA_OPTIONS], and [javaOptions];
- * the runtime has the modules [moduleLists] name, as the launchers' .modules for Windows do.\
- * The archive holds the project's LICENSE and the notices of what it holds that is not this project's own,
- * the runtime's among them, in the app's folder.
+ * with LWJGL's options, [LWJGL_JAVA_OPTIONS], and [javaOptions].\
+ * The runtime has the modules that [moduleLists] name, the same lists as the Windows launchers' .modules files.\
+ * The archive holds, in the app's folder, the project's LICENSE
+ * and the notices of everything in it that is not this project's own, the runtime's among them.
  */
 fun Project.windowTarGz(
     packageName: String,

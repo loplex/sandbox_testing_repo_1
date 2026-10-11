@@ -10,10 +10,11 @@ import org.gradle.api.attributes.AttributeContainer
 val onWindows = System.getProperty("os.name").startsWith("Windows")
 
 /**
- * The native parts a window, or gui-core's tests, run with on Windows on x86-64 when [windows],
- * and on Linux on x86-64 otherwise: LWJGL's for its core, OpenGL ES and desktop GL,
- * whose is for LwjglGl through EGL on Linux; on Windows GLFW's as well,
- * which makes the WGL context, and ANGLE, OpenGL ES over Direct3D 11, which Windows has no EGL for.
+ * The natives a window, or gui-core's tests, run with: on Windows on x86-64 if [windows],
+ * and on Linux on x86-64 otherwise.\
+ * They are LWJGL's natives for its core, for OpenGL ES and for desktop GL,
+ * the last for LwjglGl, which draws through EGL on Linux;
+ * on Windows also GLFW's, which make the WGL context, and ANGLE, OpenGL ES over Direct3D 11, as Windows has no EGL.
  */
 fun Project.glNatives(windows: Boolean = onWindows): List<Any> {
     val libs = libs()

@@ -78,9 +78,9 @@ private val GROUP_HOLDERS = mapOf(
 private val GROUP_TEXTS = mapOf("org.lwjgl" to "lwjgl.txt", "dev.nucleusframework" to "angle.txt")
 
 /**
- * The part a library is, read from its [pom],
- * as the module [group]:[module]:[version] whose JAR the artifact holds as [files].\
- * Fails where the POM names a licence [spdxOf] does not know, or no holder: no organization and no developer.
+ * The part of an artifact that is a library, read from its [pom],
+ * as the module [group]:[module]:[version], whose JAR the artifact holds as [files].\
+ * Fails if the POM names a licence [spdxOf] does not know, or no holder: no organization and no developer.
  */
 fun pomPart(group: String, module: String, version: String, pom: File, files: List<String>): ThirdPartyPart {
     val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom).documentElement

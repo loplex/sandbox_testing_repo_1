@@ -14,7 +14,7 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
  * Creates <module>RuntimeClasspath, which resolves [module]'s JVM target as a program runs it,
  * with the attributes the module's own jvmRuntimeClasspath has: the module's JAR, and every JAR it needs,
  * with the ids of their components, which [installedJarNames] names them by.
- * This is how a package takes a module that the package does not live in.
+ * This is how the module that makes a package takes in a module other than itself.
  */
 fun Project.jvmRuntimeOf(module: String): NamedDomainObjectProvider<out Configuration> {
     val name = module.removePrefix(":")

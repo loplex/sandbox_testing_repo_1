@@ -155,13 +155,14 @@ abstract class WindowsLauncherFiles : DefaultTask() {
 const val WINDOWS_LAUNCHER_USAGE = "dog-vision-windows-launcher"
 
 /**
- * Registers windowsLauncher, which writes in build/windows/launcher what the launcher [name] of a Windows app image is,
- * as [WindowsLauncherFiles] says, and the variant of the module that hands :packaging those files:
- * the launcher starts [mainClass] from [ownJar], on [classpath] after it,
- * with [javaOptions], in a console where [console], on a runtime with [runtimeModules].\
- * No file of the launcher's is in a folder of the JARs that [leftOut] names.\
- * The variant hands over too what [classpath] holds that is not this project's own,
- * [name].licences, for the app image's licences.
+ * Registers windowsLauncher, which writes into build/windows/launcher the files that describe
+ * the launcher [name] of a Windows app image, as [WindowsLauncherFiles] says;
+ * it also registers the module's variant that hands those files to :packaging.\
+ * The launcher starts [mainClass] from [ownJar], followed by [classpath],
+ * with [javaOptions], in a console if [console], on a runtime with [runtimeModules].\
+ * None of the launcher's files is in a folder of the JARs that [leftOut] names.\
+ * The variant also hands over [name].licences, what [classpath] holds that is not this project's own,
+ * for the app image's licences.
  */
 fun Project.windowsLauncher(
     name: String,
