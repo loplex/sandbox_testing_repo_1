@@ -17,8 +17,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * The zip's line of checksums.sha256 is found,
- * and the zip's bin folder alone unpacked, whole or not at all, into the app's folder under %ProgramData%.
+ * The zip's line in checksums.sha256 is found,
+ * and only the zip's bin folder is unpacked, whole or not at all, into the app's folder under %ProgramData%.
  */
 class FfmpegDownloadTest {
     private val home = createTempDirectory("ffmpeg-download-test")

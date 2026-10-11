@@ -3,7 +3,7 @@ package cz.loplex.dogvision.ffmpeg
 import java.io.File
 import java.io.IOException
 
-/** What installing ffmpeg from the window came to. */
+/** How installing ffmpeg from the window ended. */
 sealed interface FfmpegInstall {
     /** ffmpeg and ffprobe are found, and the feeds run them from where they are. */
     data object Found : FfmpegInstall
@@ -17,20 +17,22 @@ sealed interface FfmpegInstall {
 
 /**
  * Where a window's feeds and the command line run ffmpeg and ffprobe from:
- * the PATH the program started with, or, once they are installed from the window, where they were put;
- * on Windows, where they are on neither, the folder [FfmpegDownload] unpacks them into,
- * which the command line takes too.
+ * the PATH the app started with, or, once they are installed from the window, where they were put;
+ * on Windows, if they are in neither, the folder that [FfmpegDownload] unpacks them into,
+ * which the command line uses too.
  *
- * Windows has no ffmpeg of its own, so the window offers to download it, as [FfmpegDownload] does,
- * and where winget is on the PATH to install it through winget, the package manager Windows 10 and 11 come with,
- * as Gyan's build, which winget unpacks for this user alone and puts on the user's PATH.\
- * That PATH is written to the registry, and only programs started after it see it,
- * so ffmpeg is looked for on the PATH the registry holds, as a program started from the Start menu now would get it.
+ * Windows has no ffmpeg of its own, so the window offers to download it with [FfmpegDownload],
+ * and, if winget is on the PATH, to install Gyan's build through winget,
+ * the package manager that comes with Windows 10 and 11;
+ * winget unpacks it for the current user only and puts it on the user's PATH.\
+ * That PATH is written to the registry, and only programs started afterwards see it,
+ * so ffmpeg is looked for on the PATH the registry holds,
+ * the one a program would get if it were started from the Start menu now.
  */
 object FfmpegPrograms {
     private val PROGRAMS = listOf("ffmpeg", "ffprobe")
 
-    /** winget's package of Gyan's build of ffmpeg, installed for this user, with nothing asked on the way. */
+    /** The winget command that installs Gyan's build of ffmpeg for the current user, without asking anything. */
     @Suppress("ktlint:standard:argument-list-wrapping")
     private val WINGET = listOf(
         "winget",
@@ -44,20 +46,20 @@ object FfmpegPrograms {
         "--accept-source-agreements",
     )
 
-    /** ffmpeg's page of builds, for where winget is missing. */
+    /** ffmpeg's download page for Windows builds, for when winget is missing. */
     const val DOWNLOAD_PAGE = "https://ffmpeg.org/download.html#build-windows"
 
-    /** Each program's whole path, where it was found after the window started. */
+    /** Each program's full path, if it was found after the window started. */
     @Volatile
     private var found = emptyMap<String, String>()
 
     /**
-     * What runs [program]: its whole path, where it was found after the window started,
-     * or on Windows where it is downloaded and not on the PATH the program started with; else its name.
+     * What runs [program]: its full path, if it was found after the window started,
+     * or, on Windows, the downloaded one if it is not on the PATH the app started with; otherwise its name.
      */
     fun command(program: String): String = found[program] ?: downloaded(program) ?: program
 
-    /** Whether winget is on the PATH the window started with, as the App Installer puts it there. */
+    /** Whether winget is on the PATH the window started with; the App Installer puts it there. */
     fun wingetOnPath(): Boolean = find(listOf("winget"), folders(System.getenv("PATH").orEmpty())).isNotEmpty()
 
     private fun downloaded(program: String): String? {
@@ -66,8 +68,9 @@ object FfmpegPrograms {
     }
 
     /**
-     * Finds ffmpeg on the PATH the registry holds, which it is on where it was installed after the window started,
-     * and installs it through winget where it is not; blocks until winget ends, which takes as long as the download.
+     * Looks for ffmpeg on the PATH the registry holds, which has it if it was installed after the window started,
+     * and installs it through winget if it is not there.\
+     * Blocks until winget ends, which takes as long as the download.
      */
     fun install(): FfmpegInstall = if (locate()) FfmpegInstall.Found else installThroughWinget()
 
@@ -92,18 +95,18 @@ object FfmpegPrograms {
         return programs.size == PROGRAMS.size
     }
 
-    /** Each of [programs] that is in one of [folders], as its whole path in the first. */
+    /** Each of [programs] found in [folders], with its full path in the first folder that has it. */
     internal fun find(programs: List<String>, folders: List<File>): Map<String, String> = programs.mapNotNull { name ->
         folders.map { File(it, "$name.exe") }.firstOrNull(File::isFile)?.let { name to it.path }
     }.toMap()
 
-    /** The folders a Windows PATH lists, which may be quoted, and has empty entries where two semicolons meet. */
+    /** The folders a Windows PATH lists; an entry may be quoted, and two semicolons in a row leave an empty one. */
     internal fun folders(path: String): List<File> =
         path.split(';').map { it.trim().trim('"') }.filter(String::isNotEmpty).map(::File)
 
     /**
-     * The machine's and the user's PATH as the registry holds them now, their variables expanded,
-     * as Windows joins them for a program it starts; empty where PowerShell cannot say.
+     * The machine's and the user's PATH as the registry holds them now, with their variables expanded,
+     * the way Windows joins them for a program it starts; empty if PowerShell cannot tell.
      */
     private fun registryPath(): Pair<String, String> {
         val script = $$"[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; " +
@@ -130,8 +133,8 @@ object FfmpegPrograms {
         output.split('\r', '\n').map(String::trim).lastOrNull { line -> line.any(Char::isLetter) }
 
     /**
-     * [command] started, its program from where it is run,
-     * with nothing to read on its standard input, which is closed, unless it reads [input] there.\
+     * Starts [command], taking its program from where this object runs it,
+     * with its standard input closed, unless [input] says the program reads it.\
      * Throws [FfmpegMissing] if the program cannot be run.
      */
     fun start(command: List<String>, input: Boolean = false): Process = try {
@@ -142,7 +145,10 @@ object FfmpegPrograms {
     }
 }
 
-/** ffmpeg's [program], ffmpeg or ffprobe, which cannot be run, as where it is not installed or not on the PATH. */
+/**
+ * Thrown when [program], ffmpeg or ffprobe, cannot be run,
+ * for example because it is not installed or not on the PATH.
+ */
 class FfmpegMissing(val program: String, cause: IOException) :
     IOException("Cannot run $program: ${cause.message}", cause)
 

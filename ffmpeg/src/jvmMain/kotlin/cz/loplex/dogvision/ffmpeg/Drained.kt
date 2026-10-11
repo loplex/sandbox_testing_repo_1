@@ -5,9 +5,9 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
- * A process's standard error,
- * read on a thread of its own, so that a program that says much cannot fill the pipe and stall;
- * its last lines are kept, which say why the program stopped.
+ * A process's standard error, read on a thread of its own,
+ * so that a program that writes a lot cannot fill the pipe and stall.\
+ * Its last lines are kept, because they say why the program stopped.
  */
 internal class Drained(process: Process) {
     private val lines = ArrayDeque<String>()
@@ -21,14 +21,14 @@ internal class Drained(process: Process) {
                 }
             }
         } catch (_: IOException) {
-            // The stream is closed as the process is stopped.
+            // The stream closes when the process is stopped.
         }
     }
 
-    /** Waits for the program's standard error to end, as it does with the program. */
+    /** Waits for the program's standard error to end, which it does when the program ends. */
     fun join() = reader.join(WAIT_MILLIS)
 
-    /** The last line the program said, or null if it said nothing. */
+    /** The last line the program wrote, or null if it wrote nothing. */
     fun lastLine(): String? = synchronized(lines) { lines.lastOrNull() }
 
     private companion object {
@@ -41,8 +41,8 @@ internal fun drained(process: Process) = Drained(process)
 
 /**
  * Ends [process] and whatever it started.
- * A launcher in ffmpeg's place, such as Chocolatey's shim on Windows, runs the real ffmpeg as its child,
- * which ending the launcher leaves running, and holding the files it writes.
+ * A launcher standing in for ffmpeg, such as Chocolatey's shim on Windows, runs the real ffmpeg as its child,
+ * and ending the launcher alone would leave that child running and holding the files it writes.
  */
 internal fun stop(process: Process) {
     val children = process.descendants().toList()

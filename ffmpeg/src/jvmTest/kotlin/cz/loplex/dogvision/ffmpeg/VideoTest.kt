@@ -69,7 +69,7 @@ class VideoTest {
         assertEquals(16 to 32, VideoStream.probe(file).let { it.width to it.height })
         val frames = frames(file)
         assertEquals(10, frames.size)
-        // Turned counter-clockwise, the left half is at the bottom.
+        // Rotated anticlockwise, the left half is at the bottom.
         assertTrue(near(0xFF0000FF.toInt(), frames[0][0]), frames[0][0].toString(16))
         assertTrue(near(0xFFFF0000.toInt(), frames[0].last()), frames[0].last().toString(16))
     }
@@ -133,9 +133,9 @@ class VideoTest {
     }
 
     /**
-     * Each frame one colour, so that 4:2:0's halved colour does not blur an edge:
-     * within 2 of 255, an odd size padded to an even one.
-     * libx265 3.5 crashes on some videos much smaller.
+     * Each frame is one colour, so that 4:2:0 subsampling, which halves the colour resolution, does not blur an edge.\
+     * The colours come back within 2 of 255, and an odd size is padded to an even one.\
+     * libx265 3.5 crashes on some much smaller videos.
      */
     @Test
     fun framesWrittenComeBackInTheirColoursWithTheSound() {
