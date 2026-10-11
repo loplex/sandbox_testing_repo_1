@@ -18,7 +18,7 @@ This is a Kotlin port of [dog-vision](https://github.com/loplex/dog-vision-pytho
 | [The desktop window in Compose](docs/using.md#the-desktop-window)                      | Linux and Windows on x86-64          | the camera, a photo or a video |
 | [The desktop window in Swing](docs/using.md#the-same-window-in-swing-dog-vision-swing) | Linux and Windows on x86-64          | the camera, a photo or a video |
 
-- **The app, the web page and the windows draw the view with the same GPU passes**, and the same controls,
+- **The app, the web page and the windows draw the view with the same GPU passes**, and offer the same controls,
   so each shows what the others do.
 - **The two desktop windows are one program in two toolkits**:
   `dog-vision-compose` in Compose, with the app's controls, and `dog-vision-swing` in Swing,
