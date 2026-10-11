@@ -5,14 +5,14 @@ import java.io.IOException
 import java.nio.ByteBuffer
 
 /**
- * The frames of [file]'s first video stream, which ffprobe says is [stream],
+ * The frames of [file]'s first video stream, which ffprobe describes as [stream],
  * decoded by ffmpeg upright and at full size, at the stream's average rate:
- * a video of a varying rate has frames repeated or dropped, so that its sound stays in step.\
- * A frame is 0xFFRRGGBB ints, a row after another, as core's images hold them.
+ * a video with a variable rate has frames repeated or dropped, so that its sound stays in sync.\
+ * A frame is 0xFFRRGGBB ints, row after row, as core's images hold them.
  *
- * ffmpeg takes the colours by the matrix the video is tagged with;
- * its default fast rounding shifted them by up to 4 of 255 in ffmpeg 6.1,
- * which accurate_rnd and full_chroma_int bring to 1, as in the writer's filter.
+ * ffmpeg converts the colours with the matrix the video is tagged with.\
+ * Its default fast rounding shifted them by up to 4 of 255 in ffmpeg 6.1,
+ * and accurate_rnd and full_chroma_int bring that down to 1, as in the writer's filter.
  */
 class VideoReader(file: File, private val stream: VideoStream) : AutoCloseable {
     @Suppress("ktlint:standard:argument-list-wrapping")
@@ -29,7 +29,7 @@ class VideoReader(file: File, private val stream: VideoStream) : AutoCloseable {
     private val bytes = ByteArray(stream.width * stream.height * 4)
 
     /**
-     * Reads the next frame into [pixels], of the stream's size; false at the video's end.\
+     * Reads the next frame into [pixels], which must have the stream's size; returns false at the video's end.\
      * Throws IOException with what ffmpeg said if it could not decode the video.
      */
     fun read(pixels: IntArray): Boolean {
@@ -37,7 +37,7 @@ class VideoReader(file: File, private val stream: VideoStream) : AutoCloseable {
         val input = process.inputStream
         var filled = 0
         while (filled < bytes.size) {
-            // In pieces, as the window's feed reads: under Wine a whole frame at once reads slower.
+            // Reads in pieces, the way the window's feed does: under Wine, reading a whole frame at once is slower.
             val read = input.read(bytes, filled, minOf(READ_SIZE, bytes.size - filled))
             if (read < 0) break
             filled += read
@@ -53,7 +53,7 @@ class VideoReader(file: File, private val stream: VideoStream) : AutoCloseable {
         return true
     }
 
-    /** Stops decoding, where the video is not read to its end. */
+    /** Stops decoding, for when the video is not read to its end. */
     override fun close() {
         if (process.isAlive) stop(process)
         errors.join()

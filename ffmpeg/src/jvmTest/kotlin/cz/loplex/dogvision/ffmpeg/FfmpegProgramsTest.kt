@@ -10,8 +10,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * ffmpeg is looked for on a Windows PATH as Windows words it, winget's words are read past its progress bars,
- * and a program is started with nothing on its input, or said to be missing.
+ * ffmpeg is looked for on a Windows PATH in Windows's own format,
+ * winget's last words are found past its progress bars,
+ * and a program is started with nothing on its input, or reported missing.
  */
 class FfmpegProgramsTest {
     @TempDir
@@ -43,7 +44,7 @@ class FfmpegProgramsTest {
         assertEquals(emptyMap(), FfmpegPrograms.find(listOf("ffmpeg"), listOf(empty)))
     }
 
-    /** Words as winget writes them, between a spinner and a progress bar that it redraws over themselves. */
+    /** Words as winget writes them, between a spinner and a progress bar, each of which it redraws in place. */
     @Test
     fun wingetsLastWordsAreTakenPastItsProgress() {
         val output = "   - \r   \\ \r\r\nFound FFmpeg [Gyan.FFmpeg] Version 9.0.2\r\n" +
@@ -66,8 +67,9 @@ class FfmpegProgramsTest {
     }
 
     /**
-     * cat copies its standard input until it ends, so it ends at once with nothing to copy;
-     * Windows's sort, which Windows finds in its system folder before the PATH, reads it to its end as well.
+     * cat copies its standard input until the input ends, so with nothing to copy, cat ends at once.\
+     * Windows's sort, which Windows finds in its system folder before looking on the PATH,
+     * also reads its input to the end.
      */
     @Test
     fun aProgramStartedReadsNothing() {

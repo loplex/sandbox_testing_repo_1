@@ -6,7 +6,7 @@ import java.io.OutputStream
 import java.nio.ByteBuffer
 import kotlin.math.roundToLong
 
-/** Whether a video written from another carries its sound. */
+/** Whether a video converted from another keeps the original's sound. */
 enum class Sound {
     /** The original's sound is in it. */
     KEPT,
@@ -17,11 +17,13 @@ enum class Sound {
 
 /**
  * An .mp4 at [output] of frames [width] by [height], encoded by [encoder] and tagged BT.709,
- * at [rate] frames a second as ffmpeg writes a rate, with the first sound track of [soundFrom],
- * if one is given, copied where an .mp4 holds its codec as it is, else re-encoded to AAC.
+ * at [rate] frames a second, in ffmpeg's notation,
+ * with the first sound track of [soundFrom], if one is given:
+ * copied as it is if an .mp4 can hold its codec, and re-encoded to AAC otherwise.
  *
- * A frame is 0xAARRGGBB ints, a row after another, as core's images hold them, and ffmpeg ignores the alpha byte.\
- * A failure of ffmpeg is an IOException with the last thing it said; [abort] stops it and removes the unfinished file.
+ * A frame is 0xAARRGGBB ints, row after row, as core's images hold them, and ffmpeg ignores the alpha byte.\
+ * If ffmpeg fails, the writer throws an IOException with the last thing ffmpeg said.\
+ * [abort] stops ffmpeg and removes the unfinished file.
  */
 class VideoWriter private constructor(
     private val output: File,
@@ -31,12 +33,12 @@ class VideoWriter private constructor(
     rate: String,
     soundFrom: SoundFrom?,
 ) {
-    /** A video whose first sound track, of [codec], the video written carries. */
+    /** The video the written one takes its sound from: [file], whose first sound track is in [codec]. */
     private class SoundFrom(val file: File, val codec: String)
 
     /**
-     * An .mp4 converted from the video [source], which ffprobe says is [stream]:
-     * at its rate, with its first sound track.
+     * An .mp4 converted from the video [source], which ffprobe describes as [stream]:
+     * at the source's rate, with its first sound track.
      */
     constructor(output: File, source: File, stream: VideoStream, width: Int, height: Int, encoder: Encoder) : this(
         output,
@@ -117,16 +119,16 @@ class VideoWriter private constructor(
     }
 
     companion object {
-        /** A video of frames written at [framesPerSecond], with no sound, as a recording of the view is. */
+        /** A video at [framesPerSecond] frames a second, with no sound, like a recording of the view. */
         fun silent(output: File, width: Int, height: Int, encoder: Encoder, framesPerSecond: Int) =
             VideoWriter(output, width, height, encoder, "$framesPerSecond", null)
 
-        /** Of every frame, for the encoders without a quality target. */
+        /** The bits per pixel of each frame, for the encoders that have no quality target. */
         private const val BITS_PER_PIXEL = 0.1
 
         private val BT709_TAGS = listOf("-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709")
 
-        /** Audio codecs an .mp4 holds as they are; any other sound is re-encoded to AAC. */
+        /** Audio codecs an .mp4 can hold as they are; any other sound is re-encoded to AAC. */
         private val MP4_AUDIO = setOf("aac", "mp3", "ac3", "eac3", "opus", "flac", "alac")
     }
 }
