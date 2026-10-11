@@ -14,12 +14,12 @@ import java.util.Properties
 import java.util.zip.ZipFile
 
 /**
- * ffmpeg for Windows on x86-64 downloaded, where the window offers it:
- * BtbN's build of [BRANCH], the release branch that libs.versions.toml pins,
- * the newest of it, with its DLLs, one of the builds ffmpeg's download page names.\
+ * Downloads ffmpeg for Windows on x86-64 when the window offers it:
+ * BtbN's newest build of [BRANCH] with its DLLs, one of the builds that ffmpeg's download page lists;
+ * [BRANCH] is the release branch that libs.versions.toml pins.\
  * The zip is checked against the release's checksums.sha256,
- * and its bin folder unpacked into [folder], under %ProgramData%,
- * where every user of the machine finds it and from where the MSI removes it with the product.
+ * and its bin folder is unpacked into [folder], under %ProgramData%,
+ * where every user of the machine finds it, and from where the MSI removes it when the app is uninstalled.
  */
 object FfmpegDownload {
     private val properties = checkNotNull(javaClass.getResourceAsStream("ffmpeg.properties")) { "no ffmpeg.properties" }
@@ -28,34 +28,39 @@ object FfmpegDownload {
     /** The release branch, such as 9.0, whose newest build is downloaded. */
     val BRANCH: String = properties.getProperty("windowsBranch")
 
-    /** The app's English name, texts' app_name, as the MSI's name, which names the app's folder under %ProgramData%. */
+    /**
+     * The app's English name, app_name in texts, which is also the MSI's name
+     * and names the app's folder under %ProgramData%.
+     */
     private val APP_NAME: String = properties.getProperty("appName")
 
-    /** Where BtbN's newest builds are, a release of their own, with checksums.sha256 beside them. */
+    /** Where BtbN's newest builds are: a release of their own, with checksums.sha256 next to them. */
     private const val RELEASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
 
-    /** The zip of [BRANCH]'s newest build, with ffmpeg's libraries as DLLs beside the programs. */
+    /** The zip of [BRANCH]'s newest build, with ffmpeg's libraries as DLLs next to the programs. */
     internal val ZIP = "ffmpeg-n$BRANCH-latest-win64-gpl-shared-$BRANCH.zip"
 
-    /** The programs of the zip that the windows run, which it has to hold. */
+    /** The programs in the zip that the windows run, which the zip must contain. */
     private val PROGRAMS = listOf("ffmpeg.exe", "ffprobe.exe")
 
     /**
-     * The folder the download is unpacked into,
-     * the app's own under %ProgramData%, in the app's English name, which the MSIs remove as well;
-     * the branch names it, so that two versions of the app that take two branches each keep their own.
+     * The folder the download is unpacked into, inside the app's own folder under %ProgramData%,
+     * which bears the app's English name and which the MSIs remove as well.\
+     * The download folder is named after the branch,
+     * so that two versions of the app that use different branches each keep their own.
      */
     val folder: File by lazy {
         val programData = System.getenv("ProgramData") ?: "C:\\ProgramData"
         File(File(programData, APP_NAME), "ffmpeg-$BRANCH")
     }
 
-    /** Where [program], ffmpeg or ffprobe, is once downloaded. */
+    /** Where [program], ffmpeg or ffprobe, is once it is downloaded. */
     fun program(program: String): File = File(File(folder, "bin"), "$program.exe")
 
     /**
-     * Downloads ffmpeg into [folder], unless it is there already,
-     * telling [onPercent] how much of the zip has come as it comes; blocks until it is unpacked, or says why it is not.
+     * Downloads ffmpeg into [folder], unless it is already there,
+     * telling [onPercent] how much of the zip has arrived so far.\
+     * Blocks until it is unpacked, or says why not.
      */
     @Suppress("ReturnCount")
     fun download(onPercent: (Int) -> Unit): FfmpegInstall {
@@ -78,17 +83,17 @@ object FfmpegDownload {
         }
     }
 
-    /** The SHA-256 that [sums], as sha256sum writes them, give [file], in lower case, or null where they give none. */
+    /** The SHA-256 that [sums], in sha256sum's format, list for [file], in lower case; null if they list none. */
     internal fun sha256Of(sums: String, file: String): String? = sums.lines()
         .map { it.trim().split(Regex("\\s+"), limit = 2) }
         .firstOrNull { it.size == 2 && it[1].removePrefix("*") == file }
         ?.first()?.lowercase()
 
     /**
-     * Unpacks the programs and the DLLs of [zip]'s bin folder,
-     * but ffplay, which the windows do not run, into [destination]'s bin:
-     * into a folder beside it first, which then takes its place, so that a half-unpacked one is never found.\
-     * Fails where the zip lacks ffmpeg or ffprobe.
+     * Unpacks the programs and the DLLs of [zip]'s bin folder, except ffplay, which the windows do not run,
+     * into [destination]'s bin: first into a folder next to [destination], which then takes its place,
+     * so that a half-unpacked folder is never found.\
+     * Fails if the zip lacks ffmpeg or ffprobe.
      */
     internal fun unpack(zip: Path, destination: Path) {
         val parent = checkNotNull(destination.parent)
@@ -98,7 +103,9 @@ object FfmpegDownload {
             ZipFile(zip.toFile()).use { archive ->
                 for (entry in archive.entries()) {
                     val parts = entry.name.split('/')
-                    // The zip holds one folder, the build's, with bin in it; a name is taken alone, never a path.
+                    // The zip holds a single folder for the build, with bin in it.
+                    // A file is unpacked under the last part of its entry's name alone,
+                    // never under the folders before it.
                     val name = parts.last()
                     val program = !entry.isDirectory && parts.size == 3 && parts[1] == "bin"
                     if (!program || name == "ffplay.exe") continue
@@ -114,7 +121,7 @@ object FfmpegDownload {
         }
     }
 
-    /** Downloads [url] into [file], and gives its SHA-256 in lower case. */
+    /** Downloads [url] into [file], and returns its SHA-256 in lower case. */
     private fun fetch(url: String, file: Path, onPercent: (Int) -> Unit): String = open(url) { input, length ->
         val digest = MessageDigest.getInstance("SHA-256")
         var read = 0L
@@ -140,9 +147,9 @@ object FfmpegDownload {
     }
 
     /**
-     * What [read] makes of [url]'s body, given with its length, or -1 where the server gives none;
-     * HttpURLConnection, which java.base has, follows GitHub's redirects to where the files are kept,
-     * as both are HTTPS.
+     * What [read] returns for [url]'s body and its length, which is -1 if the server gives none.\
+     * HttpURLConnection, which is in java.base, follows GitHub's redirects to where the files are kept,
+     * since both use HTTPS.
      */
     private fun <T> open(url: String, read: (InputStream, Long) -> T): T {
         val connection = URI(url).toURL().openConnection() as HttpURLConnection

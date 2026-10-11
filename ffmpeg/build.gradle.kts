@@ -1,7 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// ffmpeg and ffprobe, found and run: on the PATH, where they were installed after a window started,
-// or on Windows where a window downloaded them; a video probed, its frames read, and an .mp4 written.
+// Finds and runs ffmpeg and ffprobe: on the PATH the app started with,
+// where they were installed after a window started, or on Windows where a window downloaded them.
+// Probes a video, reads its frames, and writes an .mp4.
 // Needs no toolkit and no GPU.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -31,7 +32,8 @@ tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }
 
-// The app's English name, texts' app_name, read from the file as the MSI reads it, without this module using texts.
+// The app's English name, app_name in texts, read from the file the way the MSI reads it,
+// so that this module need not use texts.
 val appName = run {
     val strings = rootProject.layout.projectDirectory.file("texts/strings/values/strings.xml")
     val path = strings.asFile.path
@@ -41,8 +43,8 @@ val appName = run {
     }
 }
 
-// The release branch of ffmpeg's builds for Windows that FfmpegDownload takes, from libs.versions.toml,
-// and the app's name, which names the folder under %ProgramData% it downloads them into.
+// The release branch of ffmpeg's Windows builds that FfmpegDownload uses, from libs.versions.toml,
+// and the app's name, which names the folder under %ProgramData% that the builds are downloaded into.
 val ffmpegProperties = tasks.register<WriteProperties>("ffmpegProperties") {
     description = "Writes build/generated/ffmpeg/ffmpeg.properties, the branch of ffmpeg the windows download and " +
         "the app's name."

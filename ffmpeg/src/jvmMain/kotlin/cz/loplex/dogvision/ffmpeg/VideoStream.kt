@@ -6,19 +6,20 @@ import kotlin.math.abs
 import kotlin.math.roundToLong
 
 /**
- * What ffprobe says of a video file: the [width] and [height] of its first video stream upright,
- * as ffmpeg turns its frames, its average frame [rate] as ffmpeg writes it, such as 30000/1001,
- * how many [frames] it has, or about as many, and the codec of its first sound track, [audio], "" where it has none.
+ * What ffprobe says about a video file: the [width] and [height] of its first video stream upright,
+ * as ffmpeg rotates its frames; its average frame [rate], in ffmpeg's notation, such as 30000/1001;
+ * how many [frames] it has, exactly or approximately;
+ * and the codec of its first sound track, [audio], or "" if it has none.
  */
 data class VideoStream(val width: Int, val height: Int, val rate: String, val frames: Long, val audio: String) {
     companion object {
-        /** The rate a video is read at where its file gives none. */
+        /** The rate a video is read at when its file gives none. */
         const val DEFAULT_RATE = "30"
 
         /**
-         * What ffprobe says of [file].\
+         * What ffprobe says about [file].\
          * Throws [FfmpegMissing] if ffprobe cannot be run,
-         * and IOException with what ffprobe says if the file holds no video it can read.
+         * and IOException with what ffprobe says if the file has no video it can read.
          */
         fun probe(file: File): VideoStream {
             val video = entries(
@@ -44,8 +45,8 @@ data class VideoStream(val width: Int, val height: Int, val rate: String, val fr
         }
 
         /**
-         * The entries ffprobe shows of [file]'s stream [stream], as `key=value` lines, the last of a key kept;
-         * empty where the file has no such stream.
+         * The entries ffprobe shows for [file]'s stream [stream], as `key=value` lines,
+         * keeping the last value of a key; empty if the file has no such stream.
          */
         private fun entries(file: File, stream: String, show: String): Map<String, String> {
             @Suppress("ktlint:standard:argument-list-wrapping")
@@ -70,7 +71,7 @@ data class VideoStream(val width: Int, val height: Int, val rate: String, val fr
     }
 }
 
-/** A rate as ffmpeg writes one, such as 30000/1001 or 25, as a number; 0 where it is none, as 0/0. */
+/** A rate in ffmpeg's notation, such as 30000/1001 or 25, as a number; 0 if it is not a rate, such as 0/0. */
 internal fun rateOf(rate: String): Double {
     val parts = rate.split('/')
     val numerator = parts[0].toDoubleOrNull() ?: return 0.0
