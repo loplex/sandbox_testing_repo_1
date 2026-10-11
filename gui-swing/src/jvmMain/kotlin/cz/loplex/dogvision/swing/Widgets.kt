@@ -316,9 +316,9 @@ internal class ShapeIcon(private val shape: Shape, private val degrees: Double =
 }
 
 /**
- * Smooth edges, and text as the look and feel smooths it,
- * which [smoothTextAtEverySize] may have changed from the desktop's;
- * as the desktop smooths it where the look and feel does not say, and smoothed where neither says.
+ * Turns on smooth edges, and smooths text as the look and feel asks,
+ * a setting that [smoothTextAtEverySize] may have changed from the desktop's;
+ * where the look and feel says nothing, text is smoothed as the desktop asks, and where neither says, it is smoothed.
  */
 internal fun antialiased(g: Graphics2D) {
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
