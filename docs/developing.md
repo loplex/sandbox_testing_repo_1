@@ -326,7 +326,9 @@ When started by hand, as before a release, and on a weekly schedule, `ci.yml` al
 on every package in every distribution that [Trying the Linux packages](building.md#trying-the-linux-packages) names,
 a job for each.\
 Started by hand, it can run them alone;
-the schedule runs them alone, where `main` has changed since its last run, and every eighth week otherwise.
+the schedule runs them alone, where `main` has changed since its last run, and every eighth week otherwise.\
+[`.github/workflows/keep-schedules.yml`](../.github/workflows/keep-schedules.yml) enables the schedule again every month,
+as GitHub disables a public repository's schedule after 60 days without activity.
 
 [`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs only when started by hand,
 as it installs Wine and makes its prefix every time.\

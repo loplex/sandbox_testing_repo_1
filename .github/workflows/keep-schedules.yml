@@ -1,0 +1,25 @@
+# GitHub disables a public repository's scheduled workflows after 60 days without activity in it.
+# Enabling a workflow resets that count, as gh-workflow-immortality has it
+# (https://github.com/PhrozenByte/gh-workflow-immortality): this one enables ci.yml's schedule every month,
+# and itself, whose own schedule GitHub would disable as well.
+name: Keep the schedules
+
+on:
+  schedule:
+    - cron: "41 4 1 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  enable:
+    name: Enable the scheduled workflows
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for workflow in ci.yml keep-schedules.yml; do
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/enable"
+          done

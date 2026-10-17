@@ -11,6 +11,7 @@
 # - the Linux packages on every distribution docs/building.md says they pass on.
 # The schedule runs them alone, weekly where main has changed since its last run, and every eighth week otherwise,
 # as the distributions change what they install.
+# keep-schedules.yml enables it again every month, as GitHub disables a schedule after 60 days without activity.
 name: CI
 
 on:
