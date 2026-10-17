@@ -7,15 +7,27 @@
 # - the single MSI of both windows, the command line and the web page,
 #   built with WiX and installed, upgraded and removed;
 # - the command line's zip, built with jpackage and run.
+# When run by hand, as before a release, and on a schedule, not on a push:
+# - the Linux packages on every distribution docs/building.md says they pass on.
+# The schedule runs them alone, weekly where main has changed since its last run, and every eighth week otherwise,
+# as the distributions change what they install.
 name: CI
 
 on:
   push:
   workflow_dispatch:
+    inputs:
+      distributions_only:
+        description: Only the Linux packages on every distribution docs/building.md names
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 3 * * 1"
 
 jobs:
   linux:
     name: Linux checks
+    if: github.event_name != 'schedule' && !inputs.distributions_only
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -165,6 +177,7 @@ jobs:
   # and the Linux job's check has built it before that job packages.
   package-all:
     name: Linux packageAll
+    if: github.event_name != 'schedule' && !inputs.distributions_only
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -176,8 +189,126 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y rpm
       - run: ./gradlew packageAll
 
+  # The debs and the rpms for the distributions' jobs below, built apart from the Linux job's,
+  # which builds them only once its check has passed.
+  distribution-packages:
+    name: Build the packages for the distributions
+    needs: distribution-plan
+    if: needs.distribution-plan.outputs.due == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - run: |
+          sudo apt-get update && sudo apt-get install -y rpm
+          tasks=(:packaging:packageDeb :packaging:packageRpm)
+          ./gradlew "${tasks[@]}"
+          ./gradlew "${tasks[@]}" -PappVersion=0.1.1
+      - uses: actions/upload-artifact@v5
+        with:
+          name: distribution-packages
+          path: |
+            packaging/build/distributions/*.deb
+            packaging/build/distributions/*.rpm
+          retention-days: 3
+
+  # One job for each package on each distribution docs/building.md names, as the Linux job tries them on two:
+  # upgraded, then switched to dog-vision, or dog-vision to dog-vision-cli, where the package manager can switch;
+  # besides, dog-vision switched to some of the packages it holds, and the Java programs on Temurin's JRE.
+  distribution-plan:
+    name: Plan the distributions' jobs
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      due: ${{ steps.plan.outputs.due }}
+      include: ${{ steps.plan.outputs.include }}
+    steps:
+      - id: plan
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import datetime, json, os, urllib.request
+
+          due = True
+          if os.environ["GITHUB_EVENT_NAME"] == "schedule":
+              # The schedule's runs before this one, the latest first.
+              url = (f"{os.environ['GITHUB_API_URL']}/repos/{os.environ['GITHUB_REPOSITORY']}"
+                     "/actions/workflows/ci.yml/runs?event=schedule&per_page=5")
+              headers = {"Authorization": f"Bearer {os.environ['GH_TOKEN']}", "Accept": "application/vnd.github+json"}
+              runs = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=headers)))["workflow_runs"]
+              earlier = [run for run in runs if run["id"] != int(os.environ["GITHUB_RUN_ID"])]
+              changed = not earlier or earlier[0]["head_sha"] != os.environ["GITHUB_SHA"]
+              # Weeks counted on without a break at the year's end, as ISO's week numbers are not.
+              due = changed or datetime.date.today().toordinal() // 7 % 8 == 0
+              print("main changed since the last scheduled run" if changed else "main unchanged", "- due:", due)
+          debs = ["ubuntu:20.04", "ubuntu:22.04", "ubuntu:24.04", "debian:12"]
+          rpms = ["fedora:42", "opensuse/leap:15.6", "rockylinux/rockylinux:9-minimal"]
+          native = {"dog-vision-compose", "dog-vision-swing", "dog-vision"}
+          packages = ["dog-vision-compose", "dog-vision-swing", "dog-vision-cli", "dog-vision-common",
+                      "dog-vision-web", "dog-vision-web-sourcemap", "dog-vision"]
+
+          def file(image, name, version):
+              if image in debs:
+                  return f"dist/{name}_{version}_{'amd64' if name in native else 'all'}.deb"
+              return f"dist/{name}-{version}-1.{'x86_64' if name in native else 'noarch'}.rpm"
+
+          include = []
+          def add(image, name, switch=None, temurin=False):
+              args = (["--temurin"] if temurin else []) + ["--upgrade", file(image, name, "0.1.1")]
+              if switch:
+                  args += ["--switch", file(image, switch, "0.1.1")]
+              args += [file(image, name, "0.1.0"), image]
+              label = name + (f" -> {switch}" if switch else "") + (" on Temurin" if temurin else "")
+              include.append({
+                  "name": f"{label}, {image}",
+                  "script": "tools/test_deb.sh" if image in debs else "tools/test_rpm.sh",
+                  "args": " ".join(args),
+              })
+
+          for image in debs + rpms:
+              # Rocky's minimal image has microdnf, which removes no package to install another.
+              switching = "rockylinux" not in image
+              for name in packages:
+                  target = "dog-vision-cli" if name == "dog-vision" else "dog-vision"
+                  add(image, name, target if switching else None)
+          for image in ["ubuntu:20.04", "fedora:42", "opensuse/leap:15.6"]:
+              for target in ["dog-vision-compose", "dog-vision-swing", "dog-vision-common", "dog-vision-web"]:
+                  add(image, "dog-vision", target)
+          for image in ["ubuntu:24.04", "fedora:42"]:
+              for name in ["dog-vision-compose", "dog-vision-swing", "dog-vision-cli", "dog-vision"]:
+                  add(image, name, temurin=True)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"due={'true' if due else 'false'}\n")
+              out.write(f"include={json.dumps(include)}\n")
+          print(len(include), "jobs")
+
+  distributions:
+    name: ${{ matrix.name }}
+    needs: [distribution-packages, distribution-plan]
+    if: needs.distribution-plan.outputs.due == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.distribution-plan.outputs.include) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: distribution-packages
+          path: dist
+      - run: ${{ matrix.script }} ${{ matrix.args }}
+
   windows-gl:
     name: Windows GL tests
+    if: github.event_name != 'schedule' && !inputs.distributions_only
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v5
@@ -230,6 +361,7 @@ jobs:
 
   windows-msi:
     name: Windows MSI
+    if: github.event_name != 'schedule' && !inputs.distributions_only
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v5
@@ -262,6 +394,7 @@ jobs:
 
   windows-zip:
     name: Windows zip
+    if: github.event_name != 'schedule' && !inputs.distributions_only
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v5

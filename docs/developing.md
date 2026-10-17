@@ -322,6 +322,12 @@ so that each information is found on a line of its own, and an edit changes only
   built by `package_cli_zip_on_windows.ps1` and tested by `test_cli_zip_on_windows.ps1`.\
   The run keeps the zip as an artifact.
 
+When started by hand, as before a release, and on a weekly schedule, `ci.yml` also runs `test_deb.sh` and `test_rpm.sh`
+on every package in every distribution that [Trying the Linux packages](building.md#trying-the-linux-packages) names,
+a job for each.\
+Started by hand, it can run them alone;
+the schedule runs them alone, where `main` has changed since its last run, and every eighth week otherwise.
+
 [`.github/workflows/msi-under-wine.yml`](../.github/workflows/msi-under-wine.yml) runs only when started by hand,
 as it installs Wine and makes its prefix every time.\
 Under Wine, it builds the MSI in two versions with `package_msi_on_linux.sh`,
