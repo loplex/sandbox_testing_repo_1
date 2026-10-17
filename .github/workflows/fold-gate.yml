@@ -1,0 +1,63 @@
+# The per-commit build gate of dog-vision's fold of the small fixes: each chunk of chunks/ is
+# built in order by one job; a line is `pos sha`. `./gradlew check` (detekt in a worker process of its own, as one
+# daemon kept across commits fails it on a commit that is fine) and tools/check_links.py where the commit has it.
+# The last chunk ends with a probe commit that breaks both, and has to fail. No job fails on a failed commit: the
+# verdict is the summary, one line per commit.
+name: fold-small-fixes gate
+
+on:
+  push:
+    branches: [probe/fold-small-fixes-gate]
+
+jobs:
+  build:
+    name: chunk ${{ matrix.chunk }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
+                '11', '12', '13', '14', '15', '16', '17', '18', '19', '20']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: gate
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      # ffmpeg for the window's feed; Mesa's EGL and llvmpipe for its GL tests, as in dog-vision's ci.yml.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg libegl1 libegl-mesa0 libgl1-mesa-dri libgles2
+      - name: Fetch the commits
+        run: |
+          git init -q dv
+          git -C dv fetch -q --no-tags "https://github.com/${GITHUB_REPOSITORY}" \
+            'refs/probe/fold-small-fixes/*:refs/probe/fold-small-fixes/*'
+      - name: Build each commit of the chunk
+        run: |
+          set +e -u
+          mkdir -p logs
+          summary=logs/summary-${{ matrix.chunk }}.txt
+          while read -r pos sha; do
+            git -C dv checkout -q -f "$sha" && git -C dv clean -q -ffdx || { echo "$pos $sha checkout-failed" >> "$summary"; continue; }
+            log=$(printf 'logs/%s-%s.log' "$pos" "${sha:0:8}")
+            echo "HEAD=$(git -C dv rev-parse HEAD)" > "$log"
+            start=$(date +%s)
+            (cd dv && ./gradlew check --continue --build-cache -Pkotlin.compiler.execution.strategy=in-process \
+              -Pdetekt.use.worker.api=true) >> "$log" 2>&1
+            check=$?
+            links=none
+            if [ -f dv/tools/check_links.py ]; then
+              (cd dv && python3 tools/check_links.py) >> "$log" 2>&1
+              links=$?
+            fi
+            echo "$pos $sha check=$check links=$links $(( $(date +%s) - start ))s" | tee -a "$summary"
+          done < gate/chunks/${{ matrix.chunk }}.txt
+          echo "DONE $(wc -l < gate/chunks/${{ matrix.chunk }}.txt) listed" >> "$summary"
+          cat "$summary"
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: logs-${{ matrix.chunk }}
+          path: logs/
