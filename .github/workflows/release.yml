@@ -27,6 +27,7 @@ jobs:
         id: cut
         with:
           version-source: gradle.properties
+          tag-prefix: va-
           snapshot-suffix: -SNAPSHOT
           version: ${{ inputs.version }}
           repository-url: ${{ github.server_url }}/${{ github.repository }}

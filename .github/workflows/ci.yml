@@ -19,6 +19,7 @@ jobs:
         id: release
         with:
           version-source: gradle.properties
+          tag-prefix: va-
           checks: version changelog ancestry
           snapshot-suffix: -SNAPSHOT
           default-branch: test/vc-flow-20261017
