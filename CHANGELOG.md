@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- A wave, added while 0.1.2 is out.
+
 ### Fixed
 
 - The farewell ends with a full stop too.
