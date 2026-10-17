@@ -155,6 +155,7 @@ What the packages take; `packaging` builds them from the windows, the command li
 
 `./gradlew check` runs every test task below that needs no phone, Android Lint, the Kotlin style,
 [the prose's layout](#the-prose-is-laid-out-one-information-to-a-line), [detekt](#detekt-looks-for-likely-bugs-and-code-smells),
+the Markdown's relative links,
 and the checks of [the modules' graphs](#which-module-uses-which) and [the artifacts' folders](building.md#every-artifact-at-once).\
 Each test class's comment says what it tests.
 
@@ -184,8 +185,9 @@ Each test class's comment says what it tests.
   with SwiftShader, as [`karma.config.d/webgl.js`](../web/karma.config.d/webgl.js) tells it to.\
   `./gradlew :web:jsTest -PwebTestsOnGpu` runs the tests on the GPU instead, through ANGLE on Vulkan.
 - **`:android:connectedDebugAndroidTest` runs on the connected phone or emulator**, on its GPU and codecs.
-- **`python3 tools/check_links.py` checks the Markdown**, which `check` does not:
-  every relative link resolves, down to its anchor.
+- **[`tools/check_links.py`](../tools/check_links.py) checks the Markdown's links**, with Python 3:
+  every relative link resolves, down to its anchor.\
+  `check` runs it through the root's `checkLinks`, and `python3 tools/check_links.py` runs it alone.
 
 ### The documents are checked against core
 

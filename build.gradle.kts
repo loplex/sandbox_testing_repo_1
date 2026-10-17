@@ -351,10 +351,17 @@ val checkArtifactFolders = tasks.register("checkArtifactFolders") {
     }
 }
 
+// Every relative link in the Markdown resolves, down to its anchor, as tools/check_links.py checks it with Python 3.
+// It runs every time: a link may point at any file of the tree, so no set of inputs short of the whole tree would do.
+val checkLinks = tasks.register<Exec>("checkLinks") {
+    description = "Fails on a relative link in the Markdown that does not resolve, down to its anchor."
+    commandLine("python3", "tools/check_links.py")
+}
+
 // The checks of the whole repository, in the root's `check`, which `./gradlew check` runs beside every module's.
 // They include build-logic's, a build of its own, which `check` here does not reach otherwise:
 // its ktlint and its tests.
 tasks.named("check") {
     val buildLogicCheck = gradle.includedBuild("build-logic").task(":check")
-    dependsOn(checkLayout, checkModuleGraph, checkArtifactFolders, buildLogicCheck)
+    dependsOn(checkLayout, checkLinks, checkModuleGraph, checkArtifactFolders, buildLogicCheck)
 }

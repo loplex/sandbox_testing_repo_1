@@ -3,7 +3,7 @@
 How to build each program in this repository, and the desktop packages.\
 [Using it](using.md) says what each program does.
 
-- [What the build needs](#what-the-build-needs) — the JDK, the Android SDK, Chrome.
+- [What the build needs](#what-the-build-needs) — the JDK, the Android SDK, Chrome, Python 3.
 - [Every artifact at once](#every-artifact-at-once) — `./gradlew packageAll`, and the folder each artifact lands in.
 - [Starting over](#starting-over) — `tools/clean_all.sh`, which also deletes `.gradle` and the configuration cache.
 - [The Android app](#the-android-app), [the web page](#the-web-page), [the command line](#the-command-line) and [the desktop window](#the-desktop-window) —
@@ -22,6 +22,7 @@ How to build each program in this repository, and the desktop packages.\
 - **The Android SDK with platform 37**, found through `ANDROID_HOME` or `sdk.dir` in `local.properties`,
   which Android Studio and IntelliJ IDEA write when they open the project.
 - **Google Chrome** for the web page's tests, found on the `PATH` as `google-chrome` or through `CHROME_BIN`.
+- **Python 3** for the Markdown's link check in `./gradlew check`, run as `python3`.
 
 ## Every artifact at once
 
