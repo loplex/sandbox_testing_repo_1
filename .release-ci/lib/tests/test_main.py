@@ -1,0 +1,1739 @@
+"""Tests for main.py, the command line: its subcommands over repositories built for the purpose,
+and the arguments it refuses.
+
+Run with `python3 -m unittest discover -s lib` from the repository root, with the packages in
+`lib/requirements.txt` installed.
+"""
+
+import argparse
+import contextlib
+import io
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+import unittest.mock
+from pathlib import Path
+
+import main
+from rules.steps import Asked, MAJOR, MINOR, next_candidate
+from rules import repository
+from rules.repository import released_versions
+
+from .fixtures import TwoReleasesOneOffMain
+
+SCRIPT = Path(__file__).resolve().parent.parent / "main.py"
+
+version_command = main.version_command
+prefix_from = main.prefix_from
+
+
+class TheReleaseNotes(unittest.TestCase):
+    """One released section's text, printed for the release page.
+    It comes from the file the changelog check holds to the tag, so the two cannot say different things, link
+    definitions aside: the check compares none.
+    The one other exception is the warning release-flow/warn puts above the notes while publishing elsewhere has not
+    completed."""
+
+    def notes_of(self, changelog, version, html=False, repository_url=None, ref=None):
+        here = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (here / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            problems = main.notes_command(argparse.Namespace(version=version, html=html, repository_url=repository_url,
+                                                             ref=ref))
+        return out.getvalue(), problems
+
+    TEXT = ("# Log\n\n## [Unreleased]\n\n## [0.2.0] - 2026-09-21\n\n### Added\n\n- A\n\n"
+            "## [0.1.0] - 2026-09-01\n\n- old\n\n[0.2.0]: https://example.invalid/x\n")
+
+    def test_the_notes_are_the_section_without_its_heading(self):
+        """No `## [0.2.0] - date` line: the release page has a title of its own, and the date would read as
+        the first entry."""
+        notes, problems = self.notes_of(self.TEXT, "0.2.0")
+        self.assertEqual(problems, [])
+        self.assertEqual(notes, "### Added\n\n- A\n")
+
+    def test_a_definition_the_section_does_not_name_is_not_notes(self):
+        """Asked of the last section, because the definitions at the foot fall into its body.
+        Any other section ends at the heading below it, so the definitions are outside it however it is read."""
+        notes, _ = self.notes_of(self.TEXT, "0.1.0")
+        self.assertNotIn("example.invalid", notes)
+
+    def test_the_definitions_a_section_names_follow_it(self):
+        """Without them a reference link would show as written: `[the issue][1]`.
+        A definition is found wherever it stands, matched as cmark-gfm matches a label, a no-break space being no white
+        space there; one named by nothing stays out."""
+        section = ("- A, see [the Issue][ONE] and [Two  words]\n\n[x]: https://x.invalid\n[one]: https://one.invalid\n"
+                   "[two\u00a0words]: https://nb.invalid\n")
+        text = self.TEXT.replace("- A\n", section).replace("[0.2.0]:", "[two words]: https://two.invalid\n[0.2.0]:")
+        notes, problems = self.notes_of(text, "0.2.0")
+        self.assertEqual(problems, [])
+        self.assertEqual(notes, "### Added\n\n- A, see [the Issue][ONE] and [Two  words]\n\n"
+                                "[one]: https://one.invalid\n[two words]: https://two.invalid\n")
+        html, _ = self.notes_of(text, "0.2.0", html=True)
+        self.assertIn('<a href="https://one.invalid">the Issue</a> and <a href="https://two.invalid">Two  words</a>',
+                      html)
+
+    def test_a_version_with_nothing_to_say_is_refused(self):
+        _, problems = self.notes_of(self.TEXT.replace("### Added\n\n- A\n\n", ""), "0.2.0")
+        self.assertTrue(problems)
+        self.assertIn("holds nothing for 0.2.0", problems[0])
+
+    def test_a_section_that_says_nothing_is_refused_too(self):
+        _, problems = self.notes_of(self.TEXT.replace("### Added\n\n- A\n", "\u200b\n"), "0.2.0")
+        self.assertTrue(problems)
+        self.assertIn("holds nothing for 0.2.0", problems[0])
+
+    def test_a_section_holding_only_spaces_is_refused_too(self):
+        """Blank lines are taken off a body's ends, but spaces are not; a line of spaces is still nothing to say."""
+        _, problems = self.notes_of(self.TEXT.replace("### Added\n\n- A\n", "   \n"), "0.2.0")
+        self.assertTrue(problems)
+        self.assertIn("holds nothing for 0.2.0", problems[0])
+
+    def test_a_section_of_nothing_but_comments_is_refused_too(self):
+        """GitHub shows no comment, so the release page would be empty."""
+        for body in ("<!-- what changed -->\n", "<!--\nwhat changed\n-->\n"):
+            with self.subTest(body):
+                _, problems = self.notes_of(self.TEXT.replace("### Added\n\n- A\n", body), "0.2.0")
+                self.assertIn("holds nothing for 0.2.0", problems[0])
+
+    def test_a_version_with_no_section_is_refused(self):
+        _, problems = self.notes_of(self.TEXT, "0.3.0")
+        self.assertTrue(problems)
+        self.assertIn("holds nothing for 0.3.0", problems[0])
+
+    def test_html_is_the_section_rendered_by_cmark_gfm(self):
+        """For a JetBrains plugin's change notes, which the Marketplace shows as HTML."""
+        notes, problems = self.notes_of(self.TEXT, "0.2.0", html=True)
+        self.assertEqual(problems, [])
+        self.assertEqual(notes, "<h3>Added</h3>\n<ul>\n<li>A</li>\n</ul>\n")
+
+    def test_html_leaves_comments_out(self):
+        notes, problems = self.notes_of(self.TEXT.replace("- A\n", "- A <!-- B <kbd> --> C\n\n<!-- D -->\n"), "0.2.0",
+                                        html=True)
+        self.assertEqual(problems, [])
+        self.assertNotIn("kbd", notes)
+        self.assertNotIn(" D ", notes)
+        self.assertIn("<li>A <!-- raw HTML omitted --> C</li>", notes)
+
+    def test_html_refuses_raw_html_it_would_leave_out(self):
+        """The HTML leaves raw HTML out, so a `<kbd>` would lose its tags silently while the release page keeps them.
+        cmark-gfm says what is raw HTML: a code span, an autolink or a `<` in text is not."""
+        for entry in ("- A <kbd>B</kbd>", "- A<br>B", "- A <!-- c --><kbd>B</kbd>", "<!-- c --><kbd>\n\n- A",
+                      "<!-- c --> <kbd>\n\n- A", "- A\n\n<!-- c --> <kbd>", "<!-- c -->\u00a0<!-- d -->\n\n- A",
+                      "- A <script>x</script>", "- A <?php x ?>", "- A <![CDATA[x]]>", "<!--> shown -->\n\n- A",
+                      "<!---> shown -->\n\n- A"):
+            with self.subTest(entry):
+                notes, problems = self.notes_of(self.TEXT.replace("- A\n", entry + "\n"), "0.2.0", html=True)
+                self.assertEqual(notes, "")
+                self.assertEqual(problems, ["the notes of 0.2.0 hold raw HTML other than a comment, which "
+                                            "notes --html would leave out: write it in Markdown, or take it out"])
+        for entry in ("- `<kbd>` <https://e.invalid> a < b && c > d", "- A <!--> B", "- [A](javascript:b) ![C](d:e)",
+                      "<!-- b --> <!-- c -->\n\n- A", "<!-- b --> \n\n- A", "- A <!-- b --> <!-- c --> D"):
+            with self.subTest(entry):
+                notes, problems = self.notes_of(self.TEXT.replace("- A\n", entry + "\n"), "0.2.0", html=True)
+                self.assertEqual(problems, [])
+                self.assertIn("<li>", notes)
+
+    def test_html_cannot_end_the_cdata_plugin_xml_holds_it_in(self):
+        notes, _ = self.notes_of(self.TEXT.replace("- A\n", "- A ]]> `]]>` <https://e.invalid/]]>>\n"), "0.2.0",
+                                 html=True)
+        self.assertIn("A ]]&gt;", notes)
+        self.assertNotIn("]]>", notes)
+
+    def test_a_version_with_no_section_is_refused_with_html_too(self):
+        _, problems = self.notes_of(self.TEXT, "0.3.0", html=True)
+        self.assertIn("holds nothing for 0.3.0", problems[0])
+
+    def test_html_makes_relative_links_absolute_at_the_ref(self):
+        """Change notes are shown away from the repository, where a relative link has nothing to lead to.
+        A reference link's definition is followed too, and a link with a scheme is left alone."""
+        section = "- [Guide](docs/guide.md), [Usage](#usage), [ref][r], <https://e.invalid>\n- ![shot](docs/shot.png)\n"
+        text = self.TEXT.replace("- A\n", section).replace("[0.2.0]:", "[r]: /README.md\n[0.2.0]:")
+        notes, problems = self.notes_of(text, "0.2.0", html=True, repository_url="https://github.com/o/r", ref="v0.2.0")
+        self.assertEqual(problems, [])
+        self.assertIn('<a href="https://github.com/o/r/blob/v0.2.0/docs/guide.md">Guide</a>', notes)
+        self.assertIn('<a href="https://github.com/o/r/blob/v0.2.0/CHANGELOG.md#usage">Usage</a>', notes)
+        self.assertIn('<a href="https://github.com/o/r/blob/v0.2.0/README.md">ref</a>', notes)
+        self.assertIn('<a href="https://e.invalid">https://e.invalid</a>', notes)
+        self.assertIn('<img src="https://github.com/o/r/raw/v0.2.0/docs/shot.png" alt="shot" />', notes)
+
+    def test_html_leaves_relative_links_as_they_are_without_a_ref(self):
+        notes, problems = self.notes_of(self.TEXT.replace("- A\n", "- [Guide](docs/guide.md)\n"), "0.2.0", html=True)
+        self.assertEqual(problems, [])
+        self.assertIn('<a href="docs/guide.md">Guide</a>', notes)
+
+    def test_a_link_above_the_root_is_refused_and_nothing_printed(self):
+        notes, problems = self.notes_of(self.TEXT.replace("- A\n", "- [x](../x.md)\n"), "0.2.0", html=True,
+                                        repository_url="https://github.com/o/r", ref="v0.2.0")
+        self.assertEqual(notes, "")
+        self.assertIn("links to ../x.md, above the repository's root", problems[0])
+
+    def test_the_repository_and_the_ref_go_together_and_with_html(self):
+        for html, repository_url, ref, says in ((True, "https://github.com/o/r", None, "together"),
+                                                (True, None, "v0.2.0", "together"),
+                                                (False, "https://github.com/o/r", "v0.2.0", "only with --html")):
+            with self.subTest(html=html, repository_url=repository_url, ref=ref):
+                notes, problems = self.notes_of(self.TEXT, "0.2.0", html=html, repository_url=repository_url, ref=ref)
+                self.assertEqual(notes, "")
+                self.assertIn(says, problems[0])
+
+    def test_html_without_cmarkgfm_names_what_to_install(self):
+        with unittest.mock.patch.dict(sys.modules, {"cmarkgfm": None}), self.assertRaises(SystemExit) as refused:
+            self.notes_of(self.TEXT, "0.2.0", html=True)
+        self.assertIn("lib/requirements.txt", str(refused.exception))
+
+
+class TheChangelogCommand(TwoReleasesOneOffMain):
+    """What `changelog` reports for a tag it cannot compare: one off this history, one that holds no text of
+    its section, and one whose copy holds a line it does not read."""
+
+    def test_a_section_off_this_history_is_not_called_deleted(self):
+        """Only `aside` holds v0.2.0 now, so the release is not on its way here (see AReleaseYetToLand)."""
+        self.git("branch", "-q", "-D", "release/0.2.0")
+        with contextlib.redirect_stdout(io.StringIO()):
+            problems = main.changelog_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                                 tag_prefix="v", skip_unreadable_releases=False,
+                                                                 html_notes=False))
+        self.assertEqual(len(problems), 1)
+        self.assertIn("not on this history", problems[0])
+
+    def test_a_tag_older_than_its_section_is_reported_as_not_compared(self):
+        """The report has to be honest about a section it could not compare.
+        One whose tag holds no text of it is named as not compared, not counted among the sections that still
+        read as released."""
+        self.git("tag", "-d", "v0.2.0")
+        self.git("tag", "v0.0.1")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A\n\n## [0.0.1] - 2025-12-01\n\n- Z\n")
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = main.changelog_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                                 tag_prefix="v", skip_unreadable_releases=False,
+                                                                 html_notes=False))
+        self.assertEqual(problems, [])
+        self.assertIn("Compared 1 released section(s)", printed.getvalue())
+        self.assertIn("Not compared: 0.0.1 ", printed.getvalue())
+
+    def test_a_tag_older_than_the_file_is_reported_as_not_compared(self):
+        """A tag made before CHANGELOG.md existed has no text to compare against either.
+        It is named the same way, not left out of the report."""
+        self.git("tag", "-d", "v0.2.0")
+        self.git("rm", "-q", "CHANGELOG.md")
+        self.git("commit", "-q", "-m", "no changelog")
+        self.git("tag", "v0.0.1")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A\n\n## [0.0.1] - 2025-12-01\n\n- Z\n")
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = main.changelog_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                                 tag_prefix="v", skip_unreadable_releases=False,
+                                                                 html_notes=False))
+        self.assertEqual(problems, [])
+        self.assertIn("Compared 1 released section(s)", printed.getvalue())
+        self.assertIn("Not compared: 0.0.1 ", printed.getvalue())
+
+    def html_notes_of(self, unreleased: str, html_notes: bool) -> list[str]:
+        """changelog's problems with `unreleased` under [Unreleased], the caller having left v0.1.0 the one release."""
+        self.commit(f"## [Unreleased]\n\n{unreleased}\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        with contextlib.redirect_stdout(io.StringIO()):
+            return main.changelog_command(argparse.Namespace(default_branch=None, tag_prefix="v",
+                                                             skip_unreadable_releases=False, html_notes=html_notes))
+
+    def test_html_notes_refuse_raw_html_under_unreleased(self):
+        """notes --html would refuse it once the section is released, which then cannot be edited."""
+        self.git("tag", "-d", "v0.2.0")
+        self.assertEqual(self.html_notes_of("- A <kbd>B</kbd>\n", html_notes=True),
+                         ["[Unreleased] holds raw HTML other than a comment, which notes --html would leave out: "
+                          "write it in Markdown, or take it out"])
+
+    def test_raw_html_passes_without_html_notes_and_a_comment_with_them(self):
+        self.git("tag", "-d", "v0.2.0")
+        for unreleased, html_notes in (("- A <kbd>B</kbd>\n", False), ("- A <!-- B -->\n", True)):
+            with self.subTest(unreleased=unreleased, html_notes=html_notes):
+                self.assertEqual(self.html_notes_of(unreleased, html_notes), [])
+
+    def run_changelog(self, skip_unreadable_releases: bool) -> tuple[list[str], str]:
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = main.changelog_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                                 tag_prefix="v",
+                                                                 skip_unreadable_releases=skip_unreadable_releases,
+                                                                 html_notes=False))
+        return problems, printed.getvalue()
+
+    def test_a_copy_that_is_not_utf_8_is_a_copy_not_read(self):
+        """A tag cannot be edited, so it is told apart as any other copy not read, and can be skipped."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\n\n## [0.1.0] - 2026-01-01\n\n- caf\xe9\n")
+        self.git("commit", "-q", "-am", "latin-1")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- cafe\n")
+        problems, _ = self.run_changelog(skip_unreadable_releases=False)
+        self.assertEqual(len(problems), 1, problems)
+        for said in ("CHANGELOG.md line 5 holds a byte that is not utf-8", "as tagged v0.1.0",
+                     "--skip-unreadable-releases"):
+            self.assertIn(said, problems[0])
+        problems, printed = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, [])
+        self.assertIn("Not compared: 0.1.0 - CHANGELOG.md line 5 holds a byte that is not utf-8", printed)
+
+    def test_a_copy_not_utf_8_in_its_own_section_still_needs_the_section_in_the_tree(self):
+        """As for any other line not read: the tag holds the section, so a tree without it has lost it."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\r\n\r\n## [0.1.0] - 2026-01-01\r\n\r\n- caf\xe9\r\n")
+        self.git("commit", "-q", "-am", "latin-1")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n")
+        problems, _ = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, ["[0.1.0] is released but its section is gone"])
+
+    def test_a_copy_with_lone_cr_line_endings_is_named_by_the_line_commonmark_counts(self):
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\r\r## [0.1.0] - 2026-01-01\r\r- caf\xe9\r")
+        self.git("commit", "-q", "-am", "latin-1, lone CRs")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- cafe\n")
+        problems, _ = self.run_changelog(skip_unreadable_releases=False)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("CHANGELOG.md line 5 holds a byte that is not utf-8", problems[0])
+
+    def test_a_copy_not_utf_8_above_its_section_still_holds_it(self):
+        """A byte changes nothing about where a section starts, so the copy is read past it: the tag holds [0.1.0],
+        and a tree without it has lost it, as where the byte stands inside the section."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog caf\xe9\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        self.git("commit", "-q", "-am", "latin-1 above")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n")
+        problems, _ = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, ["[0.1.0] is released but its section is gone"])
+
+    def test_a_copy_not_utf_8_without_its_section_is_not_said_to_hold_it(self):
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog caf\xe9\n\n## [0.0.9] - 2025-01-01\n\n- Z\n")
+        self.git("commit", "-q", "-am", "latin-1, before the section")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.0.9] - 2025-01-01\n\n- Z\n")
+        problems, printed = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, [])
+        self.assertIn("Not compared: 0.1.0 - CHANGELOG.md line 1 holds a byte that is not utf-8", printed)
+        self.assertIn("the tag may never have had one", printed)
+
+    def test_the_first_line_not_read_is_named_a_byte_or_another(self):
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        for copy, named in ((b"## [0.1.0] - 2026-01-01\n\n- caf\xe9\n\n> quote\n", "line 5 holds a byte"),
+                            (b"## [0.1.0] - 2026-01-01\n\n> quote\n\n- caf\xe9\n", "line 5 holds a block quote")):
+            with self.subTest(named):
+                (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\n\n" + copy)
+                self.git("commit", "-q", "-am", named)
+                self.git("tag", "-f", "v0.1.0")
+                self.commit("## [0.1.0] - 2026-01-01\n\n- cafe\n")
+                problems, _ = self.run_changelog(skip_unreadable_releases=False)
+                self.assertEqual(len(problems), 1, problems)
+                self.assertIn(f"CHANGELOG.md {named}", problems[0])
+
+    def test_a_crlf_copy_at_a_tag_reads_as_the_tree_does(self):
+        """Line endings are not a change: a CRLF copy compares equal to the same text in the tree."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\r\n\r\n## [0.1.0] - 2026-01-01\r\n\r\n- A\r\n")
+        self.git("commit", "-q", "-am", "crlf")
+        self.git("tag", "v0.1.0")
+        problems, printed = self.run_changelog(skip_unreadable_releases=False)
+        self.assertEqual(problems, [])
+        self.assertIn("Compared 1 released section(s)", printed)
+
+    def test_a_copy_not_utf_8_ends_in_no_traceback_and_reads_alike_under_an_ascii_locale(self):
+        """Run as a command, under an ASCII locale with Python's UTF-8 mode off, so the locale's encoding is used
+        wherever nothing else is said."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes("# Changelog\n\n## [0.1.0] - 2026-01-01\n\n- café\n".encode())
+        self.git("commit", "-q", "-am", "utf-8, outside ASCII")
+        self.git("tag", "v0.1.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\n\n## [0.1.0] - 2026-01-01\n\n- caf\xe9\n")
+        self.git("commit", "-q", "-am", "latin-1")
+        self.git("tag", "v0.2.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- café\n")
+        command = [sys.executable, str(SCRIPT), "changelog", "--tag-prefix", "v"]
+        done = subprocess.run(command, cwd=self.here, capture_output=True, text=True,
+                              env={**os.environ, "LC_ALL": "C", "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0"})
+        self.assertNotIn("Traceback", done.stderr)
+        self.assertNotIn("[0.1.0]", done.stderr, "the UTF-8 copy at v0.1.0 reads as the tree does")
+        self.assertIn("CHANGELOG.md line 5 holds a byte that is not utf-8 - as tagged v0.2.0", done.stderr)
+
+    def test_a_byte_not_utf_8_below_the_tagged_section_is_not_read(self):
+        """Read down to the end of [0.1.0], as a line of another kind below it is not."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\n\n## [0.1.0] - 2026-01-01\n\n- A\n\n"
+                                                b"## [0.0.9] - 2025-01-01\n\n- caf\xe9\n")
+        self.git("commit", "-q", "-am", "latin-1 below")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A\n\n## [0.0.9] - 2025-01-01\n\n- cafe\n")
+        problems, printed = self.run_changelog(skip_unreadable_releases=False)
+        self.assertEqual(problems, [])
+        self.assertIn("Compared 1 released section(s)", printed)
+
+    def test_a_line_below_the_tagged_section_is_not_read(self):
+        """The copy at v0.1.0 is read down to the end of [0.1.0]: a block quote in an older section does not matter."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A\n\n## [0.0.9] - 2025-01-01\n\n> quoted\n")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A\n\n## [0.0.9] - 2025-01-01\n\n- quoted\n")
+        problems, printed = self.run_changelog(skip_unreadable_releases=False)
+        self.assertEqual(problems, [])
+        self.assertIn("Compared 1 released section(s)", printed)
+
+    def test_a_line_not_read_in_the_tagged_section_fails_unless_skipped(self):
+        """A tag cannot be edited, so the refusal stands for good; --skip-unreadable-releases names the release as not
+        compared instead."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n> A\n")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A\n")
+        problems, _ = self.run_changelog(skip_unreadable_releases=False)
+        self.assertEqual(len(problems), 1)
+        for said in ("line 5 holds a block quote", "as tagged v0.1.0", "[0.1.0] cannot be compared",
+                     "--skip-unreadable-releases"):
+            self.assertIn(said, problems[0])
+        self.assertNotIn(": write", problems[0])  # The tag cannot be edited.
+        problems, printed = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, [])
+        self.assertIn("Compared 0 released section(s)", printed)
+        self.assertIn("Not compared: 0.1.0 - CHANGELOG.md line 5 holds a block quote", printed)
+        self.assertNotIn(": write", printed)
+
+    def test_a_skipped_tag_read_into_its_section_still_needs_it_in_the_tree(self):
+        """The copy at v0.1.0 is read past `## [0.1.0]` before the line it refuses, so the tag holds that section.
+        Skipped or not, a tree without it has lost it."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n> A\n")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n")
+        problems, printed = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, ["[0.1.0] is released but its section is gone"])
+        self.assertNotIn("Not compared: 0.1.0", printed)
+        problems, _ = self.run_changelog(skip_unreadable_releases=False)
+        self.assertTrue(problems[0].endswith("names it as not compared instead, but its section is not in this tree, "
+                                             "which fails either way"), problems[0])
+
+    def test_a_skipped_tag_refused_above_its_section_is_not_called_deleted(self):
+        """Refused above `## [0.1.0]`, the copy may be older than that section, so a tree without it proves nothing.
+        The release is named as not compared, with what is not known."""
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        self.commit("> intro\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n")
+        problems, printed = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, [])
+        self.assertIn("Not compared: 0.1.0 - CHANGELOG.md line 3 holds a block quote", printed)
+        self.assertIn("the tree has no section for it, and the tag may never have had one", printed)
+
+    def test_a_skipped_tag_is_named_even_when_the_check_fails(self):
+        self.git("tag", "-d", "v0.1.0", "v0.2.0")
+        self.commit("## [0.1.0] - 2026-01-01\n\n> A\n")
+        self.git("tag", "v0.1.0")
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        self.git("tag", "v0.2.0")
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B, reworded\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        problems, printed = self.run_changelog(skip_unreadable_releases=True)
+        self.assertEqual(problems, ["[0.2.0] is released but its section no longer reads as the tag has it"])
+        self.assertIn("Not compared: 0.1.0 - CHANGELOG.md line 5 holds a block quote", printed)
+
+
+class AReleaseYetToLand(TwoReleasesOneOffMain):
+    """v0.2.0 is published from `release/0.2.0`, and main has yet to take it in: the window before merge-back lands it.
+
+    Every check reports that as an Awaiting problem, which main() exits with AWAITING on when it is all there is.
+    What a rewrite leaves looks alike, and is still failed outright."""
+
+    def checked(self, command, version_source="tags", tag_prefix="v", default_branch=None, snapshot_suffix=None,
+                **options):
+        arguments = argparse.Namespace(version_source=version_source, tag_prefix=tag_prefix,
+                                       default_branch=default_branch,
+                                       snapshot_suffix=snapshot_suffix, **{"html_notes": False, **options})
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return command(arguments)
+
+    def ancestry(self):
+        return self.checked(main.ancestry_command)
+
+    def changelog(self):
+        return self.checked(main.changelog_command, skip_unreadable_releases=False)
+
+    def test_every_check_awaits_it(self):
+        for problems in (self.ancestry(), self.changelog()):
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIsInstance(problems[0], main.Awaiting)
+            self.assertIn("has yet to land here: release/0.2.0 holds", problems[0])
+
+    def test_the_remote_s_release_branch_is_named(self):
+        self.git("update-ref", "refs/remotes/origin/release/0.2.0", "release/0.2.0")
+        self.git("branch", "-q", "-D", "release/0.2.0", "aside")
+        problems = self.ancestry()
+        self.assertIsInstance(problems[0], main.Awaiting)
+        self.assertIn("origin/release/0.2.0 holds", problems[0])
+
+    def test_the_sections_that_are_here_are_still_compared(self):
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            main.changelog_command(argparse.Namespace(default_branch=None, tag_prefix="v",
+                                                      skip_unreadable_releases=False, html_notes=False))
+        self.assertIn("Compared 1 released section(s)", printed.getvalue())
+
+    def test_the_declared_version_it_released_is_awaited(self):
+        """Under a declaring source, main still names the version just released until merge-back lands the commit
+        prepare started the next one in."""
+        (self.here / "gradle.properties").write_text("version = 0.2.0-SNAPSHOT\n", encoding="utf-8")
+        problems = self.checked(main.version_command, version_source="gradle.properties", tag_prefix="v",
+                                version=None, snapshot_suffix="-SNAPSHOT")
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIsInstance(problems[0], main.Awaiting)
+        self.assertIn("0.2.0 is released, as v0.2.0, and has yet to land here", problems[0])
+
+    def test_the_other_tags_are_still_counted(self):
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), contextlib.redirect_stderr(io.StringIO()):
+            main.ancestry_command(argparse.Namespace(default_branch=None, tag_prefix="v"))
+        self.assertIn("The other 1 released tag(s) are reachable from HEAD.", printed.getvalue())
+
+    def test_a_loose_entry_under_unreleased_is_still_reported_beside_it(self):
+        """Awaiting the release passes over the version rules, not over what [Unreleased] holds."""
+        (self.here / "gradle.properties").write_text("version = 0.2.0-SNAPSHOT\n", encoding="utf-8")
+        self.commit("## [Unreleased]\n\n- loose\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        problems = self.checked(main.version_command, version_source="gradle.properties", tag_prefix="v",
+                                version=None, snapshot_suffix="-SNAPSHOT")
+        self.assertEqual([isinstance(problem, main.Awaiting) for problem in problems], [True, False], problems)
+        self.assertIn("an entry under no ### group", problems[1])
+
+    def test_a_version_handed_in_is_still_refused_as_released(self):
+        """Only a declared version is awaited: one handed in is a release being asked for, as on a tagged commit."""
+        (self.here / "gradle.properties").write_text("version = 0.2.0-SNAPSHOT\n", encoding="utf-8")
+        for source, prefix, suffix in (("gradle.properties", "v", "-SNAPSHOT"), ("tags", "v", None)):
+            problems = self.checked(main.version_command, version_source=source, tag_prefix=prefix, version="0.2.0",
+                                    snapshot_suffix=suffix)
+            self.assertTrue(problems, source)
+            self.assertFalse(any(isinstance(problem, main.Awaiting) for problem in problems), (source, problems))
+            self.assertIn("released already", " ".join(problems))
+
+    def test_a_skipped_copy_of_a_release_on_its_way_is_awaited(self):
+        """v0.2.0's copy holds a line not read inside its own section, and --skip-unreadable-releases passes over it.
+        The section is not in the tree because the release has yet to land, not because it was lost."""
+        self.git("switch", "-q", "release/0.2.0")
+        (self.here / "CHANGELOG.md").write_text("# Changelog\n\n## [0.2.0] - 2026-02-01\n\n> B\n\n"
+                                                "## [0.1.0] - 2026-01-01\n\n- A\n", encoding="utf-8")
+        self.git("commit", "-q", "-a", "--amend", "--no-edit")  # Cut from main still, as a release is.
+        self.git("tag", "-f", "v0.2.0")
+        self.git("switch", "-q", "main")
+        problems = self.checked(main.changelog_command, skip_unreadable_releases=True)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIsInstance(problems[0], main.Awaiting)
+        # Not skipped, the copy is refused; it is not said to fail with the skip too, which it does not.
+        problems = self.checked(main.changelog_command, skip_unreadable_releases=False)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("names it as not compared instead", problems[0])
+        self.assertNotIn("fails either way", problems[0])
+
+    def test_a_branch_merely_ending_in_the_release_branch_s_name_is_not_its_release_branch(self):
+        self.git("branch", "-q", "-D", "aside")
+        for name in ("prerelease/0.2.0", "team/release/0.2.0"):
+            with self.subTest(name):
+                self.git("branch", "-q", "-m", "release/0.2.0", name)
+                problems = self.ancestry()
+                self.git("branch", "-q", "-m", name, "release/0.2.0")
+                self.assertEqual(len(problems), 1, problems)
+                self.assertNotIsInstance(problems[0], main.Awaiting)
+                self.assertIn(f"{name} holds it", problems[0])
+
+    def test_a_branch_named_outside_ascii_is_named_under_an_ascii_locale(self):
+        """The script restarts itself in UTF-8 mode: started outside it, decoding git's output ended in a traceback.
+        Locale coercion and UTF-8 mode are both turned off, as a `C` locale would otherwise have them on.
+        `-X utf8=0` on the command line is overruled too."""
+        self.git("branch", "-q", "-D", "aside")
+        self.git("branch", "-q", "-m", "release/0.2.0", "café")
+        ascii_only = {**os.environ, "LC_ALL": "C", "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0"}
+        for options in ([], ["-X", "utf8=0"]):
+            with self.subTest(options):
+                run = subprocess.run([sys.executable, *options, str(SCRIPT), "ancestry", "--tag-prefix", "v"],
+                                     cwd=self.here, env=ascii_only, capture_output=True)
+                said = run.stderr.decode("utf-8")
+                self.assertEqual(run.returncode, 1, said)
+                self.assertNotIn("Traceback", said)
+                self.assertIn("café holds it", said)
+
+    def test_a_fetched_remote_branch_not_named_for_the_release_rules_out_the_local_one(self):
+        """The local branches are asked only where no fetched branch holds the tag, as holder() asks them."""
+        self.git("update-ref", "refs/remotes/origin/aside", "aside")
+        problems = self.ancestry()
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+        self.assertIn("origin/aside holds it", problems[0])
+
+    def test_a_changelog_line_not_read_leaves_ancestry_its_own_report(self):
+        """ancestry reads CHANGELOG.md only to tell a release on its way; a tree it cannot read cannot tell."""
+        self.commit("## [0.1.0] - 2026-01-01\n\n> A\n")
+        status, said = self.exit_of("ancestry")
+        self.assertEqual(status, 1, said)
+        self.assertIn("release/0.2.0 holds it", said)
+
+    def test_a_changelog_that_is_not_utf_8_leaves_ancestry_its_own_report(self):
+        (self.here / "CHANGELOG.md").write_bytes(b"# Changelog\n\n## [0.1.0] - 2026-01-01\n\n- caf\xe9\n")
+        self.git("commit", "-q", "-am", "latin-1")
+        status, said = self.exit_of("ancestry")
+        self.assertEqual(status, 1, said)
+        self.assertIn("release/0.2.0 holds it", said)
+
+    def test_a_release_tagged_on_a_merge_with_a_parent_off_this_history_is_failed(self):
+        """Every parent has to be on this history, not one of them: `side` was never taken into main."""
+        self.git("switch", "-q", "-c", "side")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A, on a side\n")
+        self.git("switch", "-q", "-c", "release/0.3.0", "main")
+        self.git("merge", "-q", "--no-ff", "-m", "chore(release): 0.3.0", "side")
+        self.git("tag", "v0.3.0")
+        self.git("switch", "-q", "main")
+        problems = [problem for problem in self.ancestry() if "v0.3.0" in problem]
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+
+    def test_no_count_of_other_tags_where_there_is_none(self):
+        self.git("tag", "-d", "v0.1.0")
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), contextlib.redirect_stderr(io.StringIO()):
+            problems = main.ancestry_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                                tag_prefix="v"))
+        self.assertEqual([isinstance(problem, main.Awaiting) for problem in problems], [True])
+        self.assertNotIn("released tag(s)", printed.getvalue())
+
+    def test_a_release_tagged_on_a_commit_with_no_parent_is_failed(self):
+        """Cut from no history at all, it cannot be told from a release on its way here."""
+        self.git("switch", "-q", "--orphan", "release/0.3.0")
+        self.commit("## [0.3.0] - 2026-03-01\n\n- C\n")
+        self.git("tag", "v0.3.0")
+        self.git("switch", "-q", "main")
+        problems = [problem for problem in self.ancestry() if "v0.3.0" in problem]
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+
+    def test_a_release_no_release_branch_holds_is_failed(self):
+        self.git("branch", "-q", "-D", "release/0.2.0")
+        for problems in (self.ancestry(), self.changelog()):
+            self.assertFalse(any(isinstance(problem, main.Awaiting) for problem in problems), problems)
+            self.assertTrue(problems)
+
+    def test_a_squash_or_a_rebase_that_brought_its_section_is_failed(self):
+        """The copy brings the section with it; the tag is left on the original, which the release branch holds."""
+        self.git("commit", "-q", "--allow-empty", "-m", "meanwhile")  # Or the copy would be the original itself.
+        self.commit("## [0.2.0] - 2026-02-01\n\n- B\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        problems = self.ancestry()
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+        self.assertIn("release/0.2.0 holds it", problems[0])
+
+    def test_a_release_cut_from_a_history_since_rewritten_is_failed(self):
+        """main's commit the release was cut from is replaced, as a force-push would, so v0.2.0's parent is gone."""
+        self.git("commit", "-q", "--amend", "-m", "rewritten")
+        problems = self.ancestry()
+        self.assertEqual(len(problems), 2, problems)
+        self.assertFalse(any(isinstance(problem, main.Awaiting) for problem in problems), problems)
+
+    def test_a_tree_without_a_changelog_cannot_tell_and_fails(self):
+        self.git("rm", "-q", "CHANGELOG.md")
+        self.git("commit", "-q", "-m", "no changelog")
+        status, said = self.exit_of("ancestry")
+        self.assertEqual(status, 1, said)
+        self.assertIn("release/0.2.0 holds it", said)
+
+    def exit_of(self, *arguments):
+        run = subprocess.run([sys.executable, str(SCRIPT), *arguments, "--tag-prefix", "v"],
+                             cwd=self.here, capture_output=True, text=True)
+        return run.returncode, run.stderr
+
+    def test_a_check_that_found_only_that_exits_with_its_own_status(self):
+        for check in ("ancestry", "changelog"):
+            status, said = self.exit_of(check)
+            self.assertEqual(status, main.AWAITING, said)
+            self.assertIn("no release can be prepared from here before then", said)
+
+    def test_a_check_that_found_more_exits_as_a_failure(self):
+        self.git("switch", "-q", "-c", "other")
+        self.commit("## [0.1.1] - 2026-01-15\n\n- C\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        self.git("tag", "v0.1.1")  # Off main, and held by `other` alone.
+        self.git("switch", "-q", "main")
+        status, said = self.exit_of("ancestry")
+        self.assertEqual(status, 1, said)
+        self.assertIn("v0.2.0 is released, and has yet to land here", said)
+        self.assertNotIn("no release can be prepared", said)
+
+
+class AReleaseLandedAfterThisCommit(TwoReleasesOneOffMain):
+    """`window` is pushed to main while merge-back runs, and checked only once v0.2.0 has landed:
+    a re-run, or a run that waited in a queue.
+    The fetched main holds the tag through merge-back's merge, and `release/0.2.0` is gone.
+    Given the default branch, every check reports that as an Awaiting problem; without it, it is failed, as before."""
+
+    def setUp(self):
+        super().setUp()
+        (self.here / "window.txt").write_text("pushed while merge-back ran\n", encoding="utf-8")
+        self.git("add", "window.txt")
+        self.git("commit", "-q", "-m", "window")
+        self.git("switch", "-q", "-c", "landed")
+        self.git("merge", "-q", "--no-ff", "-m", "chore(release): carry 0.2.0 back", "release/0.2.0")
+        self.git("update-ref", "refs/remotes/origin/main", "landed")
+        self.git("switch", "-q", "main")
+        self.git("branch", "-q", "-D", "landed", "release/0.2.0", "aside")
+
+    def checked(self, command, default_branch="main", version_source="tags", tag_prefix="v", snapshot_suffix=None,
+                **options):
+        arguments = argparse.Namespace(version_source=version_source, tag_prefix=tag_prefix,
+                                       default_branch=default_branch,
+                                       snapshot_suffix=snapshot_suffix, **{"html_notes": False, **options})
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return command(arguments)
+
+    def test_every_check_awaits_it(self):
+        (self.here / "gradle.properties").write_text("version = 0.2.0-SNAPSHOT\n", encoding="utf-8")
+        for problems in (self.checked(main.ancestry_command),
+                         self.checked(main.changelog_command, skip_unreadable_releases=False),
+                         self.checked(main.version_command, version=None, version_source="gradle.properties",
+                                      tag_prefix="v", snapshot_suffix="-SNAPSHOT")):
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIsInstance(problems[0], main.Awaiting)
+            self.assertIn("landed on origin/main after this commit's history left it", problems[0])
+
+    def test_without_the_default_branch_it_is_failed_as_before(self):
+        problems = self.checked(main.ancestry_command, default_branch=None)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+        # Nothing but the branch: neither a squash nor a rewrite took it off here, the history is only older.
+        self.assertEqual("v0.2.0 is released but is not on this history: origin/main holds it", problems[0])
+        (self.here / "gradle.properties").write_text("version = 0.2.0-SNAPSHOT\n", encoding="utf-8")
+        problems = self.checked(main.version_command, snapshot_suffix="-SNAPSHOT", default_branch=None, version=None,
+                                version_source="gradle.properties", tag_prefix="v")
+        self.assertFalse(any(isinstance(problem, main.Awaiting) for problem in problems), problems)
+        self.assertIn("released already", " ".join(problems))
+
+    def test_another_branch_named_as_the_default_is_failed(self):
+        problems = self.checked(main.ancestry_command, default_branch="master")
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+
+    def test_a_local_default_branch_holds_it_where_no_remote_one_does(self):
+        self.git("branch", "-q", "landed", "origin/main")
+        self.git("update-ref", "-d", "refs/remotes/origin/main")
+        problems = self.checked(main.ancestry_command, default_branch="landed")
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIsInstance(problems[0], main.Awaiting)
+        self.assertIn("landed on landed after this commit's history left it", problems[0])
+
+    def test_a_default_branch_holding_a_copy_of_the_release_is_failed(self):
+        """A squash merge leaves the default branch a copy of the release commit, and the tag on no branch."""
+        self.git("switch", "-q", "-c", "squashed", "main")
+        self.git("merge", "-q", "--squash", "v0.2.0")
+        self.git("commit", "-q", "-m", "chore(release): 0.2.0, squashed")
+        self.git("update-ref", "refs/remotes/origin/main", "squashed")
+        self.git("switch", "-q", "main")
+        self.git("branch", "-q", "-D", "squashed")
+        problems = self.checked(main.ancestry_command)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+        self.assertIn("no longer reachable", problems[0])
+
+    def test_a_commit_off_the_history_the_release_was_cut_from_is_failed(self):
+        """A history rewritten below where the release was cut: its tag's parent is not on it."""
+        self.git("switch", "-q", "--orphan", "rewritten")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A, rewritten\n")
+        problems = [problem for problem in self.checked(main.ancestry_command) if "v0.2.0" in problem]
+        self.assertEqual(len(problems), 1, problems)
+        self.assertNotIsInstance(problems[0], main.Awaiting)
+
+    def test_a_release_failed_is_reported_with_the_default_branch_that_holds_it(self):
+        """`origin/aside` holds the tag too and sorts first, so an ancestry that did not hand the default branch on
+        would name it."""
+        self.git("update-ref", "refs/remotes/origin/aside", "origin/main")
+        self.git("switch", "-q", "--orphan", "rewritten")
+        self.commit("## [0.1.0] - 2026-01-01\n\n- A, rewritten\n")
+        problems = [problem for problem in self.checked(main.ancestry_command) if "v0.2.0" in problem]
+        self.assertEqual(problems, ["v0.2.0 is released but is not on this history: origin/main holds it"])
+
+    def test_it_exits_with_its_own_status(self):
+        for check in ("ancestry", "changelog"):
+            run = subprocess.run([sys.executable, str(SCRIPT), check, "--tag-prefix", "v",
+                                  "--default-branch", "main"], cwd=self.here, capture_output=True, text=True)
+            self.assertEqual(run.returncode, main.AWAITING, run.stderr)
+            self.assertIn("landed on origin/main after this commit's history left it", run.stderr)
+            self.assertIn("The release is on the default branch already: a check of a commit that takes it in "
+                          "settles it.", run.stderr)
+            self.assertNotIn("lands here once merge-back carries it back", run.stderr)
+
+    def test_one_landed_and_one_yet_to_land_get_a_closing_word_each(self):
+        """v0.1.1 is published from `release/0.1.1`, cut from main's v0.1.0, and has yet to land."""
+        self.git("switch", "-q", "-c", "release/0.1.1", "v0.1.0")
+        self.commit("## [0.1.1] - 2026-01-15\n\n- C\n\n## [0.1.0] - 2026-01-01\n\n- A\n")
+        self.git("tag", "v0.1.1")
+        self.git("switch", "-q", "main")
+        run = subprocess.run([sys.executable, str(SCRIPT), "ancestry", "--tag-prefix", "v",
+                              "--default-branch", "main"], cwd=self.here, capture_output=True, text=True)
+        self.assertEqual(run.returncode, main.AWAITING, run.stderr)
+        self.assertIn("v0.1.1 is released, and has yet to land here", run.stderr)
+        self.assertIn("landed on origin/main after this commit's history left it", run.stderr)
+        self.assertIn("For a release on the default branch already, a check of a commit that takes it in settles it. "
+                      "One yet to land lands here once merge-back carries it back", run.stderr)
+
+
+class WhatAReleaseCommitRecords(TwoReleasesOneOffMain):
+    """The settings release-flow/prepare records in a release commit as git trailers, read back for merge-back."""
+
+    RECORDED = "Release-CI-Version: 0.3.0\nRelease-CI-Version-Source: gradle.properties:appVersion\n" \
+               "Release-CI-Tag-Prefix: v\nRelease-CI-Snapshot-Suffix: -SNAPSHOT\n"
+
+    def release(self, trailers: str, tag: str = "v0.3.0") -> None:
+        self.git("commit", "-q", "--allow-empty", "-m", f"chore(release): 0.3.0\n\n{trailers}")
+        self.git("tag", tag)
+
+    def test_each_setting_is_read_by_its_name(self):
+        self.release(self.RECORDED + "Release-CI-Skip-Unreadable-Releases: true\n")
+        self.assertEqual(main.settings_of("v0.3.0"),
+                         {"version": "0.3.0", "version-source": "gradle.properties:appVersion", "tag-prefix": "v",
+                          "snapshot-suffix": "-SNAPSHOT", "skip-unreadable-releases": "true"})
+
+    def test_a_key_is_matched_whatever_its_case_as_git_matches_it(self):
+        self.release(self.RECORDED.lower().replace("gradle.properties:appversion", "tags"))
+        self.assertEqual(main.settings_of("v0.3.0")["version-source"], "tags")
+
+    def test_a_tag_other_than_the_recorded_one_is_refused(self):
+        """A draft's tag renamed before publishing, or another tag on the same commit."""
+        self.release(self.RECORDED, tag="v0.3.1")
+        with self.assertRaises(SystemExit) as refused:
+            main.settings_of("v0.3.1")
+        self.assertIn("v0.3.1 names the release commit of 0.3.0, which is tagged v0.3.0", str(refused.exception))
+
+    def test_no_prefix_is_recorded_as_none(self):
+        self.release(self.RECORDED.replace("Tag-Prefix: v", "Tag-Prefix: ^none"), tag="0.3.0")
+        self.assertEqual(main.settings_of("0.3.0")["tag-prefix"], "^none")
+
+    def test_a_commit_recording_nothing_one_setting_twice_or_one_short_is_refused(self):
+        for trailers, said in (("", "with no Release-CI-Version, Release-CI-Version-Source, Release-CI-Tag-Prefix"),
+                               (self.RECORDED + "Release-CI-Tag-Prefix: w\n",
+                                "records Release-CI-Tag-Prefix more than once"),
+                               (self.RECORDED.replace("Release-CI-Tag-Prefix: v\n", ""),
+                                "records no Release-CI-Tag-Prefix"),
+                               (self.RECORDED.replace("Release-CI-Snapshot-Suffix: -SNAPSHOT\n", ""),
+                                "records no Release-CI-Snapshot-Suffix")):
+            with self.subTest(said):
+                self.release(trailers or "Signed-off-by: t <t@t>", tag=f"t{len(trailers)}")
+                with self.assertRaises(SystemExit) as refused:
+                    main.settings_at(f"t{len(trailers)}")
+                self.assertIn(said, str(refused.exception))
+
+    def test_a_ref_naming_no_commit_is_refused(self):
+        with self.assertRaises(SystemExit) as refused:
+            main.settings_at("v9.9.9")
+        self.assertIn("v9.9.9 names no commit here", str(refused.exception))
+
+
+class TheTagPrefix(TwoReleasesOneOffMain):
+    """What release tags carry in front of the version: the prefix the nearest release recorded, or the one given.
+
+    main holds v0.1.0, tagged before release-flow/prepare recorded anything."""
+
+    def release(self, version: str, prefix: str = "v", tag: str | None = None, annotated: bool = False) -> None:
+        """A release commit as release-flow/prepare records it under `tags`, tagged as recorded unless `tag` is
+        given."""
+        self.git("commit", "-q", "--allow-empty", "-m",
+                 f"chore(release): {version}\n\nRelease-CI-Version: {version}\nRelease-CI-Version-Source: tags\n"
+                 f"Release-CI-Tag-Prefix: {prefix or '^none'}\n")
+        self.git("tag", *(["-a", "-m", "annotated"] if annotated else []), tag or f"{prefix}{version}")
+
+    def test_before_any_release_records_one_it_has_to_be_given(self):
+        with self.assertRaises(SystemExit) as refused:
+            prefix_from(None)
+        self.assertIn("until a release records it, and HEAD reaches none that does", str(refused.exception))
+        self.assertIn("tag-prefix input", str(refused.exception))
+        self.assertEqual(prefix_from("v"), "v")
+        self.assertEqual(prefix_from(""), "")
+
+    def test_none_with_a_caret_is_no_prefix(self):
+        """`^none` is how the actions say "no prefix", and they pass it on as given."""
+        self.assertEqual(prefix_from("^none"), "")
+
+    def test_the_nearest_release_names_it(self):
+        self.release("0.3.0", prefix="rel-")
+        self.assertEqual(prefix_from(None), "rel-")
+        self.release("0.4.0", prefix="")
+        self.assertEqual(prefix_from(None), "")
+
+    def test_an_annotated_tag_and_a_tag_on_a_tag_are_read_as_well(self):
+        """Git reads the trailers of an annotated tag's commit one level down only, so a tag on a tag is asked
+        about on its own."""
+        self.release("0.3.0", prefix="rel-", annotated=True)
+        self.assertEqual(prefix_from(None), "rel-")
+        self.git("tag", "-d", "rel-0.3.0")
+        self.git("tag", "-a", "-m", "below", "below", "HEAD")
+        self.git("tag", "-a", "-m", "on a tag", "rel-0.3.0", "below")
+        self.assertEqual(prefix_from(None), "rel-")
+
+    def test_another_tag_on_a_release_commit_is_passed_over(self):
+        """Its name is not the one the commit records, as a draft's tag renamed before it was published."""
+        self.release("0.3.0", prefix="rel-", tag="0.3.0")
+        self.assertEqual(prefix_from("^none"), "")
+        with self.assertRaises(SystemExit):
+            prefix_from(None)
+
+    def test_a_prefix_given_chooses_among_the_releases_of_several(self):
+        """One history releasing two things, each under a prefix of its own.
+        A prefix that begins another, as `v` begins `vscode-`, reads none of the other's tags."""
+        self.release("1.2.0", prefix="v")
+        self.release("0.4.0", prefix="vscode-")
+        self.assertEqual(prefix_from(None), "vscode-")
+        self.assertEqual(prefix_from("v"), "v")
+        self.assertEqual(main.nearest_release("v")[0], "v1.2.0")
+        self.release("2.0.0", prefix="")
+        self.assertEqual(main.nearest_release("")[0], "2.0.0")
+        self.assertEqual(main.nearest_release("vscode-")[0], "vscode-0.4.0")
+
+    def test_a_prefix_changed_is_taken_as_given(self):
+        """The new prefix finds no release of its own, so nothing tells it from a prefix mistyped."""
+        self.release("0.3.0", prefix="v")
+        self.assertEqual(prefix_from("w"), "w")
+
+    def test_a_release_the_prefix_given_reads_as_its_own_but_recorded_otherwise_is_refused(self):
+        """`a1.2.3-1.2.3` is `a` and the version `1.2.3-1.2.3`, or `a1.2.3-` and `1.2.3`, which its commit records."""
+        self.release("1.2.3", prefix="a1.2.3-")
+        self.assertEqual(prefix_from(None), "a1.2.3-")
+        with self.assertRaises(SystemExit) as refused:
+            prefix_from("a")
+        self.assertIn("a1.2.3-1.2.3 is a release tag under the prefix 'a', which --tag-prefix gives, but its commit "
+                      "records the prefix 'a1.2.3-'", str(refused.exception))
+
+    def test_a_release_that_records_a_setting_twice_is_refused(self):
+        """Without a prefix given, its record is all that says whether it is a release, so it cannot be passed
+        over."""
+        self.git("commit", "-q", "--allow-empty", "-m", "chore(release): 0.3.0\n\nRelease-CI-Version: 0.3.0\n"
+                 "Release-CI-Version-Source: tags\nRelease-CI-Tag-Prefix: v\nRelease-CI-Tag-Prefix: w\n")
+        self.git("tag", "v0.3.0")
+        with self.assertRaises(SystemExit) as refused:
+            prefix_from(None)
+        self.assertIn("v0.3.0 names a commit that records Release-CI-Tag-Prefix more than once", str(refused.exception))
+        self.assertEqual(prefix_from("w"), "w")
+
+    def test_prefix_prints_it_and_takes_no_source(self):
+        self.release("0.3.0", prefix="rel-")
+        run = subprocess.run([sys.executable, str(SCRIPT), "prefix"], cwd=self.here, capture_output=True, text=True)
+        self.assertEqual((run.returncode, run.stdout), (0, "rel-\n"), run.stderr)
+
+
+class TheSuffixAReleaseRecorded(TwoReleasesOneOffMain):
+    """Which suffix `version` takes off the declared version: the one the nearest recorded release names.
+
+    main holds v0.1.0, tagged before release-flow/prepare recorded anything, as every release of an older version
+    of this repository was."""
+
+    def release(self, version: str, suffix: str | None, prefix: str = "v") -> None:
+        """A release commit as release-flow/prepare records it, tagged; with no suffix, as made under `tags`."""
+        recorded = (f"Release-CI-Version-Source: gradle.properties\nRelease-CI-Snapshot-Suffix: {suffix}\n"
+                    if suffix is not None else "Release-CI-Version-Source: tags\n")
+        self.git("commit", "-q", "--allow-empty", "-m",
+                 f"chore(release): {version}\n\nRelease-CI-Version: {version}\n{recorded}"
+                 f"Release-CI-Tag-Prefix: {prefix}\n")
+        self.git("tag", f"{prefix}{version}")
+
+    def version(self, declared: str, given: str | None) -> tuple[list[str], str]:
+        """`version` over gradle.properties declaring `declared`, with `--snapshot-suffix` as `given`,
+        as check-release and release-flow/prepare pass their input."""
+        (self.here / "gradle.properties").write_text(f"version = {declared}\n", encoding="utf-8")
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), contextlib.redirect_stderr(io.StringIO()):
+            problems = main.version_command(argparse.Namespace(
+                default_branch=None, version=None, version_source="gradle.properties", tag_prefix="v",
+                snapshot_suffix=given))
+        return problems, printed.getvalue().strip()
+
+    def test_with_none_recorded_prepare_takes_off_the_suffix_it_is_given(self):
+        """The first release after moving to a prepare that records, or a project's first release at all."""
+        self.assertEqual(self.version("0.2.1-SNAPSHOT", "-SNAPSHOT"), ([], "0.2.1"))
+        self.assertEqual(self.version("0.2.1", "^none"), ([], "0.2.1"))
+
+    def test_after_a_release_under_tags_the_suffix_given_comes_off(self):
+        """That release started no next version, so its record names no suffix the declared version carries."""
+        self.release("0.3.0", None)
+        self.assertEqual(self.version("0.3.1-SNAPSHOT", "-SNAPSHOT"), ([], "0.3.1"))
+
+    def test_the_suffix_recorded_wins_over_the_one_given(self):
+        """The declared version was started by the recorded release's prepare, with that release's suffix.
+        A suffix given now goes into the next record, and shows from the next version on."""
+        self.release("0.3.0", "-SNAPSHOT")
+        self.assertEqual(self.version("0.3.1-SNAPSHOT", "^none"), ([], "0.3.1"))
+        self.assertEqual(self.version("0.3.1-SNAPSHOT", "-dev"), ([], "0.3.1"))
+
+    def test_a_suffix_recorded_as_none_takes_nothing_off(self):
+        self.release("0.3.0", "^none")
+        self.assertEqual(self.version("0.3.1", "-SNAPSHOT"), ([], "0.3.1"))
+
+    def test_the_nearest_recorded_release_is_read_not_the_highest(self):
+        """A hotfix line: 0.4.1 was released after 0.5.0-beta.1, nearer to HEAD and lower."""
+        self.release("0.5.0-beta.1", "-a")
+        self.release("0.4.1", "-b")
+        self.assertEqual(main.nearest_release("v")[1]["snapshot-suffix"], "-b")
+
+    def test_a_nearer_tag_recording_nothing_is_passed_over(self):
+        self.release("0.3.0", "-dev")
+        self.git("commit", "-q", "--allow-empty", "-m", "made by hand")
+        self.git("tag", "v0.3.1")
+        self.assertEqual(main.nearest_release("v")[1]["version"], "0.3.0")
+
+    def test_of_two_as_near_the_higher_version_is_read(self):
+        """HEAD merges two release lines, each tagged one commit below it."""
+        self.git("switch", "-q", "-c", "lower")
+        self.release("0.3.1", "-a")
+        self.git("switch", "-q", "main")
+        self.release("0.4.0", "-b")
+        self.git("merge", "-q", "--no-ff", "-m", "both", "lower")
+        self.assertEqual(main.nearest_release("v")[1]["snapshot-suffix"], "-b")
+        self.git("reset", "-q", "--hard", "HEAD~1")
+        self.git("switch", "-q", "lower")
+        self.git("merge", "-q", "--no-ff", "-m", "both", "main")
+        self.assertEqual(main.nearest_release("v")[1]["snapshot-suffix"], "-b")
+
+    def test_a_nearer_tag_under_another_prefix_is_passed_over(self):
+        self.release("0.3.0", "-dev")
+        self.release("0.4.0", "-other", prefix="other/")
+        self.assertEqual(main.nearest_release("v")[1]["version"], "0.3.0")
+
+    def test_a_suffix_left_out_or_empty_is_refused_under_a_declaring_source(self):
+        """A required input GitHub does not enforce arrives empty, and a call of lib/main.py may leave it out."""
+        self.release("0.3.0", "-SNAPSHOT")
+        for given in (None, ""):
+            with self.subTest(given=given), self.assertRaises(SystemExit) as refused:
+                self.version("0.3.1-SNAPSHOT", given)
+            self.assertIn("--snapshot-suffix is required under gradle.properties", str(refused.exception))
+
+    def test_a_suffix_given_under_tags_is_refused(self):
+        with self.assertRaises(SystemExit) as refused, contextlib.redirect_stdout(io.StringIO()):
+            main.version_command(argparse.Namespace(default_branch=None, version="0.3.0", version_source="tags",
+                                                    tag_prefix="v", snapshot_suffix="-SNAPSHOT"))
+        self.assertIn("tags keeps no version between releases", str(refused.exception))
+
+
+class WritingTheVersionBack(unittest.TestCase):
+    """`set-version` against a file on disk, where the line endings and the read-back matter."""
+
+    def properties_file_holding(self, text: str) -> Path:
+        here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        (here / "gradle.properties").write_bytes(text.encode("utf-8"))
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        return here / "gradle.properties"
+
+    def set_version(self, version: str) -> list[str]:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return main.set_version_command(
+                argparse.Namespace(version=version, version_source="gradle.properties"))
+
+    def test_a_crlf_file_stays_crlf(self):
+        """Read the way open() reads by default, every line would come back as LF.
+        The release commit would then rewrite the whole file to change one line."""
+        path = self.properties_file_holding("group=a\r\nversion=0.1.1-SNAPSHOT\r\nname=b\r\n")
+        self.assertEqual(self.set_version("0.1.1"), [])
+        self.assertEqual(path.read_bytes(), b"group=a\r\nversion=0.1.1\r\nname=b\r\n")
+
+    def test_a_rewrite_that_did_not_take_is_caught_on_reading_back(self):
+        """The read-back catches a writer and a reader that have come to disagree, which would otherwise fail
+        silently.
+        A writer that changes nothing stands in for that here."""
+        self.properties_file_holding("version = 0.1.1-SNAPSHOT\n")
+        with unittest.mock.patch.object(main.SOURCES["gradle.properties"], "with_version",
+                                        lambda text, version: text):
+            problems = self.set_version("0.1.1")
+        self.assertTrue(problems)
+        self.assertIn("still does not name 0.1.1", problems[0])
+
+    def test_a_write_that_did_not_reach_the_file_is_caught_on_reading_back(self):
+        """The other case the read-back is for: a rewrite that is right in memory but never reaches the file.
+        A check over the rewritten text would pass it."""
+        self.properties_file_holding("version = 0.1.1-SNAPSHOT\n")
+        real_open = open
+
+        def dropping_writes(file, mode="r", *arguments, **keywords):
+            return io.StringIO() if "w" in mode else real_open(file, mode, *arguments, **keywords)
+
+        with unittest.mock.patch.object(main, "open", dropping_writes, create=True):
+            problems = self.set_version("0.1.1")
+        self.assertTrue(problems)
+        self.assertIn("still does not name 0.1.1", problems[0])
+
+    def test_a_version_outside_latin_1_is_written_escaped_rather_than_breaking_the_file(self):
+        """A character with no byte in the file's encoding would stop the write halfway, with the file already
+        emptied.
+        It is escaped instead, as Properties.store(OutputStream) escapes it, and reads back as it was given."""
+        path = self.properties_file_holding("version = 0.1.1-SNAPSHOT\n")
+        self.assertEqual(self.set_version("0.1.1-\u20ac"), [])
+        self.assertEqual(path.read_bytes(), b"version = 0.1.1-\\u20AC\n")
+
+    def test_a_lone_surrogate_in_the_version_leaves_the_file_as_it_was(self):
+        """A lone surrogate handed to set_version_command directly is refused by stored().
+        That happens before the file is opened for writing, so the file is left as it was, not emptied.
+        From the command line, main() refuses it before it gets this far."""
+        path = self.properties_file_holding("version = 0.1.1-SNAPSHOT\n")
+        with self.assertRaises(UnicodeEncodeError):
+            self.set_version("0.1.1-\udcff")
+        self.assertEqual(path.read_bytes(), b"version = 0.1.1-SNAPSHOT\n")
+
+    def test_a_comment_or_a_value_in_any_encoding_comes_back_in_its_own_bytes(self):
+        """Gradle reads gradle.properties one byte to one character.
+        So a comment in UTF-8, one in Latin-1, one holding every byte above ASCII, and a value in UTF-8
+        are all as good as ASCII to it.
+        A release leaves each of them exactly as it was."""
+        path = self.properties_file_holding("")
+        path.write_bytes("# sestaven\u00ed\n".encode("utf-8") + "# sestaven\u00ed\n".encode("iso-8859-1")
+                         + b"# " + bytes(range(0x80, 0x100)) + b"\ndescription = " + "sestaven\u00ed".encode("utf-8")
+                         + b"\nversion = 0.1.1-SNAPSHOT\n")
+        before = path.read_bytes()
+        self.assertEqual(self.set_version("0.1.1"), [])
+        self.assertEqual(path.read_bytes(), before.replace(b"0.1.1-SNAPSHOT", b"0.1.1"))
+
+
+class TheCommandSource(unittest.TestCase):
+    """`--version-source command`: the project's own commands read and write the version, and main.py runs them."""
+
+    WRITE = 'printf \'version: %s\\n\' "$VERSION" > version.txt'
+    READ = "sed -n 's/^version: //p' version.txt"
+
+    def setUp(self):
+        self.here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        subprocess.run(["git", "init", "-q"], cwd=self.here, check=True)
+        (self.here / "version.txt").write_text("version: 0.1.1-SNAPSHOT\n", encoding="utf-8")
+        original = repository.REPO
+        repository.REPO = self.here
+        self.addCleanup(setattr, repository, "REPO", original)
+
+    def set_version(self, version, read=READ, write=WRITE):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return main.set_version_command(argparse.Namespace(version=version, version_source="command",
+                                                               version_read_command=read,
+                                                               version_write_command=write))
+
+    def test_the_version_is_written_and_read_back(self):
+        self.assertEqual(main.declared_version("command", self.READ), "0.1.1-SNAPSHOT")
+        self.assertEqual(self.set_version("0.1.1"), [])
+        self.assertEqual((self.here / "version.txt").read_text(encoding="utf-8"), "version: 0.1.1\n")
+
+    def test_the_version_is_handed_over_as_data(self):
+        """Put into the text of the command, the quote would end a string and `$(…)` would run."""
+        given = "0.1.1-a'b$(touch ran)"
+        self.assertEqual(self.set_version(given), [])
+        self.assertEqual(main.declared_version("command", self.READ), given)
+        self.assertFalse((self.here / "ran").exists())
+
+    def test_the_read_command_is_not_given_the_version(self):
+        """A read command using VERSION would print the version handed in, and a release would trust it."""
+        with unittest.mock.patch.dict(os.environ, {"VERSION": "9.9.9"}):
+            self.assertEqual(main.declared_version("command", 'printf "%s" "${VERSION-none}"'), "none")
+
+    def test_a_write_that_did_not_take_is_caught_on_reading_back(self):
+        problems = self.set_version("0.1.1", write="true")
+        self.assertEqual(problems, ["command still does not name 0.1.1 after being rewritten"])
+
+    def test_a_read_command_that_fails_or_prints_no_one_line_is_refused(self):
+        for read, saying in (("exit 3", "exited with 3"), ("echo", "printed ''"), ("printf '1\\n2\\n'", "printed"),
+                             ("echo ' 1.0.0'", "not a version on one line")):
+            with self.subTest(read), self.assertRaises(SystemExit) as refused:
+                main.declared_version("command", read)
+            self.assertIn(saying, str(refused.exception))
+            self.assertIn(read, str(refused.exception), "the command is named, so it can be found in the workflow")
+
+    def test_what_a_failing_read_command_prints_is_shown(self):
+        """Maven prints its errors on stdout, which is otherwise taken for the version.
+        On a line of its own, ended or not, so the refusal after it does not run on from it."""
+        for read in ("echo the pom does not parse; exit 1", "printf 'the pom does not parse'; exit 1"):
+            with self.subTest(read):
+                done = subprocess.run([sys.executable, str(SCRIPT), "version", "--version-source", "command",
+                                       "--version-read-command", read, "--tag-prefix", "v",
+                                       "--snapshot-suffix=-SNAPSHOT"], cwd=self.here, capture_output=True, text=True)
+                self.assertEqual(done.returncode, 1)
+                self.assertIn("the pom does not parse\nthe command reading the version exited with 1", done.stderr)
+
+    def test_a_write_command_that_fails_is_refused_before_anything_is_read_back(self):
+        with self.assertRaises(SystemExit) as refused:
+            self.set_version("0.1.1", write="exit 5")
+        self.assertIn("the command writing 0.1.1 exited with 5", str(refused.exception))
+
+    def test_a_command_left_out_is_refused_by_its_option(self):
+        with self.assertRaises(SystemExit) as refused:
+            main.declared_version("command")
+        self.assertIn("--version-read-command", str(refused.exception))
+        with self.assertRaises(SystemExit) as refused:
+            self.set_version("0.1.1", write=None)
+        self.assertIn("--version-write-command", str(refused.exception))
+
+    def test_commands_given_to_a_source_that_takes_none_are_refused(self):
+        """Under `tags` too, which declares no version: set-version refuses the command, not exits with nothing to
+        write, which a caller takes as safe to go on from."""
+        for source in ("gradle.properties", "tags"):
+            with self.subTest(source), self.assertRaises(SystemExit) as refused:
+                main.adapter_of(source, self.READ)
+            self.assertIn(f"{source} reads no commands", str(refused.exception))
+        with self.assertRaises(SystemExit) as refused:
+            main.set_version_command(argparse.Namespace(version="0.1.1", version_source="tags",
+                                                        version_read_command=None, version_write_command=self.WRITE))
+        self.assertIn("tags reads no commands", str(refused.exception))
+
+    def test_what_the_write_command_prints_stays_off_the_output(self):
+        """release-flow takes set-version's output for the version written."""
+        done = subprocess.run([sys.executable, str(SCRIPT), "set-version", "0.1.1", "--version-source", "command",
+                               "--version-read-command", self.READ,
+                               "--version-write-command", "echo noise; " + self.WRITE],
+                              cwd=self.here, capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual((done.stdout, done.stderr), ("0.1.1\n", "noise\n"))
+
+
+# A stand-in for Maven: it records how it was called, keeps the evaluated version in a file of its own,
+# and edits pom.xml the way versions:set and versions:set-property do, in the one shape the tests write.
+FAKE_MAVEN = """#!/bin/bash
+printf '%s\\n' "$0 $*" >> "$MAVEN_LOG"
+for argument; do
+  case $argument in -DnewVersion=*) new=${argument#*=} ;; -Dproperty=*) property=${argument#*=} ;; esac
+done
+case "$*" in
+  *maven-help-plugin*:evaluate*) printf '%s' "$(cat "$MAVEN_STATE")" ;;
+  *versions-maven-plugin*:set-property*)
+    sed -i "s|<$property>.*</$property>|<$property>$new</$property>|" pom.xml; printf '%s' "$new" > "$MAVEN_STATE" ;;
+  *versions-maven-plugin*:set\\ *)
+    sed -i "0,/<version>.*<\\/version>/s||<version>$new</version>|" pom.xml; printf '%s' "$new" > "$MAVEN_STATE" ;;
+esac
+"""
+
+
+class TheMavenSource(unittest.TestCase):
+    """`--version-source maven` and `maven:<property>`: the commands main.py runs, against a stand-in for Maven.
+
+    What Maven itself does with them was tried against Maven 3.9.9 and the pinned plugins, not here:
+    this repository's CI has neither Maven nor a JDK."""
+
+    POM = "<project>\n  <artifactId>a</artifactId>\n  <version>{}</version>\n{}</project>\n"
+
+    def setUp(self):
+        self.here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        self.bin, self.log, self.state = self.here / "bin", self.here / "maven.log", self.here / "evaluated"
+        self.work = self.here / "work"
+        self.bin.mkdir()
+        self.work.mkdir()
+        (self.bin / "mvn").write_text(FAKE_MAVEN, encoding="utf-8")
+        (self.bin / "mvn").chmod(0o755)
+        self.enterContext(unittest.mock.patch.dict(os.environ, {
+            "PATH": f"{self.bin}:{os.environ['PATH']}", "MAVEN_LOG": str(self.log), "MAVEN_STATE": str(self.state)}))
+        original = repository.REPO
+        repository.REPO = self.work
+        self.addCleanup(setattr, repository, "REPO", original)
+        self.pom("0.1.1-SNAPSHOT")
+
+    def pom(self, version, properties="", evaluated=None):
+        """A pom.xml committed as it stands between releases, with Maven evaluating its version as `evaluated`."""
+        (self.work / "pom.xml").write_text(self.POM.format(version, properties), encoding="utf-8")
+        self.state.write_text(evaluated or version, encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=self.work, check=True)
+        subprocess.run(["git", "add", "pom.xml"], cwd=self.work, check=True)
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "pom"], cwd=self.work,
+                       check=True)
+
+    def calls(self):
+        return self.log.read_text(encoding="utf-8").splitlines()
+
+    def set_version(self, version, source="maven"):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return main.set_version_command(argparse.Namespace(version=version, version_source=source))
+
+    def test_the_version_is_evaluated_in_the_root_alone_by_the_pinned_plugin(self):
+        self.assertEqual(main.declared_version("maven"), "0.1.1-SNAPSHOT")
+        self.assertEqual(self.calls(), [f"{self.bin}/mvn -B -q -N org.apache.maven.plugins:maven-help-plugin:3.5.2:"
+                                        "evaluate -Dexpression=project.version -DforceStdout"])
+
+    def test_the_project_s_own_wrapper_is_run_where_it_has_one(self):
+        """Executable or not: a wrapper checked in without its bit, as from Windows, is still the project's Maven.
+        An executable one runs under its own shebang, so the one here holds a bash array, which sh would refuse;
+        one without the bit is run with sh."""
+        for mode, wrapper in ((0o755, FAKE_MAVEN.replace("#!/bin/bash\n", '#!/bin/bash\nheld=("$@")\n', 1)),
+                              (0o644, FAKE_MAVEN)):
+            with self.subTest(oct(mode)):
+                (self.work / "mvnw").write_text(wrapper, encoding="utf-8")
+                (self.work / "mvnw").chmod(mode)
+                self.log.write_text("", encoding="utf-8")
+                main.declared_version("maven")
+                self.assertTrue(self.calls()[0].startswith("./mvnw -B -q -N "), self.calls())
+
+    def test_versions_set_writes_the_version_handed_over_as_data(self):
+        given = "0.1.1-a'b"
+        self.assertEqual(self.set_version(given), [])
+        self.assertIn(f"{self.bin}/mvn -B -q org.codehaus.mojo:versions-maven-plugin:2.16.2:set -DnewVersion={given} "
+                      "-DgenerateBackupPoms=false", self.calls())
+        self.assertIn(f"<version>{given}</version>", (self.work / "pom.xml").read_text(encoding="utf-8"))
+
+    def test_a_version_a_property_gives_is_refused_under_plain_maven(self):
+        """versions:set would put the version itself where ${revision} stood, and it would still read back right."""
+        self.pom("${revision}", "  <properties><revision>0.1.1-SNAPSHOT</revision></properties>\n", "0.1.1-SNAPSHOT")
+        with self.assertRaises(SystemExit) as refused:
+            self.set_version("0.1.1")
+        self.assertIn("the command writing 0.1.1 exited with 1", str(refused.exception))
+
+    def test_under_a_property_only_the_property_is_written(self):
+        self.pom("${revision}", "  <properties><revision>0.1.1-SNAPSHOT</revision></properties>\n", "0.1.1-SNAPSHOT")
+        self.assertEqual(self.set_version("0.1.1", "maven:revision"), [])
+        self.assertIn(f"{self.bin}/mvn -B -q org.codehaus.mojo:versions-maven-plugin:2.16.2:set-property "
+                      "-Dproperty=revision -DnewVersion=0.1.1 -DgenerateBackupPoms=false", self.calls())
+        self.assertEqual((self.work / "pom.xml").read_text(encoding="utf-8"), self.POM.format(
+            "${revision}", "  <properties><revision>0.1.1</revision></properties>\n"))
+
+    def test_commands_given_to_maven_are_refused(self):
+        with self.assertRaises(SystemExit) as refused:
+            main.adapter_of("maven", "cat VERSION")
+        self.assertIn("maven runs commands of its own", str(refused.exception))
+
+
+class ReadingTheFile(unittest.TestCase):
+    """The file a source names, read from disk in the encoding its format is read in."""
+
+    def test_gradle_properties_is_read_a_byte_to_a_character_as_gradle_reads_it(self):
+        """Gradle reads each byte of the file as the character with that code.
+        So no byte above ASCII is decoded as UTF-8 or through another single-byte table.
+        The version a release reads has to be the one the build sees."""
+        here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        (here / "gradle.properties").write_bytes(b"version = 0.1.1-" + bytes(range(0x80, 0x100)) + b"\n")
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        self.assertEqual(main.declared_version("gradle.properties"), "0.1.1-" + "".join(map(chr, range(0x80, 0x100))))
+
+
+class WritingTheChangelogBack(unittest.TestCase):
+    """`close-changelog` against a file; closed() itself is exercised over text in test_changelog.py."""
+
+    def changelog_file_holding(self, text: str) -> Path:
+        here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        (here / "CHANGELOG.md").write_bytes(text.encode("utf-8"))
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        return here / "CHANGELOG.md"
+
+    def test_a_crlf_file_stays_crlf(self):
+        """A CRLF file stays CRLF, for the same reason as in set-version:
+        a release commit should change one section of the file, not every line of it."""
+        path = self.changelog_file_holding("# Log\r\n\r\n## [Unreleased]\r\n\r\n### Added\r\n\r\n- A\r\n")
+        with contextlib.redirect_stdout(io.StringIO()):
+            problems = main.close_changelog_command(argparse.Namespace(
+                version="0.1.0", date="2026-09-21", repository_url=None, tag_prefix="v"))
+        self.assertEqual(problems, [])
+        self.assertEqual(path.read_bytes(),
+                         b"# Log\r\n\r\n## [Unreleased]\r\n\r\n## [0.1.0] - 2026-09-21\r\n\r\n### Added\r\n\r\n- A\r\n")
+
+    def test_a_file_of_lone_crs_stays_so(self):
+        """A lone CR ends a line, as open() reads one by default, and the file keeps its lone CRs instead of coming
+        back as LF."""
+        path = self.changelog_file_holding("# Log\r\r## [Unreleased]\r\r### Added\r\r- A\r")
+        with contextlib.redirect_stdout(io.StringIO()):
+            problems = main.close_changelog_command(argparse.Namespace(
+                version="0.1.0", date="2026-09-21", repository_url=None, tag_prefix="v"))
+        self.assertEqual(problems, [])
+        self.assertEqual(path.read_bytes(),
+                         b"# Log\r\r## [Unreleased]\r\r## [0.1.0] - 2026-09-21\r\r### Added\r\r- A\r")
+
+    def test_a_refused_close_leaves_the_file_as_it_was(self):
+        """A refusal is the rules saying no, and the changelog is still the one to fix, so it is left as it was."""
+        text = "# Log\n\n## [Unreleased]\n\n## [0.1.0] - 2026-09-01\n\n- A\n"
+        path = self.changelog_file_holding(text)
+        with self.assertRaises(SystemExit):
+            main.close_changelog_command(argparse.Namespace(
+                version="0.2.0", date="2026-09-21", repository_url=None, tag_prefix="v"))
+        self.assertEqual(path.read_bytes(), text.encode("utf-8"))
+
+
+class AChangelogWithALineNotRead(unittest.TestCase):
+    """Every command that reads CHANGELOG.md refuses one with a line outside the part of Markdown read here,
+    by its number (see rules/markdown.py)."""
+
+    def test_every_command_that_reads_the_changelog_refuses_it(self):
+        here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        (here / "CHANGELOG.md").write_text("# Log\n\n## [Unreleased]\n\n- A\n\n> ## [0.1.0] - x\n",
+                                           encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=here, check=True)
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t",
+                        "commit", "-q", "--allow-empty", "-m", "init"], cwd=here, check=True)
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        for command, arguments in ((main.version_command, dict(version="0.1.0")),
+                                   (main.changelog_command, {}),
+                                   (main.close_changelog_command,
+                                    dict(version="0.1.0", date="2026-09-21", repository_url=None)),
+                                   (main.notes_command,
+                                    dict(version="0.1.0", html=False, repository_url=None, ref=None))):
+            with self.subTest(command.__name__):
+                with (contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()),
+                      self.assertRaises(SystemExit) as raised):
+                    command(argparse.Namespace(version_source="tags", tag_prefix="v", skip_unreadable_releases=False,
+                                               snapshot_suffix=None, **arguments))
+                self.assertIn("line 7 holds a block quote", str(raised.exception))
+
+
+class AVersionHandedIn(unittest.TestCase):
+    """`--version` given in place of what the file declares, with or without the snapshot suffix.
+    Only a suffix at the end of the version is taken off.
+    A version carrying it anywhere else is still one being worked on."""
+
+    def released_as(self, given):
+        here = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        subprocess.run(["git", "init", "-q"], cwd=here, check=True)
+        (here / "gradle.properties").write_text("version = 0.9.9-SNAPSHOT\n", encoding="utf-8")
+        (here / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = version_command(argparse.Namespace(default_branch=None, version=given,
+                                                          version_source="gradle.properties", tag_prefix="v",
+                                                          snapshot_suffix="-SNAPSHOT"))
+        return problems, printed.getvalue().strip()
+
+    def test_a_version_handed_in_without_the_suffix_is_released_as_it_is(self):
+        self.assertEqual(self.released_as("0.2.0"), ([], "0.2.0"))
+
+    def test_a_version_handed_in_with_the_suffix_is_released_without_it(self):
+        self.assertEqual(self.released_as("0.2.0-SNAPSHOT"), ([], "0.2.0"))
+
+    def test_a_suffix_that_does_not_end_the_version_is_not_taken_off(self):
+        """`1.0.0-SNAPSHOT+b` is refused as what it is, a version being worked on."""
+        problems, printed = self.released_as("1.0.0-SNAPSHOT+b")
+        self.assertEqual((len(problems), printed), (1, ""))
+        self.assertIn("1.0.0-SNAPSHOT+b is a version being worked on", problems[0])
+
+
+class TheSourceAVersionComesFrom(unittest.TestCase):
+    """The one thing a project type decides, which is two separate questions:
+    - where the version is read from;
+    - whether anything is written once it is released.
+    A repository whose version lives only in its tags answers the first with "you tell me, or the one after
+    the highest release, or a later one [Unreleased] asks for".
+    It answers the second with "nowhere".
+    The tests of the default version call next_candidate over released_versions(): the default `version` computes
+    over the repository's real tags, so they hold rules/steps.py and rules/repository.py together."""
+
+    def repository_with(self, *tags, declaring=None, changelog="# Changelog\n\n## [Unreleased]\n"):
+        here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        if changelog is not None:
+            (here / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=here, check=True)
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t",
+                        "commit", "-q", "--allow-empty", "-m", "init"], cwd=here, check=True)
+        for tag in tags:
+            subprocess.run(["git", "tag", tag], cwd=here, check=True)
+        if declaring is not None:
+            (here / "gradle.properties").write_text(declaring, encoding="utf-8")
+        original = repository.REPO
+        repository.REPO = here
+        self.addCleanup(setattr, repository, "REPO", original)
+        return here
+
+    def problems_releasing(self, given, *tags, version_source="tags", prefix="v", **repository):
+        # The command prints the version it accepted.
+        # It is swallowed here, so that the suite's output holds only test results.
+        self.repository_with(*tags, **repository)
+        with contextlib.redirect_stdout(io.StringIO()):
+            return version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                      version=given, version_source=version_source, tag_prefix=prefix))
+
+    def test_a_tag_source_releases_the_version_it_is_handed(self):
+        self.repository_with("v0.1.0")
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                          version="0.2.0", version_source="tags", tag_prefix="v"))
+        self.assertEqual((problems, printed.getvalue().strip()), ([], "0.2.0"))
+
+    def test_a_shallow_clone_is_refused(self):
+        """It has neither the tags nor the history: a version released already would pass."""
+        whole = self.repository_with("v0.1.0", declaring="version = 0.1.1-dev\n")
+        subprocess.run(["git", "add", "gradle.properties", "CHANGELOG.md"], cwd=whole, check=True)
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "next"], cwd=whole,
+                       check=True)
+        shallow = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve() / "shallow"
+        subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{whole}", str(shallow)], check=True)
+        for version_source, given in (("gradle.properties", None), ("tags", "0.1.0")):
+            with self.subTest(version_source):
+                run = subprocess.run([sys.executable, str(SCRIPT), "version", "--version-source", version_source,
+                                      "--tag-prefix", "v", "--snapshot-suffix=-SNAPSHOT" if given is None else
+                                      "--snapshot-suffix=", *(["--version", given] if given else [])],
+                                     cwd=shallow, capture_output=True, text=True)
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                self.assertIn("version refuses a shallow clone: check out with fetch-depth: 0", run.stderr)
+                self.assertEqual(run.stdout, "")
+        # Without the tags they would pass having compared nothing.
+        for command in ("changelog", "ancestry"):
+            with self.subTest(command):
+                run = subprocess.run([sys.executable, str(SCRIPT), command, "--tag-prefix", "v"], cwd=shallow,
+                                     capture_output=True, text=True)
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                self.assertIn(f"{command} refuses a shallow clone: check out with fetch-depth: 0", run.stderr)
+                self.assertEqual(run.stdout, "")
+
+    def test_the_default_is_the_patch_after_the_highest_release(self):
+        """A dispatch leaves the version field empty, rather than computing a default in its form.
+        With nothing under [Unreleased] asking for more, the patch after the highest release comes back.
+        Which release is the highest when their names sort differently is the next test's question."""
+        self.repository_with("v0.1.0", "v0.2.0")
+        self.assertEqual(next_candidate(released_versions("v")), "0.2.1")
+
+    def test_the_default_is_measured_by_precedence_not_by_how_tags_sort(self):
+        """`git tag -l` lists tags in ASCII order, where `v0.10.0` sorts before `v0.9.0`.
+        Taking the last one listed would offer `0.9.1` as the version after `0.10.0`.
+        The step check would then refuse a default next_candidate produced."""
+        self.repository_with("v0.9.0", "v0.10.0")
+        self.assertEqual(next_candidate(released_versions("v")), "0.10.1")
+
+    def test_an_open_train_is_defaulted_to_the_release_it_was_for(self):
+        self.repository_with("v0.1.0", "v0.2.0-rc.1")
+        self.assertEqual(next_candidate(released_versions("v")), "0.2.0")
+
+    def test_the_default_moves_as_far_as_unreleased_asks(self):
+        """Left empty, the version is the least one that what waits to be released allows:
+        the minor after an addition, and from 1.0 on the major after a removal.
+        That holds even where an open train would be followed by less."""
+        self.repository_with("v0.2.0")
+        releases = released_versions("v")
+        self.assertEqual(next_candidate(releases, Asked(MINOR, "### Added", [], [])), "0.3.0")
+        self.assertEqual(next_candidate(releases, Asked(MAJOR, "### Removed", [], [])), "0.3.0")
+        self.repository_with("v1.2.0", "v1.3.0-beta.1")
+        releases = released_versions("v")
+        self.assertEqual(next_candidate(releases, Asked(MINOR, "### Added", [], [])), "1.3.0")
+        self.assertEqual(next_candidate(releases, Asked(MAJOR, "### Removed", [], [])), "2.0.0")
+
+    def test_version_reads_what_unreleased_asks(self):
+        """End to end: the default a dispatch leaves empty, a version handed in, and a declared one."""
+        added = "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- A\n"
+        self.repository_with("v0.2.0", changelog=added)
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                          version=None, version_source="tags", tag_prefix="v"))
+        self.assertEqual((problems, printed.getvalue().strip()), ([], "0.3.0"))
+        self.assertIn("at least a minor, 0.3.0", " ".join(self.problems_releasing("0.2.1", "v0.2.0", changelog=added)))
+        self.repository_with("v0.2.0", declaring="version = 0.2.1-SNAPSHOT\n", changelog=added)
+        with contextlib.redirect_stdout(io.StringIO()):
+            problems = version_command(argparse.Namespace(default_branch=None, version=None,
+                                                          version_source="gradle.properties", tag_prefix="v",
+                                                          snapshot_suffix="-SNAPSHOT"))
+        self.assertIn("[Unreleased] holds ### Added", " ".join(problems))
+
+    def test_a_hotfix_from_a_branch_carrying_an_open_train_is_held_to_it(self):
+        """0.2.1 may go out while 0.3.0-beta.1 is open, from a branch the train has not reached.
+        Cut from a branch whose changelog holds the beta's section, it would release the beta's addition as a
+        patch."""
+        on_the_train = ("# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- F\n\n## [0.3.0-beta.1] - 2026-09-20\n\n"
+                        "### Added\n\n- A\n\n## [0.2.0] - 2026-09-01\n\n- old\n")
+        self.assertEqual(self.problems_releasing("0.2.1", "v0.2.0", "v0.3.0-beta.1", changelog=on_the_train),
+                         ["[0.3.0-beta.1] holds ### Added, so the release after 0.2.0 is at least a minor, 0.3.0, "
+                          "and 0.2.1 is not"])
+        self.assertEqual(self.problems_releasing("0.3.0", "v0.2.0", "v0.3.0-beta.1", changelog=on_the_train), [])
+        off_the_train = "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- F\n\n## [0.2.0] - 2026-09-01\n\n- old\n"
+        self.assertEqual(self.problems_releasing("0.2.1", "v0.2.0", "v0.3.0-beta.1", changelog=off_the_train), [])
+
+    def test_an_entry_under_no_group_is_refused_by_name(self):
+        loose = "# Changelog\n\n## [Unreleased]\n\n- loose\n\n### Fixed\n\n- F\n"
+        problems = self.problems_releasing("0.2.1", "v0.2.0", changelog=loose)
+        self.assertEqual(problems, ["[Unreleased] has an entry under no ### group, so nothing says what kind of "
+                                    "change it is: - loose"])
+
+    def test_a_group_of_another_name_is_noted_and_passes(self):
+        self.repository_with("v0.2.0", changelog="# Changelog\n\n## [Unreleased]\n\n### Documentation\n\n- D\n")
+        said = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(said):
+            problems = version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                          version="0.2.1", version_source="tags", tag_prefix="v"))
+        self.assertEqual(problems, [])
+        self.assertIn("'### Documentation', which is not a kind of change Keep a Changelog names", said.getvalue())
+
+    def test_a_changelog_without_an_unreleased_section_is_told_so(self):
+        """`## Unreleased` without brackets is not the section Keep a Changelog writes, and what is under it is
+        not read.
+        That is said on stderr, not passed silently as a patch."""
+        self.repository_with("v0.2.0", changelog="# Changelog\n\n## Unreleased\n\n### Added\n\n- A\n")
+        said = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(said):
+            problems = version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                          version="0.2.1", version_source="tags", tag_prefix="v"))
+        self.assertEqual(problems, [])
+        self.assertIn("CHANGELOG.md has no [Unreleased] section", said.getvalue())
+
+    def test_a_repository_without_a_changelog_is_told_so_and_asked_for_a_patch(self):
+        self.repository_with("v0.2.0", changelog=None)
+        said = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(said):
+            problems = version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                                          version="0.2.1", version_source="tags", tag_prefix="v"))
+        self.assertEqual(problems, [])
+        self.assertIn("there is no CHANGELOG.md here", said.getvalue())
+
+    def test_with_nothing_released_the_first_version_is_asked_for_rather_than_guessed(self):
+        self.repository_with()
+        with self.assertRaises(SystemExit) as raised:
+            next_candidate(released_versions("v"))
+        self.assertIn("say which version to release", str(raised.exception))
+
+    def test_tags_that_are_no_release_are_noted_once(self):
+        """version_command reads the tags once and hands them to next_candidate.
+        So the note that none of them is a release is said once before the refusal, not once by each."""
+        self.repository_with("deploy-1")
+        said = io.StringIO()
+        with contextlib.redirect_stderr(said), self.assertRaises(SystemExit) as raised:
+            version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None,
+                                               version=None, version_source="tags", tag_prefix="v"))
+        self.assertIn("say which version to release", str(raised.exception))
+        self.assertEqual(said.getvalue().count("none of them is a release"), 1, said.getvalue())
+
+    def test_a_tag_source_still_answers_to_the_rules(self):
+        """The source decides where the candidate comes from, and nothing else.
+        What may follow what is the same rule for every source."""
+        problems = self.problems_releasing("0.4.0", "v0.1.0")
+        self.assertTrue(problems)
+        self.assertIn("does not follow 0.1.0", problems[0])
+
+    def test_a_declaring_source_with_no_suffix_releases_the_version_as_declared(self):
+        """A project that keeps no suffix between releases says so with `^none`.
+        The declared version then has to come out whole, not as the empty string a slice to `-0` leaves.
+        It has to be accepted, not refused as a version nobody would release."""
+        self.repository_with("v0.1.0", declaring="version = 0.2.0\n")
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = version_command(argparse.Namespace(default_branch=None, snapshot_suffix="^none", version=None,
+                                                          version_source="gradle.properties", tag_prefix="v"))
+        self.assertEqual(problems, [])
+        self.assertEqual(printed.getvalue().strip(), "0.2.0")
+
+    def test_the_commit_a_release_tags_passes_as_that_release(self):
+        """Publishing a release creates its tag, and a workflow on push runs for that tag.
+        The source there still names the version just released, and `version` is not being asked to release it
+        again."""
+        self.repository_with("v0.1.0", "v0.2.0", declaring="version = 0.2.0\n")
+        printed, said = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(printed), contextlib.redirect_stderr(said):
+            problems = version_command(argparse.Namespace(default_branch=None, version=None,
+                                                          version_source="gradle.properties", tag_prefix="v",
+                                                          snapshot_suffix="-SNAPSHOT"))
+        self.assertEqual((problems, printed.getvalue().strip()), ([], "0.2.0"))
+        self.assertIn("this commit is the release of 0.2.0", said.getvalue())
+
+    def test_a_released_version_is_refused_on_a_commit_its_tag_is_not_on(self):
+        here = self.repository_with("v0.2.0", declaring="version = 0.2.0\n")
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t",
+                        "commit", "-q", "--allow-empty", "-m", "after"], cwd=here, check=True)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            problems = version_command(argparse.Namespace(default_branch=None, version=None,
+                                                          version_source="gradle.properties", tag_prefix="v",
+                                                          snapshot_suffix="-SNAPSHOT"))
+        self.assertTrue(problems)
+        self.assertIn("released already", " ".join(problems))
+
+    def test_a_released_version_handed_in_on_its_tagged_commit_is_still_refused(self):
+        """A version given outright is a release being asked for, wherever it is asked."""
+        self.repository_with("v0.2.0", declaring="version = 0.2.0\n")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            problems = version_command(argparse.Namespace(default_branch=None, version="0.2.0",
+                                                          version_source="gradle.properties", tag_prefix="v",
+                                                          snapshot_suffix="-SNAPSHOT"))
+        self.assertIn("released already", " ".join(problems))
+
+    def test_a_tag_source_declares_no_version_to_write(self):
+        """`set-version` reporting success after writing nothing is the failure worth refusing:
+        a release would carry on believing it had recorded a version.
+        It is refused with a status of its own, so that a caller can tell it from a write that failed."""
+        self.repository_with("v0.1.0")
+        said = io.StringIO()
+        with contextlib.redirect_stderr(said), self.assertRaises(SystemExit) as raised:
+            main.set_version_command(argparse.Namespace(default_branch=None, snapshot_suffix=None, version="0.2.0",
+                                                                 version_source="tags", tag_prefix="v"))
+        self.assertEqual(raised.exception.code, main.NOTHING_TO_WRITE)
+        self.assertNotIn(main.NOTHING_TO_WRITE, (1, 2), "the status of every other refusal, and argparse's")
+        self.assertIn("declares no version", said.getvalue())
+
+
+class ArgumentsThatAreNotText(unittest.TestCase):
+    """A command-line byte that does not decode arrives as a lone surrogate (PEP 383).
+    Nothing can print or write one.
+    The tests run the script for real, with the bytes on the command line, because that is the only way one
+    arrives."""
+
+    def run_with(self, *arguments):
+        here = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        subprocess.run(["git", "init", "-q"], cwd=here, check=True)
+        files = {"gradle.properties": b"version = 0.1.1-SNAPSHOT\n",
+                 "CHANGELOG.md": b"# Log\n\n## [Unreleased]\n\n- B\n\n## [0.1.0] - 2026-09-01\n\n- A\n"}
+        for name, content in files.items():
+            (here / name).write_bytes(content)
+        done = subprocess.run([sys.executable, str(SCRIPT), *arguments], cwd=here, capture_output=True, text=True)
+        self.assertEqual({name: (here / name).read_bytes() for name in files}, files, "a file was written")
+        return done
+
+    def test_each_is_refused_by_name_before_anything_is_written(self):
+        """set-version used to end in a traceback, and close-changelog in one with CHANGELOG.md already emptied."""
+        for arguments, named_in in (
+                (["set-version", "--version-source", "gradle.properties", b"0.1.1-\xff"],
+                 "the version argument is '0.1.1-\\udcff'"),
+                (["close-changelog", b"0.1.1-\xff"], "the version argument"),
+                (["close-changelog", "--date", b"2026-09-\xff", "0.1.1"], "the date argument"),
+                (["close-changelog", "--repository-url", b"https://example.com/\xff", "0.1.1"],
+                 "the repository-url argument"),
+                (["prefix", "--tag-prefix", b"\xff"], "the tag-prefix argument")):
+            with self.subTest(named_in):
+                done = self.run_with(*arguments)
+                self.assertEqual(done.returncode, 1)
+                self.assertNotIn("Traceback", done.stderr)
+                self.assertIn(named_in, done.stderr)
+
+
+class TheNextCommand(unittest.TestCase):
+    def test_what_follows_is_bare_and_carries_the_suffix_given(self):
+        """merge-back passes the suffix the release recorded, `^none` where it keeps none.
+        Without one, what follows a release is the bare version, which is also what `version` takes under `tags`
+        when no version is given."""
+        self.assertEqual(self.next_after("v0.1.1", "-SNAPSHOT"), ([], "0.1.2-SNAPSHOT"))
+        self.assertEqual(self.next_after("v0.1.1", "^none"), ([], "0.1.2"))
+        self.assertEqual(self.next_after("v0.1.1", None), ([], "0.1.2"))
+
+    def next_after(self, released, suffix):
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            problems = main.next_command(argparse.Namespace(released=released, tag_prefix="v",
+                                                            snapshot_suffix=suffix))
+        return problems, printed.getvalue().strip()
+
+
+class TheChannelCommand(unittest.TestCase):
+    def test_a_version_is_asked_about_bare(self):
+        """channel takes no tag prefix, so a tag's name is refused rather than read with the prefix guessed."""
+        for version, answer in (("0.3.0-beta.1", ([], "beta\n")),
+                                ("v0.3.0-beta.1", (["'v0.3.0-beta.1' is not a version; channel takes one "
+                                                    "without the tag prefix"], ""))):
+            with self.subTest(version=version):
+                printed = io.StringIO()
+                with contextlib.redirect_stdout(printed):
+                    problems = main.channel_command(argparse.Namespace(version=version))
+                self.assertEqual((problems, printed.getvalue()), answer)
+
+
+class TheOptions(unittest.TestCase):
+    def test_a_command_refuses_the_options_it_never_reads(self):
+        """notes and channel read neither option, and set-version names no tag, so it takes no --tag-prefix.
+        The commands that read only the tag prefix take no --version-source."""
+        for arguments in (["notes", "0.1.0", "--version-source", "tags"], ["notes", "0.1.0", "--tag-prefix", "v"],
+                          ["channel", "0.1.0", "--version-source", "tags"], ["channel", "0.1.0", "--tag-prefix", "v"],
+                          ["set-version", "0.1.0", "--version-source", "tags", "--tag-prefix", "v"],
+                          *([command, "--version-source", "tags"] for command in ("changelog", "ancestry", "prefix")),
+                          ["next", "0.1.0", "--version-source", "tags"],
+                          ["close-changelog", "0.1.0", "--version-source", "tags"]):
+            with self.subTest(arguments=arguments):
+                done = subprocess.run([sys.executable, str(SCRIPT), *arguments], capture_output=True, text=True)
+                self.assertEqual(done.returncode, 2, done.stderr)
+                self.assertIn("unrecognized arguments", done.stderr)

@@ -1,0 +1,175 @@
+name: check-release
+description: |
+  Checks a repository before a release:
+  - `version`: which version may be released next.
+  - `changelog`: whether the released sections of CHANGELOG.md are unchanged.
+  - `ancestry`: whether every release tag is still reachable from the history.
+
+  A check that finds nothing but a published release still on its release branch, yet to land here, only warns.
+  So does one that finds nothing but a release that landed on the default branch after the commit checked.
+
+  Runs in the calling workspace.
+  Installs the Python it runs on with actions/setup-python, leaving the job's own python3 as it was.
+  Needs a checkout with `fetch-depth: 0`: every check refuses a shallow one.
+
+inputs:
+  version-source:
+    description: |
+      Where the version of the next release comes from:
+      - `gradle.properties`: the file declares it in `version`, for example `0.2.0-SNAPSHOT`.
+      - `gradle.properties:<key>`: the same, with the version in `<key>` instead, such as `appVersion`.
+        For a build that keeps `version` for what Gradle does with it.
+      - `maven`: Maven evaluates it in the root `pom.xml`, and writes it with versions:set;
+        `maven:<property>` writes that property instead, such as `revision`.
+        The job provides Maven and a JDK; lib/README.md says what is run.
+      - `command`: the project's own command prints it, given in `version-read-command`,
+        for a build no other source reads.
+      - `tags`: no file declares it.
+        It comes from the `version` input.
+        Without one, it is the version after the highest release tag,
+        moved further where `[Unreleased]` in CHANGELOG.md asks for it (a new feature asks for a minor).
+
+      Read by `version` alone, and required where `checks` names it, because a wrong guess would pass silently.
+    required: false
+    default: ''
+  version-read-command:
+    description: |
+      Under `version-source: command`, the shell command that prints the version, such as
+      `sed -n 's/^version=//p' gradle.properties`.
+      It runs with bash in the root of the repository, and prints the version alone, on one line.
+      Read by `version` alone.
+    default: ''
+  tag-prefix:
+    description: |
+      What a release tag has in front of the version: `v` for `v0.1.0`.
+      - Needed until a release whose commit records the prefix is reachable from the commit checked:
+        release-flow/prepare records it there, and the checks read it there from then on.
+      - Given, it is the prefix, and it chooses among releases under more than one prefix in one history.
+      - `^none`: the tags have no prefix at all.
+
+      There is no default: a wrong prefix finds no release tags, and every check then passes having compared nothing.
+      The exception is `version` under `tags` with no `version` input: it fails, finding no release to count from.
+
+      An empty value cannot mean "no prefix", because GitHub passes a missing input as an empty string too.
+      `^` cannot appear in a git tag name, so `^none` can never be a real prefix.
+    default: ''
+  checks:
+    description: |
+      Which checks to run, separated by spaces or newlines:
+      - `version`
+      - `changelog`
+      - `ancestry`
+
+      An unknown name fails the run, and so does an empty list.
+      A check that silently did not run would look the same as one that passed.
+    default: changelog ancestry
+  version:
+    description: |
+      The version to check, instead of the one `version-source` gives.
+      Only `version` reads it.
+      - Under a source that declares a version: `0.2.0` or `0.2.0-SNAPSHOT`; the snapshot suffix is dropped from
+        the end.
+      - Under `tags`: `0.2.0`.
+        Left empty, the version after the highest release is checked, as described under `version-source`.
+    default: ''
+  snapshot-suffix:
+    description: |
+      What the version carries between releases, after the release's version: `-SNAPSHOT` in `0.2.1-SNAPSHOT`.
+      Only `version` reads it.
+      - Required where the source declares a version, under every one but `tags`; a hyphen and one identifier
+        of letters and digits, holding a letter.
+      - `^none`: the version carries nothing between releases.
+      - Left out under `tags`, which keeps no version between releases.
+
+      Give what release-flow/prepare is given.
+      `version` takes off the suffix a release recorded where one applies, and this one otherwise:
+      lib/README.md says which under The snapshot suffix.
+    default: ''
+  skip-unreadable-releases:
+    description: |
+      What `changelog` does with a release whose tag holds a line of CHANGELOG.md it does not read,
+      in the release's section or above it, or anywhere in a copy without that section:
+      - `false`, the default: it fails.
+        A tag cannot be edited, so it fails on every run.
+      - `true`: it names the release as not compared instead.
+        Where that line stands inside the release's own section, the tag holds the section,
+        so a tree without it still fails, as for any other release.
+
+      Empty is `false`, so a `workflow_dispatch` input passed on here is `false` on every other event.
+    default: 'false'
+  html-notes:
+    description: |
+      `true` has `changelog` refuse raw HTML under `[Unreleased]` other than a comment, such as `<kbd>`:
+      for a project whose release notes are also rendered as HTML, as intellij/build's `change-notes` does.
+      That rendering leaves raw HTML out, and refuses a section holding it once the section is released.
+      - Read by `changelog` alone, so `checks` has to name it.
+      - cmarkgfm, which renders it, is installed from PyPI for the step, with the hashes lib/requirements.txt pins.
+
+      Empty is `false`, as for `skip-unreadable-releases`.
+    default: 'false'
+  default-branch:
+    description: |
+      The branch releases land on.
+      A release it holds, which landed there after the history of the commit checked left it, then only warns.
+      That happens to a commit pushed while merge-back ran, and checked only after the release landed:
+      a re-run, or a run that waited in a queue.
+      The action fetches the branch again first, outside a shallow clone: on a push to the branch,
+      actions/checkout leaves its remote-tracking branch at the commit checked.
+      Where that fetch fails, a notice says so, and such a release may fail as it would with this empty:
+      where actions/checkout left the branch at the commit checked.
+
+      The default is the repository's default branch, as the event that started the run names it.
+      Empty, such a release fails `ancestry` and `changelog`, and `version` refuses its version as released already
+      where the commit still declares it.
+    default: ${{ github.event.repository.default_branch }}
+
+outputs:
+  version:
+    description: |
+      The version that may be released, as `version` answered it.
+      It has no tag prefix and no snapshot suffix.
+      Empty unless `version` ran and passed: also where it only warned, of a release yet to land or
+      landed after the commit checked.
+    value: ${{ steps.check.outputs.version }}
+  channel:
+    description: |
+      The distribution channel of that version:
+      - `default` for a final release, such as `0.2.0`.
+      - Otherwise the first identifier of the pre-release suffix: `beta` for `0.2.0-beta.1`.
+
+      Empty unless `version` ran and passed: also where it only warned, of a release yet to land or
+      landed after the commit checked.
+    value: ${{ steps.check.outputs.channel }}
+
+runs:
+  using: composite
+  steps:
+    # The Python .python-version names, the one the tests run on, whatever python3 the runner carries.
+    # update-environment: false keeps it out of the calling job, whose steps go on with their own python3.
+    - id: python
+      uses: actions/setup-python@v7
+      with:
+        python-version-file: ${{ github.action_path }}/../.python-version
+        update-environment: false
+    # One step calling one script, rather than the steps written out here: the shell is then something a test
+    # can run against a repository of its own, which is not true of anything living inside action.yml.
+    - id: check
+      shell: bash
+      # Inputs reach the script as environment variables rather than through ${{ }} interpolated into it,
+      # so that a value carrying a quote or a newline is data here and not more script.
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        VERSION_SOURCE: ${{ inputs.version-source }}
+        VERSION_READ_COMMAND: ${{ inputs.version-read-command }}
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
+        CHECKS: ${{ inputs.checks }}
+        VERSION: ${{ inputs.version }}
+        SNAPSHOT_SUFFIX: ${{ inputs.snapshot-suffix }}
+        SKIP_UNREADABLE_RELEASES: ${{ inputs.skip-unreadable-releases }}
+        HTML_NOTES: ${{ inputs.html-notes }}
+        DEFAULT_BRANCH: ${{ inputs.default-branch }}
+      # The Python setup-python installs finds its libpython through LD_LIBRARY_PATH in a job that runs in a container,
+      # where the tool cache is mounted away from the path built into it. Set here, for this step alone.
+      run: |
+        export LD_LIBRARY_PATH="${PYTHON%/bin/*}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        "$GITHUB_ACTION_PATH/check.sh"

@@ -1,0 +1,229 @@
+# Upgrading
+
+What a workflow has to change when it moves its pin to a newer version of this repository.\
+A version that asks for no change is not listed.\
+[`CHANGELOG.md`](CHANGELOG.md) lists every change, this file only the ones a caller has to act on.
+
+## From 0.2
+
+### The `source` input is now `version-source`
+
+In `check-release` and `release-flow/prepare`.\
+The new name says what it is the source of: the version of the next release.\
+`release-flow/merge-back` takes neither name now, as
+[it reads the release commit](#release-flowmerge-back-reads-the-release-commit-not-its-inputs).
+
+Before:
+
+```yaml
+- uses: loplex/release-ci/check-release@v0.2.0
+  with:
+    source: gradle.properties
+```
+
+After:
+
+```yaml
+- uses: loplex/release-ci/check-release@<tag>
+  with:
+    version-source: gradle.properties
+```
+
+A workflow that still passes `source` fails in `release-flow/prepare`, and in `check-release` where
+`checks` names `version`.\
+GitHub only warns about the unknown input, and the empty `version-source` is refused there.
+
+### `check-release/check-release.py` is now `lib/main.py`
+
+This matters only to a workflow that runs the script itself.
+The actions call it the new way already.
+
+- The script moved to [`lib/main.py`](lib/README.md), beside the rules it runs.
+- `--source` is now `--version-source`.
+- `--version-source` and `--tag-prefix` go after the command, not before it.
+- A command refuses the options it never reads.
+  `close-changelog` reads `--tag-prefix` only with `--repository-url`, and takes it either way:
+
+| Command                                                      | `--version-source` | `--tag-prefix` |
+|--------------------------------------------------------------|--------------------|----------------|
+| `version`                                                    | required           | optional       |
+| `next`, `changelog`, `ancestry`, `prefix`, `close-changelog` | refused            | optional       |
+| `set-version`                                                | required           | refused        |
+| `notes`, `channel`                                           | refused            | refused        |
+
+`--tag-prefix` is needed until a release records the prefix, by `close-changelog` only with
+`--repository-url`, as
+[the tag prefix is read from the release commit](#the-tag-prefix-is-read-from-the-release-commit-not-gradleproperties)
+says.
+
+Before:
+
+```sh
+python3 check-release/check-release.py --source tags --tag-prefix v changelog
+python3 check-release/check-release.py --source tags --tag-prefix v channel v0.3.0-beta.1
+```
+
+After:
+
+```sh
+python3 lib/main.py changelog --tag-prefix v
+python3 lib/main.py channel 0.3.0-beta.1
+```
+
+`channel` takes the version without the tag prefix.
+A tag name such as `v0.3.0-beta.1` is refused.
+
+### `release-flow/draft` has no `source` or `tag-prefix` input
+
+Remove both from the step's `with:`.
+The draft reads neither: the notes and the channel do not depend on them.
+GitHub only warns about an input the action does not have, so the run does not fail without this.
+
+### `version` holds the version to what `[Unreleased]` asks for
+
+The `version` check, which `release-flow/prepare` runs too, refuses a version that moves less
+past the last final release than the entries under `[Unreleased]` ask for.\
+`### Added`, `### Changed` and `### Deprecated` ask for a minor.\
+`### Removed`, and an entry starting with `**BREAKING**`, ask for a major, or a minor below 1.0.\
+[What `[Unreleased]` asks of the version](lib/README.md#what-unreleased-asks-of-the-version)
+has the whole rule.
+
+- Release the version the refusal names, or a later one.
+- Move an entry that stands under no `###` group under the group of its kind: such an entry is
+  refused.
+- Under `tags` with no `version` given, the default version already moves as far as is asked.
+
+### Some Markdown in `CHANGELOG.md` is refused
+
+Every `lib/main.py` command that reads `CHANGELOG.md`, `ancestry` aside, refuses a line outside the
+part of Markdown it reads, so every action that runs one does too.\
+`ancestry` reads it only to tell a release on its way, and fails that release where it cannot read
+it.\
+[What `main.py` reads in `CHANGELOG.md`](lib/README.md#what-mainpy-reads-in-changelogmd) lists what
+is read and what is refused, such as an indented code block, a block quote or a tab in the
+indentation.\
+Fenced code blocks are read.\
+Before moving the pin, run the new version's `changelog` command in the repository, from a clone of
+this one at the new tag, with the `tag-prefix` the workflow gives:
+
+```sh
+python3 <clone>/lib/main.py changelog --tag-prefix <prefix>
+```
+
+- A refusal names the line and what to write instead.\
+  Under `[Unreleased]`, write that.
+- The `changelog` check reads the copy at each release tag down to the end of that release's
+  section, or whole where it has no such section, and a tag cannot be edited.\
+  A refused line in what it reads fails the check on every run.\
+  Rewrite the line in the tree, and give `skip-unreadable-releases: true` to `check-release` and
+  `release-flow/prepare`; `release-flow/merge-back` reads it from the release commit.
+  The check then names that release as not compared, with the line, instead of failing.
+
+### Actions that run Python install their own
+
+Every action that runs Python now installs the one this repository's
+[`.python-version`](.python-version) names, with `actions/setup-python`.\
+All but `intellij/build` ran on the runner's `python3` before; `intellij/build` runs Python for the
+first time, to read the signed archive.\
+A job without a `container:`, on a GitHub-hosted runner, has nothing to change.
+
+- A job with a `container:` runs these actions in that container, where they are not tried.\
+  The image's own `python3` is not used.\
+  [What an action needs of the runner](README.md#what-an-action-needs-of-the-runner) names the
+  limits of `actions/setup-python` and `actions/checkout` there: run such a job once before moving
+  the pin.
+- A self-hosted runner needs a system `actions/setup-python` publishes a build for, and a way to
+  download it unless it already has that version.
+
+### `intellij/build` leaves the job's JDK as it was
+
+A step after `intellij/build` that runs `java` or Gradle ran on the JDK `intellij/build` set up.\
+It now runs on the job's own: where it needs that JDK, set it up in the job with
+`actions/setup-java` before that step.
+
+### `intellij/build` checks the signed archive's version
+
+`intellij/build` stops where the signed archive's `plugin.xml` does not carry the version in the
+line of `gradle.properties` that `release-flow/prepare` rewrites for the release: `version`, or
+`<key>` under `version-source: gradle.properties:<key>`.\
+A build script that gives `project.version` anything else has to take it from that line instead.\
+[What the plugin's build has to do](intellij/README.md#what-the-plugins-build-has-to-do) shows the
+rest.
+
+### `release-flow/merge-back` reads the release commit, not its inputs
+
+`release-flow/merge-back` has no `source` or `tag-prefix` input.\
+It reads the tag prefix from the release commit, where `release-flow/prepare` now records it.\
+It needs no source: `prepare` now starts the next version, in a commit the release branch carries.\
+Take them out of the merge-back step: GitHub only warns about an input an action does not have.
+
+Move `prepare`, `draft`, `intellij/build` and `merge-back` to the new version together, while no
+draft is open.\
+An older `draft` pushes only the commit checked out, without the commit that starts the next
+version.\
+A release prepared by an older `prepare` records nothing, and the new `intellij/build` and
+`merge-back` refuse it.\
+Carry such a release back with the old version first.
+
+### `release-flow/prepare` leaves the release commit detached
+
+`release-flow/prepare` checks out the release commit detached, and the release branch holds one
+commit more where the source declares a version: the one that starts the next version.\
+A step between `prepare` and `draft` that commits, pushes `HEAD` or reads the branch checked out
+finds no branch there.\
+Move `prepare` and `draft` together:
+[`merge-back` and `intellij/build` go with them](#release-flowmerge-back-reads-the-release-commit-not-its-inputs).
+
+### The snapshot suffix is a new input
+
+Under `version-source: gradle.properties` or `gradle.properties:<key>`, `release-flow/prepare` and
+the `version` check of `check-release` need `snapshot-suffix`: the suffix the version carries
+between releases.\
+Give both the same: `-SNAPSHOT` to keep what it was, or `^none` for none.\
+Until a release made with the new `release-flow/prepare` is reachable, the one given is taken off
+the declared version.\
+Under another suffix, put it in place of `-SNAPSHOT` in the declared version first, and under
+`^none` take `-SNAPSHOT` off: otherwise `0.4.0-SNAPSHOT` is read as a pre-release of `0.4.0`.
+
+```yaml
+- uses: loplex/release-ci/check-release@<tag>
+  with:
+    version-source: gradle.properties
+    tag-prefix: v
+    checks: version
+    snapshot-suffix: -SNAPSHOT
+```
+
+A workflow that leaves it out fails there.\
+Once a release made with the new `release-flow/prepare` is reachable, the suffix it recorded is
+taken off instead, so a suffix changed in the input shows from the version after that release.
+
+### The tag prefix is read from the release commit, not `gradle.properties`
+
+`tagPrefix` in `gradle.properties` is no longer read, and may be taken out.\
+`release-flow/prepare` records the prefix in the release commit, and `check-release` and the next
+`prepare` read it from [the nearest release](lib/README.md#the-nearest-release) that recorded it.\
+Until a release made with the new `prepare` is reachable, give `tag-prefix` to both, under every
+source: `v`, or `^none` for no prefix.
+
+```yaml
+- uses: loplex/release-ci/check-release@<tag>
+  with:
+    version-source: gradle.properties
+    tag-prefix: v
+```
+
+A workflow that leaves it out fails, naming the input.\
+Once such a release is reachable, the input may be left out.
+
+`check-release` reads `version-source` only for its `version` check, and needs it only where
+`checks` names `version`.\
+A workflow that runs `lib/main.py` itself takes `--version-source` off `changelog`, `ancestry`,
+`next`, `prefix` and `close-changelog`, which refuse it now.
+
+### The checks refuse a shallow clone
+
+`check-release`, `release-flow/prepare` and `release-flow/merge-back` fail in a checkout without
+`fetch-depth: 0`, where their checks could pass having found no release.\
+Check out with `fetch-depth: 0`, as the examples in [check-release](check-release/README.md) and
+[release-flow](release-flow/README.md) do.

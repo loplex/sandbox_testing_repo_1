@@ -1,0 +1,300 @@
+# Changelog
+
+Notable changes to this project, in the format of
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), written in the part of Markdown
+`lib/main.py changelog` reads. A section that has been released is compared against the tag that
+released it, so once a version has a section here, that section may not be edited again.
+
+## [Unreleased]
+
+### Added
+
+- `release-flow/prepare` records in the release commit how it made the release, as `Release-CI-*`
+  git trailers: the version, `version-source`, the tag prefix, the snapshot suffix, and
+  `skip-unreadable-releases` where it was `true`.\
+  `release-flow/merge-back` and `intellij/build` read them there, and `lib/main.py recorded` prints
+  one.
+- `version-source: maven` has Maven read the version from the root `pom.xml` and write it into the
+  reactor with `versions:set`; `maven:<property>` writes that property instead, for a CI-friendly
+  `${revision}`.\
+  The job provides Maven and a JDK.
+- `version-source: command` reads the version with the project's own shell command and writes it
+  with another, given as `version-read-command` and `version-write-command`, for a build no other
+  source reads.\
+  The version reaches the write command in `VERSION`, and is read back after it.
+- `version-source: gradle.properties:<key>` reads and writes the version in `<key>` instead of
+  `version`, such as `appVersion`, for a build that keeps `version` for what Gradle does with it.
+- `--tag-prefix '^none'` of `lib/main.py` says the tags have no prefix, as the actions' `tag-prefix`
+  input does.
+- `lib/main.py notes --html` prints a released section as HTML, rendered by cmark-gfm, for where
+  Markdown is not read, such as a JetBrains plugin's change notes.\
+  It refuses a section holding raw HTML other than comments, which the HTML would leave out.\
+  It needs the packages in `lib/requirements.txt`.\
+  With `--repository-url` and `--ref` it makes every relative link absolute, read at that tag or
+  commit, since away from the repository a relative link leads nowhere.
+- `html-notes: true` on `check-release` and `release-flow/prepare`, and `--html-notes` of
+  `lib/main.py changelog`, refuse raw HTML under `[Unreleased]` that `notes --html` would leave out,
+  before a release takes it into a section that cannot be edited.
+- **BREAKING** `intellij/build` checks that the signed archive's `plugin.xml` carries the version
+  in the line of `gradle.properties` `release-flow/prepare` wrote, and stops where it does not.\
+  The release commit says which line: `version`, or `<key>` under `gradle.properties:<key>`.\
+  A build script that took its version from anywhere else passed the build and the draft, and
+  failed only once the release was published, in `intellij/publish`.\
+  It runs Python for that, installed as every other action now installs it, under *Changed*.
+- `intellij/check`, a plugin's CI without signing: `check` and `verifyPlugin`, as `intellij/build`
+  runs them before it signs, with the Plugin Verifier's report kept.
+- `change-notes` on `intellij/build`: the release's section of `CHANGELOG.md`, rendered as HTML,
+  reaches the build in `CHANGE_NOTES`, and the signed archive's `plugin.xml` is checked to hold it.\
+  A plugin's change notes then say what its release page says, without a renderer of its own.\
+  Their relative links are read at the release's tag, which the new `tag` input passes.\
+  The same notes, their links read at the release commit, are uploaded as `change-notes.html`, a
+  page to open before the draft is published.
+- `skip-unreadable-releases` on `check-release` and `release-flow/prepare`, and
+  `lib/main.py changelog --skip-unreadable-releases`: the `changelog` check names as not compared a
+  release whose tag holds a line of `CHANGELOG.md` it does not read, instead of failing.\
+  `release-flow/merge-back` reads it from the release commit.\
+  Where that line stands inside the release's own section, a tree without that section still fails.
+- `release-flow/merge-back` says in a notice when the release it lands merged in commits that landed
+  on the default branch while the release was out, and how many.\
+  The run was green with nothing to tell such a landing from a plain fast-forward, though it puts a
+  merge on the default branch's history.
+- `--default-branch` of `lib/main.py` on `version`, `changelog` and `ancestry`: a release that
+  branch holds, which landed after the commit checked, exits with 4, as a release yet to land does.\
+  A commit pushed while merge-back ran, checked only after the release landed and its release
+  branch was gone, failed.
+- `default-branch` on `check-release`, the repository's default branch unless given: a check that
+  finds nothing but a release that landed there after the commit checked warns and passes.\
+  A re-run of a commit pushed while merge-back ran, or a run of it that waited in a queue, failed
+  once the release had landed and its release branch was gone.
+
+### Changed
+
+- **BREAKING** Every action that runs Python installs the version this repository's
+  `.python-version` names with `actions/setup-python`, leaving the job's own `python3` as it was.\
+  They ran on the runner's `python3`, which had to be 3.10 or later; below that they failed with a
+  traceback.\
+  In a job with a `container:`, that Python is built for the runner's system, not the image's, and
+  the actions are not tried there.\
+  A self-hosted runner needs a system `actions/setup-python` publishes a build for.\
+  [UPGRADING.md](UPGRADING.md#actions-that-run-python-install-their-own) shows what that asks of a
+  job.
+- **BREAKING** The `source` input of `check-release` and `release-flow/prepare` is now
+  `version-source`.\
+  [UPGRADING.md](UPGRADING.md#the-source-input-is-now-version-source) shows the change.
+- **BREAKING** The suffix a version carries between releases is the project's choice, no longer
+  `-SNAPSHOT` for every `gradle.properties`: `check-release` and `release-flow/prepare` take it in
+  a `snapshot-suffix` input, required where the source declares a version, `^none` for none.\
+  `check-release` reads it only in `version`.\
+  A build between releases had to cut `-SNAPSHOT` off wherever a package takes no `-` in a version,
+  as rpm and an MSI do.\
+  The suffix is recorded in the release commit: `prepare` appends it to the next version, and
+  `check-release` and the next `prepare` take off the one a release recorded where one applies, or
+  their input otherwise.\
+  A tag carrying `SNAPSHOT` now counts as a release, as any other version tag does.\
+  `lib/main.py version` needs `--snapshot-suffix` under a source that declares a version, and `next`
+  appends only the one it is given.\
+  [UPGRADING.md](UPGRADING.md#the-snapshot-suffix-is-a-new-input) shows the change.
+- **BREAKING** `version`, `changelog` and `ancestry` refuse a shallow clone, and so do every check,
+  `prepare` and `merge-back`.\
+  [UPGRADING.md](UPGRADING.md#the-checks-refuse-a-shallow-clone) shows the change.
+- **BREAKING** `release-flow/merge-back` has no `source` or `tag-prefix` input: it reads the tag
+  prefix from the release commit, where `release-flow/prepare` recorded it, and writes no version.\
+  A workflow could give it other values than the release was prepared with, and it then wrote the
+  next version elsewhere, or checked the merged tree otherwise.\
+  It refuses a tag the release commit does not record, such as a draft's tag renamed before it was
+  published, and a release prepared before `prepare` recorded anything.\
+  [UPGRADING.md](UPGRADING.md#release-flowmerge-back-reads-the-release-commit-not-its-inputs) shows
+  the change.
+- **BREAKING** `release-flow/prepare` starts the next version in a commit above the release commit,
+  and leaves the release commit checked out, detached, instead of the release branch.\
+  `release-flow/draft` pushes the branch with that commit and drafts the release at the commit
+  checked out, refusing one the branch does not hold.\
+  `release-flow/merge-back` writes no version, so only `prepare`, which is given the source, writes
+  it.\
+  [UPGRADING.md](UPGRADING.md#release-flowprepare-leaves-the-release-commit-detached) shows the
+  change.
+- **BREAKING** The tag prefix is the one the nearest release recorded in its
+  `Release-CI-Tag-Prefix` trailer, no longer `tagPrefix` in `gradle.properties`.\
+  `tag-prefix` on `check-release` and `release-flow/prepare` is needed until such a release is
+  reachable, under every source.\
+  Given, it chooses among the releases of a history that carries more than one prefix.\
+  `check-release` reads `version-source` only in `version`, and `lib/main.py` `changelog`,
+  `ancestry`, `next`, `prefix` and `close-changelog` refuse `--version-source`.\
+  [UPGRADING.md](UPGRADING.md#the-tag-prefix-is-read-from-the-release-commit-not-gradleproperties)
+  shows the change.
+- **BREAKING** `check-release/check-release.py` is now `lib/main.py`, beside the rules it runs.\
+  Its `--source` is now `--version-source`.\
+  It and `--tag-prefix` go after the command, and a command refuses the ones it never reads.\
+  `channel` takes the version without the tag prefix.\
+  [UPGRADING.md](UPGRADING.md#check-releasecheck-releasepy-is-now-libmainpy) shows the new calls.
+- **BREAKING** `check-release version` holds the version to what `[Unreleased]` asks for:
+  - `### Added`, `### Changed` or `### Deprecated` asks for at least a minor.
+  - `### Removed`, or an entry that starts with `**BREAKING**`, asks for a major, or a minor below
+    1.0.
+  - Under an open pre-release train, the train's sections in the changelog ask as well.
+  - A release that moves less is refused, and so is one with an entry under no `###` group.
+  - Under `tags`, with no version given, the default is the version after the highest release, or
+    the least version `[Unreleased]` allows where that is further.
+  - A note on stderr says where `CHANGELOG.md` or its `[Unreleased]` is missing, or where a `###`
+    group is not a kind Keep a Changelog names.
+  - merge-back's pull request that starts the next version tells whoever merges it to raise that
+    version where the check refuses it.
+- `close-changelog` puts into a final release the entries of every pre-release that SemVer orders
+  below it and above the final release before it, whatever version they were for.\
+  It took in only the pre-releases of that version: `1.0.0` after an abandoned `0.3.0-beta.1` left
+  that beta's entries out.
+- `close-changelog --repository-url` compares a final release from the final release before it,
+  skipping the pre-releases whose entries its section took in.\
+  The link of `0.3.0` after `0.3.0-beta.2` showed only the commits since `0.3.0-beta.2`, not the
+  train its section took in.\
+  A pre-release compares from the release before it, which after a hotfix is the one before it in
+  its train.\
+  "Before" means SemVer order, not the order in the file.
+- `check-release` warns and passes where `changelog`, `ancestry` or `version` find nothing wrong but
+  a published release yet to land: one still on `release/<version>`, which merge-back has yet to
+  carry back.\
+  They failed, so a check of the default branch, or of a pull request into it, run while a release
+  was out stayed red, and an open merge-back pull request kept the default branch red.\
+  `lib/main.py` exits with 4 for it, which `release-flow/prepare` still refuses.\
+  While it only warns, `version` sets neither of the action's outputs, though it does not fail the
+  step.\
+  A squash or a rebase merge still fails, and so does a force-push below the commit a release was
+  cut from.\
+  A force-push that takes a landed release back off only warns while `release/<version>` is still
+  there, so merge-back's pull request asks for the branch to be deleted once merged.
+
+### Removed
+
+- `release-flow/draft`: the `source` and `tag-prefix` inputs, which it no longer reads.
+
+### Fixed
+
+- **BREAKING** `intellij/build` leaves the calling job's `JAVA_HOME` and `java` as they were: its
+  Gradle steps get the JDK it sets up through a `JAVA_HOME` of their own.\
+  It made that JDK the default for every later step of the job.\
+  [UPGRADING.md](UPGRADING.md#intellijbuild-leaves-the-jobs-jdk-as-it-was) says what a later step
+  that ran on it does now.
+- **BREAKING** `lib/main.py` reads `CHANGELOG.md` as CommonMark does, but only the part of Markdown
+  a changelog needs, and every command that reads the file, `ancestry` aside, refuses a line outside
+  that part, with its number and what to write instead.\
+  [What `main.py` reads in `CHANGELOG.md`](lib/README.md#what-mainpy-reads-in-changelogmd) lists
+  both.\
+  `changelog` refuses such a line in the copy at a release tag too, down to the end of that
+  release's section, or anywhere in a copy without it.\
+  That copy cannot be edited, so the refusal there does not say what to write instead.\
+  A `## [x]` or `###` heading inside a fenced code block or an HTML comment was read as a section or
+  a group.\
+  A line that only began like a link definition, such as `[scope]: entry text`, was left out of the
+  release notes and of what the `changelog` check compares.
+- `close-changelog` and `notes` refuse as empty an `[Unreleased]` or a section with no character
+  `str.isprintable()` accepts but the space, HTML comments aside, such as one of zero-width spaces
+  or one holding only `<!-- what changed -->`.\
+  In an entry or a line of text, a link counts as its text and every `*`, `_` and `~` as nothing; a
+  character reference such as `&nbsp;` counts as its character.\
+  `close-changelog` takes a link definition for nothing too, wherever it stands.\
+  Both took only white space and link definitions for nothing, `close-changelog` only a definition
+  at the end of `[Unreleased]`, so such a section was released with empty notes.
+- `close-changelog` refuses an entry under `[Unreleased]` that says nothing, HTML comments aside, on
+  its line or in the lines of text right below it, indented as far as its text, such as
+  `- <!-- what changed -->` left as a reminder, naming its line.\
+  It was released as an empty bullet.
+- `close-changelog` leaves out of the section a `###` group with nothing under it, HTML comments
+  and link definitions aside.\
+  It was released as a heading with nothing under it.\
+  A link definition in it stays where the group stood.\
+  Text in such a group that is read as saying nothing is refused by its line instead of being left
+  out with it, since GitHub may show it.
+- `close-changelog` writes empty the blank lines after the last entry under `[Unreleased]`.\
+  One holding spaces was written back below the new section as a line of spaces.
+- `intellij/publish`: `attempts` and `wait` have to be whole numbers, `attempts` from 1 to 9999,
+  checked before the upload.\
+  An `attempts` that was no number made no attempt, and the run failed as though the version was
+  not served.\
+  A `wait` that was no number left the attempts with no pause between them.
+- `check-release`: a glob in `checks`, such as `*`, is refused under its own name.\
+  It used to be expanded to the files in the workspace, and the error named those instead.
+- A command-line argument holding a byte that does not decode is refused by name, before any
+  command runs.\
+  `set-version` ended in a traceback, and `close-changelog` in one that left `CHANGELOG.md` empty.
+- `set-version` and `close-changelog` write a CRLF file back with CRLF line endings.\
+  They wrote every line back as LF, so a release commit rewrote the whole file to change one line.
+- `CHANGELOG.md` headings are read as CommonMark reads them in these cases too:
+  - A heading indented by up to three spaces, or with a tab after its `#`s, is a heading.
+  - A `###` heading closed by a run of `#`s is read without them.
+
+  `close-changelog` found no indented `## [Unreleased]`.\
+  A final release that took in its train listed a pre-release's indented or closed `### Added` apart
+  from its own.
+- `notes` follows the section with the link definitions it names, from wherever they stand in
+  `CHANGELOG.md`.\
+  It left them out, so a reference link such as `[the issue][1]` showed on the release page as
+  written.
+- `changelog`, `notes` and `close-changelog` refuse a `CHANGELOG.md` in the tree that is not UTF-8,
+  naming the line of its first byte that does not decode, and so does `version`, which reads the
+  file from this release on.\
+  `changelog` takes such a byte in the part of a copy at a release tag that it reads for a line it
+  does not read, which `--skip-unreadable-releases` names as not compared.\
+  Both ended in a traceback.\
+  The copy at a tag is read as UTF-8 whatever encoding Python takes from the locale: where that was
+  ASCII, as under `LC_ALL=C` with `PYTHONUTF8=0`, reading a copy that holds a character outside
+  ASCII ended in a traceback, and where it was another, such as Latin-2, the copy read as no longer
+  what the tag has.
+- `lib/main.py` reads git's output and its arguments, and prints, in UTF-8 whatever the locale: it
+  restarts itself in Python's UTF-8 mode.\
+  Under an ASCII locale with locale coercion and UTF-8 mode turned off, `ancestry` ended in a
+  traceback on a tag held by a branch named outside ASCII, and under another, such as Latin-2, it
+  named that branch garbled.\
+  An argument that is not UTF-8 is refused as no text under every locale, as it already was under
+  a UTF-8 one.
+- `release-flow/warn` and the payload check of `intellij/publish` restart in Python's UTF-8 mode
+  too.\
+  Under a locale such as Latin-2, `warn` wrote notes outside ASCII back double-encoded, and under an
+  ASCII locale with locale coercion and UTF-8 mode turned off it ended in a traceback; the payload
+  check named an entry outside ASCII garbled or escaped.\
+  Hosted runners have a UTF-8 locale, so only a self-hosted runner under another locale met it.
+- `ancestry` reports a tag off this history with a branch that holds it, not with `origin`, the
+  short name of a clone's `origin/HEAD`.
+
+## [0.2.0] - 2026-09-29
+
+### Added
+
+- `release-flow/warn`, which says at the top of a published release's notes that publishing it
+  somewhere other than GitHub did not complete, linking the run, and takes that back once a run
+  repeated later publishes it.
+
+## [0.1.0] - 2026-09-29
+
+### Added
+
+- `check-release`, the rules a release has to pass, as subcommands over a repository: which version
+  may be released next, whether a released changelog section still reads as it was released, whether
+  every released tag is still reachable, which distribution channel a version goes to, what release
+  tags are called, which version follows a released one, and what a release writes back.
+- `--source`, which says where the version a release is asked to be comes from: `gradle.properties`,
+  or `tags` for a repository that declares no version: it is handed one, or takes the one after its
+  highest release.
+- `--tag-prefix`, which says what release tags carry in front of the version, for a source that
+  declares no prefix of its own.
+- `check-release/action.yml`, a composite action, so a project asks for the rules rather than keeping
+  a copy of them.
+- A note, on stderr, where a tag prefix counts none of the tags a repository carries: every check
+  over the empty list but `version` under `tags` with no version given still passes, and the note
+  says there is no release to compare against.
+- `release-flow/merge-back`, which carries a published release back onto the default branch by
+  fast-forward, and offers a pull request where it cannot.
+- `close-changelog`, which moves what is under `[Unreleased]` into a released section of its own,
+  dated, the way the Gradle changelog plugin does.
+- `release-flow/prepare`, which cuts the release commit onto a branch of its own: `[Unreleased]`
+  closed into a section for the version, the version written back where the source declares one, and
+  nothing pushed.
+- `notes`, which prints one released section without its heading, so the release notes and the
+  changelog cannot come to say different things.
+- `release-flow/draft`, which pushes the release branch and drafts the release from it once the build
+  has succeeded.
+- `intellij`, the first ecosystem: building and signing a JetBrains plugin between prepare and draft,
+  and publishing it to the Marketplace once its draft is published.
+
+[Unreleased]: https://github.com/loplex/release-ci/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/loplex/release-ci/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/loplex/release-ci/commits/v0.1.0
