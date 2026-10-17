@@ -6,7 +6,9 @@ How the code is laid out, and how a change is checked.\
 - [How the code is laid out](#how-the-code-is-laid-out) — the modules, their layers and which uses which, and the GPU renderer they share.
 - [Checking it](#checking-it) — what each Gradle task tests, the documents checked against `core`,
   the Kotlin style, the prose's layout, detekt, the tests' coverage, and what GitHub Actions runs.
-- The caveats: [the emulator's colours](#caveat-the-emulator-fails-the-video-tests-colour-checks), and [Windows without a GPU and under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine).
+- The caveats: [the emulator's colours](#caveat-the-emulator-fails-the-video-tests-colour-checks),
+  [the Android 17 emulator's decoder](#caveat-the-android-17-emulator-image-keeps-its-decoder-from-the-apps-videos),
+  and [Windows without a GPU and under Wine](#caveat-windows-is-tested-without-a-gpu-and-under-wine).
 - [Where the test data comes from](#where-the-test-data-comes-from) — the test videos and the reference values.
 
 ## How the code is laid out
@@ -336,6 +338,18 @@ so a red of 200 comes out as 186, and `VideoFeedTest` and `ConversionTest` fail 
 - **Qualcomm's hardware decoder gives the colours as tagged**, and the tests pass on that phone.
 - **The one test that plays a video through the software decoder on that phone checks only its size**:
   it plays a video of 96 x 64, which the hardware decoder refuses.
+
+## Caveat: the Android 17 emulator image keeps its decoder from the app's videos
+
+On the emulator's Android 17 image, `system-images;android-37.0;google_apis;x86_64` revision 6,
+every test that decodes a video fails at once with "Decoder failed: c2.goldfish.h264.decoder",
+or with a `CodecException` in a conversion.\
+The image's SELinux policy keeps the decoder's service from the app's buffers:
+logcat shows `avc: denied { read write }` for `android.hardware.media.c2-service-goldfish`.
+
+- **Started with `-selinux permissive`, the emulator lets the tests decode**:
+  `emulator -avd <name> -selinux permissive`.
+- **They then fail only [the colour checks above](#caveat-the-emulator-fails-the-video-tests-colour-checks).**
 
 ## Caveat: Windows is tested without a GPU and under Wine
 
