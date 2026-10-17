@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The farewell ends with a full stop too.
+
 ## [0.1.1] - 2026-10-17
 
 ### Fixed
