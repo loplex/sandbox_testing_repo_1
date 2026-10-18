@@ -1,0 +1,15 @@
+name: groff probe
+on: [push, workflow_dispatch]
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: |
+          head -2 /etc/os-release
+          echo "--- groff packages:"; dpkg -l | grep -i groff || echo "no groff package"
+          echo "--- groff binary:"; command -v groff && groff --version | head -1 || echo "no groff binary"
+          echo "--- html device:"; if groff -Thtml </dev/null >/dev/null 2>&1; then echo yes; else echo no; fi
